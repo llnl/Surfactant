@@ -60,7 +60,7 @@ dependencies = [
     "networkx>=2.6",
     "regex; platform_python_implementation == 'CPython'",
     # Pinned to specific version for potential breaking changes
-    "python-msi==0.0.0b0",
+    "python-msi==0.0.0b3",
     # Pinned to specific version for potential breaking changes
     "rpmfile==2.1.0",
 ]
