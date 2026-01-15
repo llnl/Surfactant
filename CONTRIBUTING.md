@@ -45,6 +45,12 @@ pip install -e ".[test,dev]"
 
 `pip install` with the `-e` or `--editable` option can also be used to install Surfactant plugins for development.
 
+## Adding dependencies
+
+A special note for adding dependencies is that we aim to make the core of Surfactant pure Python with no requirements for compiled extensions or tools. This helps to maximize portability to new systems. For tools that rely on platform specific binaries, it may be better to contribute as an optional plugin instead.
+
+The [PyPI Dependency Analyzer](https://surfactant.readthedocs.io/en/latest/pypi_dependency_analyzer.html) can be used to verify a potential new dependency doesn’t introduce problematic indirect dependencies.
+
 ## Code of Conduct
 
 All participants in the Surfactant community are expected to follow our [Code of Conduct](https://www.contributor-covenant.org/version/2/1/code_of_conduct.html).
