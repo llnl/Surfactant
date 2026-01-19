@@ -53,7 +53,7 @@ dependencies = [
     "pluggy==1.*",
     "click==8.*",
     "loguru==0.7.*",
-    "tomlkit==0.13.*",
+    "tomlkit>=0.13,<0.15",
     "textual==7.*",
     "requests>=2.32.3",
     "rarfile==4.2.*",
