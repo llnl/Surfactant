@@ -300,7 +300,7 @@
             statusText.textContent = "Downloading example file...";
 
             try {
-                // Using AL-Khaser x64 from capa-testfiles via jsdelivr
+                // Using memfrob from capa-testfiles via jsdelivr
                 const exampleUrl = "https://cdn.jsdelivr.net/gh/mandiant/capa-testfiles@master/055da8e6ccfe5a9380231ea04b850e18.elf_";
                 const response = await fetch(exampleUrl);
                 if (!response.ok) throw new Error("Failed to fetch example file");
