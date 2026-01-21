@@ -173,6 +173,8 @@ async function init(rulesHash) {
             )
 
             rules = None
+            last_scan_key = None
+            last_scan_result = None
 
             def load_rules():
                 global rules
@@ -188,39 +190,49 @@ async function init(rulesHash) {
                     print(f"Failed to load rules: {e}")
                     return False
 
-            def scan_file(file_path, input_format, input_os, output_format):
-                global rules
+            def scan_file(file_path, input_format, input_os, output_format, file_id):
+                global rules, last_scan_key, last_scan_result
                 if not rules:
                     if not load_rules():
                         return "Error: Rules not loaded. Please ensure rules.zip is present."
 
                 try:
-                    path = Path(file_path)
+                    # Check cache
+                    current_key = (file_id, input_format, input_os)
+                    if last_scan_key == current_key and last_scan_result is not None:
+                        meta, matches = last_scan_result
+                    else:
+                        path = Path(file_path)
 
-                    if input_format == FORMAT_AUTO:
-                        if path.suffix in ('.sc32', '.raw32'):
-                            input_format = FORMAT_SC32
-                        elif path.suffix in ('.sc64', '.raw64'):
-                            input_format = FORMAT_SC64
-                        elif path.suffix in ('.BinExport', '.BinExport2',):
-                            input_format = FORMAT_BINEXPORT2
-                        elif path.suffix in ('.frz',):
-                            input_format = FORMAT_FREEZE
+                        resolved_format = input_format
+                        if resolved_format == FORMAT_AUTO:
+                            if path.suffix in ('.sc32', '.raw32'):
+                                resolved_format = FORMAT_SC32
+                            elif path.suffix in ('.sc64', '.raw64'):
+                                resolved_format = FORMAT_SC64
+                            elif path.suffix in ('.BinExport', '.BinExport2',):
+                                resolved_format = FORMAT_BINEXPORT2
+                            elif path.suffix in ('.frz',):
+                                resolved_format = FORMAT_FREEZE
 
-                    extractor = capa.loader.get_extractor(
-                        path,
-                        input_format,
-                        input_os,
-                        capa.main.BACKEND_VIV,
-                        [],
-                        should_save_workspace=False,
-                        disable_progress=True
-                    )
+                        extractor = capa.loader.get_extractor(
+                            path,
+                            resolved_format,
+                            input_os,
+                            capa.main.BACKEND_VIV,
+                            [],
+                            should_save_workspace=False,
+                            disable_progress=True
+                        )
 
-                    capabilities = capa.capabilities.common.find_capabilities(rules, extractor, disable_progress=True)
+                        capabilities = capa.capabilities.common.find_capabilities(rules, extractor, disable_progress=True)
 
-                    meta = capa.loader.collect_metadata([], path, input_format, input_os, [Path("/rules")], extractor, capabilities)
-                    meta.analysis.layout = capa.loader.compute_layout(rules, extractor, capabilities.matches)
+                        meta = capa.loader.collect_metadata([], path, resolved_format, input_os, [Path("/rules")], extractor, capabilities)
+                        meta.analysis.layout = capa.loader.compute_layout(rules, extractor, capabilities.matches)
+
+                        last_scan_key = current_key
+                        last_scan_result = (meta, capabilities.matches)
+                        meta, matches = last_scan_result
 
                     import io
                     import contextlib
@@ -228,13 +240,13 @@ async function init(rulesHash) {
                     with io.StringIO() as buf, contextlib.redirect_stdout(buf):
                         ret = None
                         if output_format == "json":
-                            ret = capa.render.json.render(meta, rules, capabilities.matches)
+                            ret = capa.render.json.render(meta, rules, matches)
                         elif output_format == "verbose":
-                            ret = capa.render.verbose.render(meta, rules, capabilities.matches)
+                            ret = capa.render.verbose.render(meta, rules, matches)
                         elif output_format == "vverbose":
-                            ret = capa.render.vverbose.render(meta, rules, capabilities.matches)
+                            ret = capa.render.vverbose.render(meta, rules, matches)
                         else:
-                            ret = capa.render.default.render(meta, rules, capabilities.matches)
+                            ret = capa.render.default.render(meta, rules, matches)
                         output = buf.getvalue()
 
                     if ret:
@@ -243,6 +255,8 @@ async function init(rulesHash) {
 
                 except Exception as e:
                     import traceback
+                    last_scan_key = None
+                    last_scan_result = None
                     return f"Error during scan: {e}\\n{traceback.format_exc()}"
 
             load_rules()
@@ -261,7 +275,7 @@ async function init(rulesHash) {
     }
 }
 
-async function runScan(fileData, fileName, inputFormat, inputOS, outputFormat) {
+async function runScan(fileData, fileName, inputFormat, inputOS, outputFormat, fileId) {
     if (!pyodide || !rulesReady) {
         sendError("System not ready");
         return;
@@ -271,9 +285,18 @@ async function runScan(fileData, fileName, inputFormat, inputOS, outputFormat) {
         // Use only the basename to avoid directory issues in /tmp
         const safeFileName = fileName.split('/').pop();
         const filePath = "/tmp/" + safeFileName;
+
+        // Always write file (pyodide FS is fast in-memory)
         pyodide.FS.writeFile(filePath, new Uint8Array(fileData));
 
-        const output = await pyodide.runPythonAsync(`scan_file("${filePath}", input_format="${inputFormat}", input_os="${inputOS}", output_format="${outputFormat}")`);
+        // Use globals to safe-pass arguments
+        pyodide.globals.set("scan_target", filePath);
+        pyodide.globals.set("scan_fmt", inputFormat);
+        pyodide.globals.set("scan_os", inputOS);
+        pyodide.globals.set("scan_out", outputFormat);
+        pyodide.globals.set("scan_fid", fileId);
+
+        const output = await pyodide.runPythonAsync(`scan_file(scan_target, input_format=scan_fmt, input_os=scan_os, output_format=scan_out, file_id=scan_fid)`);
 
         sendResult(output);
 
@@ -290,6 +313,6 @@ onmessage = function(e) {
     if (data.type === 'init') {
         init(data.rulesHash);
     } else if (data.type === 'scan') {
-        runScan(data.fileData, data.fileName, data.inputFormat, data.inputOS, data.outputFormat);
+        runScan(data.fileData, data.fileName, data.inputFormat, data.inputOS, data.outputFormat, data.fileId);
     }
 };

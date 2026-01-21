@@ -173,6 +173,7 @@
         let capa_ready = false;
         let currentFileData = null;
         let currentFileName = null;
+        let currentFileId = null;
 
         async function log(msg, progress = null) {
             console.log(msg);
@@ -359,6 +360,7 @@
 
                 currentFileData = fileData;
                 currentFileName = fileName;
+                currentFileId = Date.now().toString();
 
                 // Run scan
                 await runScan(true);
@@ -396,7 +398,8 @@
                 fileName: currentFileName,
                 inputFormat: inputFormat,
                 inputOS: inputOS,
-                outputFormat: outputFormat
+                outputFormat: outputFormat,
+                fileId: currentFileId || "unknown"
             });
         }
 
