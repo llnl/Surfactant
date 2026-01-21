@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>capa: identify program capabilities</title>
     <!-- Pyodide is loaded in the worker now -->
+    <script src="https://cdn.jsdelivr.net/npm/@zip.js/zip.js@2.7.53/dist/zip.min.js"></script>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
         body { padding-top: 2rem; background-color: #f8f9fa; }
@@ -139,6 +140,27 @@
             <div id="results"></div>
         </div>
 
+        <!-- Bootstrap JS Bundle -->
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+        <!-- File Selection Modal -->
+        <div class="modal fade" id="fileSelectionModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+          <div class="modal-dialog">
+            <div class="modal-content">
+              <div class="modal-header">
+                <h5 class="modal-title">Select file to scan</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+              </div>
+              <div class="modal-body">
+                <p>The archive contains multiple files. Please select one to analyze:</p>
+                <div class="list-group" id="file-list">
+                  <!-- Items go here -->
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <footer class="text-center mt-5 text-muted">
             <small>capa version: <span id="capa-version">loading...</span></small>
             <br>
@@ -244,8 +266,99 @@
             try {
                 // Read file
                 const buffer = await file.arrayBuffer();
-                currentFileData = buffer;
-                currentFileName = file.name;
+                let fileData = buffer;
+                let fileName = file.name;
+
+                // Check for Zip magic bytes (PK..)
+                let isZip = false;
+                if (buffer.byteLength >= 4) {
+                     const magic = new DataView(buffer).getUint32(0, false); // Big endian
+                     // 0x504B0304 = "PK\x03\x04"
+                     if (magic === 0x504B0304) {
+                         isZip = true;
+                     }
+                }
+
+                if (isZip || file.name.toLowerCase().endsWith('.zip')) {
+                    statusText.textContent = "Processing zip archive...";
+                    try {
+                        const blob = new Blob([buffer]);
+                        // zip.js global object
+                        const reader = new zip.ZipReader(new zip.BlobReader(blob));
+                        const entries = await reader.getEntries();
+
+                        // Filter interesting files (no directories, no MacOS metadata)
+                        const candidates = entries.filter(e =>
+                            !e.directory &&
+                            !e.filename.startsWith('__MACOSX') &&
+                            !e.filename.split('/').pop().startsWith('._')
+                        );
+
+                        if (candidates.length > 0) {
+                            let entry = candidates[0];
+                            if (candidates.length > 1) {
+                                entry = await new Promise((resolve) => {
+                                    const modalEl = document.getElementById('fileSelectionModal');
+                                    const listEl = document.getElementById('file-list');
+                                    const bsModal = new bootstrap.Modal(modalEl);
+                                    let selected = null;
+
+                                    listEl.innerHTML = '';
+                                    candidates.forEach((c) => {
+                                        const btn = document.createElement('button');
+                                        btn.className = 'list-group-item list-group-item-action text-truncate';
+                                        btn.textContent = c.filename;
+                                        btn.title = c.filename; // Tooltip
+                                        btn.onclick = () => {
+                                            selected = c;
+                                            bsModal.hide();
+                                        };
+                                        listEl.appendChild(btn);
+                                    });
+
+                                    modalEl.addEventListener('hidden.bs.modal', () => {
+                                        resolve(selected);
+                                    }, { once: true });
+
+                                    bsModal.show();
+                                });
+
+                                if (!entry) throw new Error("Cancelled by user");
+                            }
+
+                            let password = undefined;
+                            if (entry.encrypted) {
+                                password = prompt(`Enter password for ${entry.filename}:`, "infected");
+                                if (password === null) throw new Error("Cancelled by user");
+                            }
+
+                            statusText.textContent = `Extracting ${entry.filename}...`;
+                            // Extract to Uint8Array
+                            fileData = await entry.getData(new zip.Uint8ArrayWriter(), { password: password });
+                            fileName = entry.filename;
+                        } else {
+                            await reader.close();
+                            alert("No suitable files found in zip archive.");
+                            loading.style.display = 'none';
+                            return;
+                        }
+
+                        await reader.close();
+
+                    } catch (zipErr) {
+                        if (zipErr.message === "Cancelled by user") {
+                            loading.style.display = 'none';
+                            return;
+                        }
+                        console.warn("Zip extraction failed:", zipErr);
+                        alert(`Failed to extract from zip: ${zipErr.message}`);
+                        loading.style.display = 'none';
+                        return;
+                    }
+                }
+
+                currentFileData = fileData;
+                currentFileName = fileName;
 
                 // Run scan
                 await runScan(true);

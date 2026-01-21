@@ -268,7 +268,9 @@ async function runScan(fileData, fileName, inputFormat, inputOS, outputFormat) {
     }
 
     try {
-        const filePath = "/tmp/" + fileName;
+        // Use only the basename to avoid directory issues in /tmp
+        const safeFileName = fileName.split('/').pop();
+        const filePath = "/tmp/" + safeFileName;
         pyodide.FS.writeFile(filePath, new Uint8Array(fileData));
 
         const output = await pyodide.runPythonAsync(`scan_file("${filePath}", input_format="${inputFormat}", input_os="${inputOS}", output_format="${outputFormat}")`);
@@ -276,7 +278,7 @@ async function runScan(fileData, fileName, inputFormat, inputOS, outputFormat) {
         sendResult(output);
 
         // Cleanup? Optional, but good for memory.
-        // try { pyodide.FS.unlink(filePath); } catch(e) {}
+        try { pyodide.FS.unlink(filePath); } catch(e) {}
 
     } catch (err) {
         sendError("Scan error: " + err.message);
