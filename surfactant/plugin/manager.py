@@ -31,7 +31,10 @@ def _register_plugins(pm: pluggy.PluginManager) -> None:
         rpm_file,
         uimage_file,
     )
-    from surfactant.input_readers import cytrics_reader
+    from surfactant.input_readers import (
+        cyclonedx_reader,
+        cytrics_reader,
+    )
     from surfactant.output import (
         csv_writer,
         cyclonedx_writer,
@@ -72,6 +75,7 @@ def _register_plugins(pm: pluggy.PluginManager) -> None:
         spdx_writer,
         cytrics_reader,
         native_lib_file,
+        cyclonedx_reader,
         file_decompression,
     )
     for plugin in internal_plugins:
