@@ -26,7 +26,9 @@ from surfactant.sbomtypes import SBOM, Software
 
 MAX_FILE_SIZE = int(ConfigManager().get("srec_hex", "max_file_size", 1000000))
 STRIP_LEADING_ZEROS = bool(ConfigManager().get("srec_hex", "strip_leading_zeros", False))
-EXTRACT_DIR = pathlib.Path(ConfigManager().get("srec_hex", "output_path", tempfile.gettempdir())).absolute()
+EXTRACT_DIR = pathlib.Path(
+    ConfigManager().get("srec_hex", "output_path", tempfile.gettempdir())
+).absolute()
 EXTRACT_DIR.mkdir(parents=True, exist_ok=True)
 
 
