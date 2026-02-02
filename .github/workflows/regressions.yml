@@ -3,6 +3,13 @@ name: Test Regressions
 on:
   pull_request:
     types: [opened, reopened, synchronize]
+    paths-ignore:
+      - 'docs/**'
+      - '.gitignore'
+      - 'README.md'
+      - 'SECURITY.md'
+      - 'CONTRIBUTING.md'
+
   push:
     branches: [ '*' ]
     tags: [ v* ]

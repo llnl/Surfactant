@@ -53,7 +53,7 @@ dependencies = [
     "pluggy==1.*",
     "click==8.*",
     "loguru==0.7.*",
-    "tomlkit==0.13.*",
+    "tomlkit>=0.13,<0.15",
     "textual==7.*",
     "requests>=2.32.3",
     "rarfile==4.2.*",
@@ -72,7 +72,7 @@ dev = ["build", "pre-commit"]
 docs = ["sphinx", "myst-parser", "furo>=2025.9.25", "sphinx-copybutton>=0.5.2"]
 
 [project.optional-dependencies]
-macho = ["lief==0.17.2"]
+macho = ["lief==0.17.3"]
 java = ["javatools>=1.6,==1.*"]
 test = ["pytest", "pytest-asyncio"]
 dev = ["build", "pre-commit"]

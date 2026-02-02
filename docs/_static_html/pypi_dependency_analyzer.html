@@ -1,0 +1,1835 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PyPI Dependency Analyzer</title>
+
+    <!-- SEO & Social Metadata -->
+    <meta name="description" content="Analyze Python package dependencies, check for binary compatibility (abi3, sdist), and detect subprocess usage in wheels.">
+    <meta property="og:title" content="PyPI Dependency Analyzer">
+    <meta property="og:description" content="Interactive tool to visualize and analyze Python package dependency trees, binary wheel availability, and subprocess usage in wheels.">
+    <meta property="og:type" content="website">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="PyPI Dependency Analyzer">
+    <meta name="twitter:description" content="Analyze Python package dependencies, check for binary compatibility, and detect subprocess usage in wheels.">
+
+    <script src="https://unpkg.com/vis-network@9.1.2/dist/vis-network.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <style>
+        :root {
+            /* Branding */
+            --brand-navy: #0A1E42;
+            --brand-blue: #0050cf;
+            --brand-gradient: linear-gradient(345deg, #0056D2 0%, #051b3b 80%);
+
+            /* Node Colors */
+            --node-default: #64748b; /* Slate 500 (Gray) */
+            --node-binary: #eba326;
+            --node-no-abi3: #ef6c44;
+            --node-no-sdist: #c61717;
+            --node-subprocess: #9333ea;
+
+            /* UI Colors */
+            --ui-primary: #0050cf; /* Brand Blue */
+            --ui-text: #0f172a;
+            --ui-text-dim: #64748b;
+            --ui-bg: #f5f5f5;
+            --ui-card-bg: #ffffff;
+            --ui-graph-bg: #fafafa;
+            --ui-border: #e2e8f0;
+
+            /* Graph Text Colors */
+            --node-text-active: #333333;
+            --node-text-dim: #e0e0e0;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --node-default: #94a3b8; /* Slate 400 */
+
+                --ui-bg: #0f172a; /* Slate 900 */
+                --ui-card-bg: #1e293b; /* Slate 800 */
+                --ui-graph-bg: #020617; /* Slate 950 */
+                --ui-text: #f8fafc; /* Slate 50 */
+                --ui-text-dim: #94a3b8;
+                --ui-border: #334155;
+
+                --node-text-active: #f8fafc;
+                --node-text-dim: #475569;
+            }
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: var(--ui-bg);
+            color: var(--ui-text);
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            background: var(--ui-card-bg);
+            border-radius: 8px;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: var(--brand-gradient);
+            color: white;
+            padding: 30px;
+            position: relative;
+        }
+
+        .github-link {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            color: rgba(255,255,255,0.8);
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            padding: 8px 12px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 20px;
+            transition: all 0.2s;
+            backdrop-filter: blur(4px);
+        }
+
+        .github-link:hover {
+            color: white;
+            background: rgba(255,255,255,0.2);
+            transform: translateY(-1px);
+        }
+
+        h1 {
+            font-size: 32px;
+            margin-bottom: 10px;
+        }
+
+        .search-container {
+            position: relative;
+            margin-top: 20px;
+            display: flex;
+            gap: 10px;
+        }
+
+        #packageInput {
+            flex: 1;
+            padding: 15px;
+            font-size: 16px;
+            border: none;
+            border-radius: 4px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        #analyzeBtn {
+            padding: 15px 30px;
+            font-size: 16px;
+            font-weight: 600;
+            background: white;
+            color: var(--ui-primary);
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            transition: all 0.2s;
+        }
+
+        #analyzeBtn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+
+        #analyzeBtn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .controls {
+            padding: 20px 30px;
+            background: var(--ui-card-bg);
+            border-bottom: 1px solid var(--ui-border);
+            color: var(--ui-text);
+        }
+
+        .controls-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .view-toggle {
+            display: flex;
+            gap: 10px;
+        }
+
+        .view-btn {
+            padding: 8px 20px;
+            background: var(--ui-card-bg);
+            border: 2px solid var(--ui-primary);
+            color: var(--ui-primary);
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+
+        .view-btn.active {
+            background: var(--ui-primary);
+            color: #ffffff;
+            border-color: var(--ui-primary);
+        }
+
+        .graph-controls {
+            display: flex;
+            gap: 10px;
+        }
+
+        .graph-btn {
+            padding: 8px 16px;
+            background: var(--ui-card-bg);
+            border: 1px solid var(--ui-border);
+            color: var(--ui-text);
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+
+        .graph-btn:hover {
+            background: var(--ui-bg);
+        }
+
+        .filter-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .filter-label {
+            font-weight: 600;
+            color: var(--ui-text-dim);
+            margin-right: 5px;
+            font-size: 14px;
+        }
+
+        .filter-chip {
+            display: inline-flex;
+            align-items: center;
+            padding: 6px 14px;
+            background: var(--ui-card-bg);
+            border: 1px solid var(--ui-border);
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 13px;
+            color: var(--ui-text-dim);
+            font-weight: 500;
+            transition: all 0.2s;
+            user-select: none;
+        }
+
+        .filter-chip:hover {
+            background: var(--ui-bg);
+            border-color: #9ca3af;
+        }
+
+        .filter-chip input {
+            display: none;
+        }
+
+        .filter-chip:has(input:checked) {
+            background: rgba(0, 80, 207, 0.15); /* Tinted background for active state */
+            border-color: var(--ui-primary);
+            color: var(--ui-primary);
+            font-weight: 600;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+        }
+
+        .content {
+            padding: 20px;
+            min-height: 600px;
+        }
+
+        .view-panel {
+            display: none;
+        }
+
+        .view-panel.active {
+            display: block;
+        }
+
+        .graph-wrapper {
+            position: relative;
+        }
+
+        #graphContainer {
+            width: 100%;
+            height: 800px;
+            border: 1px solid var(--ui-border);
+            border-radius: 4px;
+            background: var(--ui-graph-bg);
+        }
+
+        .graph-legend {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: var(--ui-card-bg);
+            padding: 15px;
+            border-radius: 4px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            font-size: 12px;
+            z-index: 10;
+            color: var(--ui-text);
+        }
+
+        .graph-info {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            background: var(--ui-card-bg);
+            padding: 10px 15px;
+            border-radius: 4px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            font-size: 12px;
+            z-index: 10;
+            max-width: 500px;
+            color: var(--ui-text);
+        }
+
+        .graph-info-title {
+            font-weight: 600;
+            margin-bottom: 5px;
+            color: var(--ui-primary);
+        }
+
+        .graph-info.locked {
+            border: 2px solid var(--ui-primary);
+        }
+
+        .version-constraints {
+            margin-top: 8px;
+            padding: 8px;
+            background: var(--ui-bg);
+            border-radius: 3px;
+            font-size: 11px;
+        }
+
+        .constraint-item {
+            margin-bottom: 4px;
+            color: var(--ui-text-dim);
+        }
+
+        .constraint-from {
+            font-weight: 600;
+            color: var(--ui-text);
+        }
+
+        .dep-item {
+            padding: 10px;
+            margin-bottom: 8px;
+            border-radius: 4px;
+            background: var(--ui-bg);
+            border-left: 4px solid var(--node-default);
+            color: var(--ui-text);
+        }
+
+        .dep-item.binary-only {
+            border-left-color: var(--node-binary);
+        }
+
+        .dep-item.no-abi3 {
+            border-left-color: var(--node-no-abi3);
+        }
+
+        .dep-item.no-sdist {
+            border-left-color: var(--node-no-sdist);
+        }
+
+        .dep-item.match-subprocess {
+            border-left-color: var(--node-subprocess);
+        }
+
+        .dep-name {
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .dep-version {
+            font-size: 12px;
+            color: var(--ui-text-dim);
+        }
+
+        .dep-subprocess {
+            margin-top: 8px;
+            background: rgba(147, 51, 234, 0.05); /* very light purple */
+            border: 1px solid rgba(147, 51, 234, 0.2);
+            border-radius: 4px;
+            padding: 8px;
+            font-size: 11px;
+        }
+
+        .subprocess-title {
+            color: #9333ea;
+            font-weight: 600;
+            margin-bottom: 4px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .subprocess-item {
+            font-family: monospace;
+            background: var(--ui-card-bg);
+            padding: 4px;
+            margin-bottom: 2px;
+            border-radius: 2px;
+            border: 1px solid var(--ui-border);
+            color: var(--ui-text-dim);
+            word-break: break-all;
+        }
+
+        .dep-constraints {
+            margin-top: 6px;
+            font-size: 11px;
+            color: var(--ui-text-dim);
+            background: rgba(0,0,0,0.05);
+            padding: 6px 8px;
+            border-radius: 3px;
+        }
+
+        .dep-constraints-title {
+            font-weight: 600;
+            color: var(--ui-text);
+            margin-bottom: 3px;
+        }
+
+        .dep-badges {
+            margin-top: 6px;
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 3px;
+            font-size: 11px;
+            font-weight: 500;
+        }
+
+        .badge-warning {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .badge-danger {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .badge-orange {
+            background: #ffedd5;
+            color: #c2410c;
+        }
+
+        .badge-info {
+            background: #e0f2fe;
+            color: #0369a1;
+        }
+
+        .badge-purple {
+            background: #fae8ff;
+            color: #7e22ce;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: var(--ui-text-dim);
+        }
+
+        .error {
+            padding: 20px;
+            background: #fee2e2;
+            color: #991b1b;
+            border-radius: 4px;
+            margin: 20px;
+        }
+
+        .legend {
+            margin-top: 15px;
+            padding: 15px;
+            background: var(--ui-bg);
+            border-radius: 4px;
+            font-size: 12px;
+            color: var(--ui-text);
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 6px;
+        }
+
+        .legend-color {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+        }
+
+        .stats {
+            margin-bottom: 15px;
+            padding: 15px;
+            background: rgba(14, 165, 233, 0.08); /* sky blue trace */
+            border-radius: 4px;
+            color: var(--ui-text);
+        }
+
+        .stats-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+
+        .stats-value {
+            font-weight: 600;
+        }
+
+        .progress {
+            margin-top: 10px;
+            font-size: 12px;
+            color: var(--ui-text-dim);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <a href="https://github.com/llnl/surfactant" target="_blank" rel="noopener" class="github-link">
+                <svg height="20" width="20" viewBox="0 0 16 16" fill="currentColor">
+                    <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"></path>
+                </svg>
+                GitHub
+            </a>
+            <h1>PyPI Dependency Analyzer</h1>
+            <p>Analyze package dependencies, wheel compatibility, and subprocess usage</p>
+            <div class="search-container">
+                <input type="text" id="packageInput" placeholder="Enter package name (e.g. unblob, surfactant, matplotlib, flare-capa)" autocomplete="off">
+                <button id="analyzeBtn">Analyze</button>
+            </div>
+            <div style="margin-top: 10px; display: flex; gap: 10px; align-items: center;">
+                <label style="font-size: 14px; color: rgba(255,255,255,0.9); display: flex; align-items: center; gap: 5px; cursor: pointer;">
+                    <input type="checkbox" id="deepScanCheckbox">
+                    Deep Scan (Scan code for subprocess calls - May be slow!)
+                </label>
+            </div>
+            <div style="margin-top: 10px; display: flex; gap: 10px; align-items: center;"></div>
+                <div style="background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.9); font-size: 13px; padding: 10px 12px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.06); max-width: 720px; line-height: 1.4; word-break: break-word;">
+                    <div><strong>Note:</strong> No version constraints are resolved, only the latest published version of each package is analyzed.</div>
+                    <div style="margin-top: 6px; font-size: 12px;">Deep scan favors pure Python wheels; otherwise it uses the first binary wheel it finds.</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="controls">
+            <div class="controls-row">
+                <div class="view-toggle">
+                    <button class="view-btn active" data-view="list">List View</button>
+                    <button class="view-btn" data-view="graph">Graph View</button>
+                </div>
+                <div class="graph-controls" id="graphControls" style="display: none;">
+                    <button class="graph-btn" id="zoomFitBtn">Zoom to Fit</button>
+                    <button class="graph-btn" id="resetZoomBtn">Reset Zoom</button>
+                    <button class="graph-btn" id="clearHighlightBtn">Clear Highlight</button>
+                </div>
+            </div>
+            <div class="filter-group">
+                <span class="filter-label">Show only:</span>
+                <label class="filter-chip">
+                    <input type="checkbox" id="filterBinaryOnly">
+                    <span>Binary-Only</span>
+                </label>
+                <label class="filter-chip">
+                    <input type="checkbox" id="filterNoAbi3">
+                    <span>No abi3</span>
+                </label>
+                <label class="filter-chip">
+                    <input type="checkbox" id="filterNoSdist">
+                    <span>No sdist</span>
+                </label>
+                <label class="filter-chip">
+                    <input type="checkbox" id="filterSubprocess">
+                    <span>Spawns subprocess</span>
+                </label>
+            </div>
+        </div>
+
+        <div class="content">
+            <div class="view-panel active" id="listView">
+                <div id="listContainer">
+                    <div class="loading">Enter a package name and click Analyze</div>
+                </div>
+            </div>
+
+            <div class="view-panel" id="graphView">
+                <div class="graph-wrapper">
+                    <div id="graphContainer"></div>
+                    <div class="graph-legend">
+                        <div class="legend-item">
+                            <div class="legend-color" style="background:var(--node-default)"></div>
+                            <span>Pure Python or mixed</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color" style="background:var(--node-binary)"></div>
+                            <span>Binary-only</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color" style="background:var(--node-no-abi3)"></div>
+                            <span>Binary-only, no abi3</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color" style="background:var(--node-no-sdist)"></div>
+                            <span>Binary-only, no sdist</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color" style="background:var(--node-subprocess)"></div>
+                            <span>Spawns Subprocess</span>
+                        </div>
+                        <hr style="margin: 10px 0; border: none; border-top: 1px solid var(--ui-border);">
+                        <div style="font-size: 11px; color: var(--ui-text-dim); margin-top: 8px;">
+                            <strong>Hover</strong> to preview paths<br>
+                            <strong>Click</strong> to lock highlight
+
+                        </div>
+                    </div>
+                    <div class="graph-info" id="graphInfo" style="display: none;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let network = null;
+        let allPackages = {};
+        let packageCache = {};
+        let currentView = 'list';
+        let rootPackageName = null;
+        let highlightActive = false;
+        let lockedHighlight = false;
+        let reverseDepsCache = null;
+
+        const packageInput = document.getElementById('packageInput');
+        const deepScanCheckbox = document.getElementById('deepScanCheckbox');
+        const analyzeBtn = document.getElementById('analyzeBtn');
+        const listContainer = document.getElementById('listContainer');
+        const graphContainer = document.getElementById('graphContainer');
+        const listView = document.getElementById('listView');
+        const graphView = document.getElementById('graphView');
+        const graphControls = document.getElementById('graphControls');
+        const zoomFitBtn = document.getElementById('zoomFitBtn');
+        const resetZoomBtn = document.getElementById('resetZoomBtn');
+        const clearHighlightBtn = document.getElementById('clearHighlightBtn');
+        const graphInfo = document.getElementById('graphInfo');
+
+        // Filters
+        const filterBinaryOnly = document.getElementById('filterBinaryOnly');
+        const filterNoAbi3 = document.getElementById('filterNoAbi3');
+        const filterNoSdist = document.getElementById('filterNoSdist');
+        const filterSubprocess = document.getElementById('filterSubprocess');
+
+        // View toggle
+        document.querySelectorAll('.view-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const view = btn.dataset.view;
+                currentView = view;
+
+                // Update button states
+                document.querySelectorAll('.view-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+
+                // Update view panels
+                listView.classList.remove('active');
+                graphView.classList.remove('active');
+
+                if (view === 'list') {
+                    listView.classList.add('active');
+                    graphControls.style.display = 'none';
+                } else {
+                    graphView.classList.add('active');
+                    graphControls.style.display = 'flex';
+                    // Redraw graph when switching to graph view
+                    if (Object.keys(allPackages).length > 0) {
+                        updateGraph();
+                    }
+                }
+            });
+        });
+
+        zoomFitBtn.addEventListener('click', () => {
+            if (network) {
+                network.fit({
+                    animation: {
+                        duration: 500,
+                        easingFunction: 'easeInOutQuad'
+                    }
+                });
+            }
+        });
+
+        resetZoomBtn.addEventListener('click', () => {
+            if (network) {
+                network.moveTo({
+                    scale: 1.0,
+                    animation: {
+                        duration: 500,
+                        easingFunction: 'easeInOutQuad'
+                    }
+                });
+            }
+        });
+
+        clearHighlightBtn.addEventListener('click', () => {
+            lockedHighlight = false;
+            clearHighlight();
+        });
+
+        packageInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                analyzeDependencies(packageInput.value.trim());
+            }
+        });
+
+        analyzeBtn.addEventListener('click', () => {
+            analyzeDependencies(packageInput.value.trim());
+        });
+
+        [filterBinaryOnly, filterNoAbi3, filterNoSdist, filterSubprocess].forEach(filter => {
+            filter.addEventListener('change', updateDisplay);
+        });
+
+        async function fetchPackageJSON(packageName, version = null) {
+            const cacheKey = version ? `${packageName}@${version}` : packageName;
+            if (packageCache[cacheKey]) {
+                return packageCache[cacheKey];
+            }
+
+            try {
+                const url = version
+                    ? `https://pypi.org/pypi/${packageName}/${version}/json`
+                    : `https://pypi.org/pypi/${packageName}/json`;
+                const response = await fetch(url);
+                if (!response.ok) {
+                    return null;
+                }
+                const data = await response.json();
+                packageCache[cacheKey] = data;
+                return data;
+            } catch (error) {
+                console.error(`Error fetching ${packageName}:`, error);
+                return null;
+            }
+        }
+
+        async function fetchWheelMetadata(url) {
+            try {
+                // Try to fetch .whl.metadata file
+                const metadataUrl = url + '.metadata';
+                const response = await fetch(metadataUrl);
+                if (!response.ok) {
+                    return null;
+                }
+                const text = await response.text();
+                return parseMetadata(text);
+            } catch (error) {
+                console.error('Error fetching wheel metadata:', error);
+                return null;
+            }
+        }
+
+        function parseMetadata(metadataText) {
+            const lines = metadataText.split('\n');
+            const metadata = {
+                requires_dist: []
+            };
+
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i];
+                if (line.startsWith('Requires-Dist: ')) {
+                    metadata.requires_dist.push(line.substring('Requires-Dist: '.length).trim());
+                }
+            }
+
+            return metadata;
+        }
+
+        function analyzeWheels(releases) {
+            if (!releases || releases.length === 0) {
+                return {
+                    hasPureWheel: false,
+                    hasBinaryWheel: false,
+                    hasAbi3: false,
+                    hasSdist: false,
+                    wheelFiles: []
+                };
+            }
+
+            let hasPureWheel = false;
+            let hasBinaryWheel = false;
+            let hasAbi3 = false;
+            let hasSdist = false;
+            const wheelFiles = [];
+
+            for (const file of releases) {
+                const filename = file.filename;
+
+                if (filename.endsWith('.tar.gz') || filename.endsWith('.zip')) {
+                    hasSdist = true;
+                } else if (filename.endsWith('.whl')) {
+                    wheelFiles.push(file.url);
+
+                    // Wheel format: {distribution}-{version}(-{build tag})?-{python tag}-{abi tag}-{platform tag}.whl
+                    const parts = filename.split('-');
+                    if (parts.length >= 5) {
+                        const pythonTag = parts[parts.length - 3];
+                        const abiTag = parts[parts.length - 2];
+                        const platformTag = parts[parts.length - 1].replace('.whl', '');
+
+                        // Check if it's a pure Python wheel
+                        if ((pythonTag.startsWith('py') && !pythonTag.match(/^cp\d+/)) &&
+                            abiTag === 'none' &&
+                            platformTag === 'any') {
+                            hasPureWheel = true;
+                        } else {
+                            hasBinaryWheel = true;
+                            if (abiTag === 'abi3') {
+                                hasAbi3 = true;
+                            }
+                        }
+                    }
+                }
+            }
+
+            return {
+                hasPureWheel,
+                hasBinaryWheel,
+                hasAbi3,
+                hasSdist,
+                isBinaryOnly: hasBinaryWheel && !hasPureWheel,
+                wheelFiles
+            };
+        }
+
+        function parseDependencyString(depString) {
+            // Parse "package (>=1.0.0) ; python_version < '3.11'" format
+            // Returns {name, versionSpec, condition}
+            const parts = depString.split(';');
+            const packagePart = parts[0].trim();
+            const condition = parts.length > 1 ? parts[1].trim() : null;
+
+            // Skip extras
+            if (condition && condition.includes('extra ==')) {
+                return null;
+            }
+
+            const match = packagePart.match(/^([a-zA-Z0-9_\-\.]+)(.*?)$/);
+            if (!match) return null;
+
+            const name = match[1].toLowerCase().replace(/_/g, '-');
+            let versionSpec = match[2].trim();
+
+            // Remove parentheses and extra spaces
+            versionSpec = versionSpec.replace(/^\(|\)$/g, '').trim();
+
+            return {
+                name,
+                versionSpec: versionSpec || null,
+                condition: condition || null
+            };
+        }
+
+        function parseDependencies(requires_dist) {
+            if (!requires_dist || !Array.isArray(requires_dist)) return [];
+
+            const deps = [];
+            for (const req of requires_dist) {
+                const parsed = parseDependencyString(req);
+                if (parsed) {
+                    deps.push(parsed);
+                }
+            }
+            return deps;
+        }
+
+        async function analyzeDependencies(packageName) {
+            if (!packageName) return;
+
+            analyzeBtn.disabled = true;
+            listContainer.innerHTML = '<div class="loading">Analyzing dependencies...<div class="progress" id="progress"></div></div>';
+            if (network) {
+                network.destroy();
+                network = null;
+            }
+            graphContainer.innerHTML = '';
+            allPackages = {};
+            rootPackageName = packageName.toLowerCase().replace(/_/g, '-');
+            reverseDepsCache = null;
+
+            const progressDiv = document.getElementById('progress');
+            const updateProgress = (msg) => {
+                if (progressDiv) progressDiv.textContent = msg;
+            };
+
+            updateProgress('Fetching package information...');
+            const rootPackage = await fetchPackageJSON(packageName);
+            if (!rootPackage) {
+                listContainer.innerHTML = '<div class="error">Package not found. Please check the package name.</div>';
+                analyzeBtn.disabled = false;
+                return;
+            }
+
+            // Build dependency tree - no depth limit!
+            const visited = new Set();
+            const queue = [{ name: rootPackageName, data: rootPackage, depth: 0, parentName: null }];
+            let processed = 0;
+
+            while (queue.length > 0) {
+                const { name, data, depth, parentName } = queue.shift();
+
+                if (visited.has(name)) {
+                    continue;
+                }
+                visited.add(name);
+                processed++;
+
+                updateProgress(`Processed ${processed} packages... (${queue.length} in queue)`);
+
+                const version = data.info.version;
+                const releases = data.releases[version] || [];
+                const wheelInfo = analyzeWheels(releases);
+
+                // Try to get dependencies from wheel metadata first (more efficient)
+                let dependencies = [];
+                let subprocessCalls = [];
+
+                if (wheelInfo.wheelFiles.length > 0) {
+                    // Try the first wheel file for metadata
+                    const wheelUrl = wheelInfo.wheelFiles[0];
+                    const metadata = await fetchWheelMetadata(wheelUrl);
+                    if (metadata && metadata.requires_dist) {
+                        dependencies = parseDependencies(metadata.requires_dist);
+                    }
+
+                    // Perform deep scan if enabled and available
+                    if (deepScanCheckbox.checked) {
+                        // Prefer scanning pure python wheel if available, else first one
+                        // Pure python wheels are more likely to contain readable source code than binary extensions
+                        const scanUrl = wheelInfo.hasPureWheel
+                            ? wheelInfo.wheelFiles.find(u => u.includes('none-any.whl')) || wheelUrl
+                            : wheelUrl;
+
+                        updateProgress(`Scanning ${name} for subprocess calls...`);
+                        subprocessCalls = await scanWheelContent(scanUrl);
+                    }
+                }
+
+                // Fall back to JSON API requires_dist
+                if (dependencies.length === 0 && data.info.requires_dist) {
+                    dependencies = parseDependencies(data.info.requires_dist);
+                }
+
+                // Store the package with ALL its information
+                allPackages[name] = {
+                    name,
+                    version,
+                    dependencies: dependencies.map(d => d.name),
+                    dependencySpecs: {},
+                    dependencyConditions: {},
+                    subprocessCalls: subprocessCalls,
+                    hasSubprocess: subprocessCalls.length > 0,
+                    ...wheelInfo,
+                    depth
+                };
+
+                // Store dependency version specs and conditions
+                dependencies.forEach(dep => {
+                    allPackages[name].dependencySpecs[dep.name] = dep.versionSpec;
+                    allPackages[name].dependencyConditions[dep.name] = dep.condition;
+                });
+
+                // Fetch all dependencies
+                for (const dep of dependencies) {
+                    if (!visited.has(dep.name)) {
+                        const depData = await fetchPackageJSON(dep.name);
+                        if (depData) {
+                            queue.push({ name: dep.name, data: depData, depth: depth + 1, parentName: name });
+                        }
+                    }
+                }
+            }
+
+            // NOW, after all packages are loaded, compute the constrainedBy info
+            for (const pkgName in allPackages) {
+                allPackages[pkgName].constrainedBy = {};
+            }
+
+            for (const pkgName in allPackages) {
+                const pkg = allPackages[pkgName];
+                for (const depName of pkg.dependencies) {
+                    if (allPackages[depName]) {
+                        const constraint = pkg.dependencySpecs[depName];
+                        if (constraint) {
+                            allPackages[depName].constrainedBy[pkgName] = constraint;
+                        } else {
+                            allPackages[depName].constrainedBy[pkgName] = null;  // Store even if no constraint
+                        }
+                    }
+                }
+            }
+
+            analyzeBtn.disabled = false;
+            updateDisplay();
+        }
+
+        function matchesFilters(pkg) {
+            if (filterBinaryOnly.checked && !pkg.isBinaryOnly) return false;
+            if (filterNoAbi3.checked && (!pkg.isBinaryOnly || pkg.hasAbi3)) return false;
+            if (filterNoSdist.checked && (!pkg.isBinaryOnly || pkg.hasSdist)) return false;
+            if (filterSubprocess.checked && !pkg.hasSubprocess) return false;
+            return true;
+        }
+
+        function updateDisplay() {
+            updateList();
+            if (currentView === 'graph') {
+                updateGraph();
+            }
+        }
+
+        function updateList() {
+            const packages = Object.values(allPackages);
+            const display = packages.filter(matchesFilters);
+
+            if (display.length === 0) {
+                listContainer.innerHTML = '<div class="loading">No packages match the current filters</div>';
+                return;
+            }
+
+            let html = '';
+
+            // Stats
+            html += '<div class="stats">';
+            html += '<div class="stats-item"><span>Total packages:</span><span class="stats-value">' + packages.length + '</span></div>';
+            html += '<div class="stats-item"><span>Displayed packages:</span><span class="stats-value">' + display.length + '</span></div>';
+            html += '<div class="stats-item"><span>Binary-only:</span><span class="stats-value">' + packages.filter(p => p.isBinaryOnly).length + '</span></div>';
+            html += '<div class="stats-item"><span>Binary-only without abi3:</span><span class="stats-value">' + packages.filter(p => p.isBinaryOnly && !p.hasAbi3).length + '</span></div>';
+            html += '<div class="stats-item"><span>Binary-only without sdist:</span><span class="stats-value">' + packages.filter(p => p.isBinaryOnly && !p.hasSdist).length + '</span></div>';
+            if (packages.some(p => p.hasSubprocess)) {
+                html += '<div class="stats-item"><span>Spawns subprocess:</span><span class="stats-value">' + packages.filter(p => p.hasSubprocess).length + '</span></div>';
+            }
+            html += '</div>';
+
+            const style = getComputedStyle(document.body);
+            const cDefault = style.getPropertyValue('--node-default').trim();
+            const cBinary = style.getPropertyValue('--node-binary').trim();
+            const cNoAbi3 = style.getPropertyValue('--node-no-abi3').trim();
+            const cNoSdist = style.getPropertyValue('--node-no-sdist').trim();
+            const cSubprocess = style.getPropertyValue('--node-subprocess').trim();
+
+            html += '<div class="legend">';
+            html += `<div class="legend-item"><div class="legend-color" style="background:${cDefault}"></div><span>Pure Python or mixed</span></div>`;
+            html += `<div class="legend-item"><div class="legend-color" style="background:${cBinary}"></div><span>Binary-only</span></div>`;
+            html += `<div class="legend-item"><div class="legend-color" style="background:${cNoAbi3}"></div><span>Binary-only, no abi3</span></div>`;
+            html += `<div class="legend-item"><div class="legend-color" style="background:${cNoSdist}"></div><span>Binary-only, no sdist</span></div>`;
+            html += `<div class="legend-item"><div class="legend-color" style="background:${cSubprocess}"></div><span>Spawns Subprocess</span></div>`;
+            html += '</div>';
+
+            // Package list
+            for (const pkg of display) {
+                let classes = 'dep-item';
+                if (pkg.isBinaryOnly) classes += ' binary-only';
+                if (pkg.isBinaryOnly && !pkg.hasAbi3) classes += ' no-abi3';
+                if (pkg.isBinaryOnly && !pkg.hasSdist) classes += ' no-sdist';
+                if (pkg.hasSubprocess) classes += ' match-subprocess';
+
+                html += `<div class="${classes}">`;
+                html += `<div class="dep-name">${pkg.name}</div>`;
+                html += `<div class="dep-version">v${pkg.version}</div>`;
+
+                if (pkg.dependencies && pkg.dependencies.length > 0) {
+                    html += `<div class="dep-version">Dependencies: ${pkg.dependencies.join(', ')}</div>`;
+                }
+
+                if (pkg.subprocessCalls && pkg.subprocessCalls.length > 0) {
+                    // Group/De-duplicate by command
+                    const uniqueCalls = {};
+                    pkg.subprocessCalls.forEach(call => {
+                        const key = `${call.func}(${call.args})`;
+                        if (!uniqueCalls[key]) uniqueCalls[key] = call;
+                    });
+
+                    html += '<div class="dep-subprocess">';
+                    html += '<div class="subprocess-title">⚠️ Spawns Subprocess</div>';
+                    // Show up to 5 unique calls
+                    Object.values(uniqueCalls).slice(0, 5).forEach(call => {
+                        html += `<div class="subprocess-item">${call.func}(${call.args}...) <span style="color:#aaa; font-size: 10px">in ${call.file}:${call.line}</span></div>`;
+                    });
+                    if (Object.keys(uniqueCalls).length > 5) {
+                        html += `<div style="color:#666; font-size:10px; margin-top:4px">+ ${Object.keys(uniqueCalls).length - 5} more calls</div>`;
+                    }
+                    html += '</div>';
+                }
+
+                // Show version constraints imposed on this package
+                if (pkg.constrainedBy && Object.keys(pkg.constrainedBy).length > 0) {
+                    html += '<div class="dep-constraints">';
+                    html += '<div class="dep-constraints-title">Version Constraints:</div>';
+                    for (const [parentPkg, constraint] of Object.entries(pkg.constrainedBy)) {
+                        const parentInfo = allPackages[parentPkg];
+                        const condition = parentInfo?.dependencyConditions?.[pkg.name];
+
+                        html += `<div>• from <strong>${parentPkg}</strong>: ${constraint || 'any'}`;
+                        if (condition) {
+                            html += ` <span style="color: #888;">(${condition})</span>`;
+                        }
+                        html += `</div>`;
+                    }
+                    html += '</div>';
+                }
+
+                html += '<div class="dep-badges">';
+                if (pkg.hasSubprocess) {
+                    html += '<span class="badge badge-purple">Subprocess</span>';
+                }
+                if (pkg.isBinaryOnly) {
+                    html += '<span class="badge badge-warning">Binary-only</span>';
+                }
+                if (pkg.isBinaryOnly && !pkg.hasAbi3) {
+                    html += '<span class="badge badge-orange">No abi3</span>';
+                }
+                if (pkg.isBinaryOnly && !pkg.hasSdist) {
+                    html += '<span class="badge badge-danger">No sdist</span>';
+                }
+                if (pkg.hasPureWheel) {
+                    html += '<span class="badge badge-info">Pure Python</span>';
+                }
+                html += '</div>';
+                html += '</div>';
+            }
+
+            listContainer.innerHTML = html;
+        }
+
+        // Build reverse dependency graph (who depends on whom)
+        function buildReverseDependencies() {
+            if (reverseDepsCache) {
+                return reverseDepsCache;
+            }
+
+            const reverseDeps = {};
+            for (const pkgName in allPackages) {
+                reverseDeps[pkgName] = [];
+            }
+
+            for (const pkgName in allPackages) {
+                const pkg = allPackages[pkgName];
+                if (pkg.dependencies) {
+                    for (const dep of pkg.dependencies) {
+                        if (reverseDeps[dep]) {
+                            reverseDeps[dep].push(pkgName);
+                        }
+                    }
+                }
+            }
+
+            reverseDepsCache = reverseDeps;
+            return reverseDeps;
+        }
+
+        // Find all paths from a node to the root
+        function findPathsToRoot(targetNode, reverseDeps) {
+            const paths = [];
+            const visited = new Set();
+
+            function dfs(currentNode, currentPath) {
+                if (currentNode === rootPackageName) {
+                    paths.push([...currentPath]);
+                    return;
+                }
+
+                if (visited.has(currentNode)) {
+                    return;
+                }
+
+                visited.add(currentNode);
+
+                const parents = reverseDeps[currentNode] || [];
+                for (const parent of parents) {
+                    currentPath.push(parent);
+                    dfs(parent, currentPath);
+                    currentPath.pop();
+                }
+
+                visited.delete(currentNode);
+            }
+
+            dfs(targetNode, [targetNode]);
+            return paths;
+        }
+
+        function previewPath(nodeId) {
+            if (!network) return;
+
+            const style = getComputedStyle(document.body);
+            const cTextActive = style.getPropertyValue('--node-text-active').trim();
+            const cEdgeDim = style.getPropertyValue('--ui-border').trim();
+
+            const reverseDeps = buildReverseDependencies();
+            const paths = findPathsToRoot(nodeId, reverseDeps);
+
+            if (paths.length === 0 && nodeId !== rootPackageName) {
+                return;
+            }
+
+            // Collect all nodes and edges in paths
+            const nodesInPath = new Set();
+            const edgesInPath = new Set();
+
+            if (nodeId === rootPackageName) {
+                nodesInPath.add(rootPackageName);
+            } else {
+                paths.forEach(path => {
+                    path.forEach(node => nodesInPath.add(node));
+                    for (let i = 0; i < path.length - 1; i++) {
+                        edgesInPath.add(`${path[i + 1]}-${path[i]}`);
+                    }
+                });
+            }
+
+            // Update edges only - subtle highlight
+            const allEdges = network.body.data.edges.get();
+            allEdges.forEach(edge => {
+                const edgeKey = `${edge.from}-${edge.to}`;
+                const inPath = edgesInPath.has(edgeKey);
+                network.body.data.edges.update({
+                    id: edge.id,
+                    color: { color: inPath ? cTextActive : cEdgeDim, opacity: 0.6 },
+                    width: inPath ? 2 : 1
+                });
+            });
+        }
+
+        function highlightPath(nodeId) {
+            if (!network) return;
+
+            const style = getComputedStyle(document.body);
+            const cTextActive = style.getPropertyValue('--node-text-active').trim();
+            const cTextDim = style.getPropertyValue('--node-text-dim').trim();
+            const cEdgeActive = cTextActive; // Reuse active text color for active edges
+            const cEdgeDim = style.getPropertyValue('--ui-border').trim(); // Use border color for dim edges
+
+            const reverseDeps = buildReverseDependencies();
+            const paths = findPathsToRoot(nodeId, reverseDeps);
+
+            if (paths.length === 0 && nodeId !== rootPackageName) {
+                return;
+            }
+
+            // If it's the root, just highlight it
+            if (nodeId === rootPackageName) {
+                highlightActive = true;
+                const allNodes = network.body.data.nodes.get();
+                const allEdges = network.body.data.edges.get();
+
+                // Dim all nodes
+                allNodes.forEach(node => {
+                    network.body.data.nodes.update({
+                        id: node.id,
+                        opacity: node.id === rootPackageName ? 1.0 : 0.2,
+                        font: { ...node.font, color: node.id === rootPackageName ? cTextActive : cTextDim }
+                    });
+                });
+
+                // Dim all edges
+                allEdges.forEach(edge => {
+                    network.body.data.edges.update({
+                        id: edge.id,
+                        color: { color: cEdgeDim, opacity: 0.2 },
+                        width: 1
+                    });
+                });
+
+                graphInfo.innerHTML = `<div class="graph-info-title">Root Package</div>${rootPackageName}`;
+                graphInfo.style.display = 'block';
+                graphInfo.classList.add('locked');
+                return;
+            }
+
+            // Collect all nodes and edges in paths
+            const nodesInPath = new Set();
+            const edgesInPath = new Set();
+
+            paths.forEach(path => {
+                path.forEach(node => nodesInPath.add(node));
+                for (let i = 0; i < path.length - 1; i++) {
+                    edgesInPath.add(`${path[i + 1]}-${path[i]}`);
+                }
+            });
+
+            highlightActive = true;
+
+            // Update all nodes - fade out non-path nodes
+            const allNodes = network.body.data.nodes.get();
+            allNodes.forEach(node => {
+                const inPath = nodesInPath.has(node.id);
+                network.body.data.nodes.update({
+                    id: node.id,
+                    opacity: inPath ? 1.0 : 0.2,
+                    font: { ...node.font, color: inPath ? cTextActive : cTextDim }
+                });
+            });
+
+            // Update all edges - fade and thicken
+            const allEdges = network.body.data.edges.get();
+            allEdges.forEach(edge => {
+                const edgeKey = `${edge.from}-${edge.to}`;
+                const inPath = edgesInPath.has(edgeKey);
+                network.body.data.edges.update({
+                    id: edge.id,
+                    color: { color: inPath ? cEdgeActive : cEdgeDim, opacity: inPath ? 1.0 : 0.2 },
+                    width: inPath ? 3 : 1
+                });
+            });
+
+            // Show path info with version constraints
+            const pkg = allPackages[nodeId];
+            let pathHtml = `<div class="graph-info-title">Dependency Path to ${nodeId}</div>`;
+            pathHtml += `<div style="font-size: 11px; color: ${cTextDim}; margin-bottom: 8px;">Version: ${pkg.version}</div>`;
+
+            if (paths.length === 1) {
+                pathHtml += paths[0].reverse().join(' → ');
+            } else {
+                pathHtml += `${paths.length} paths found:<br>`;
+                paths.slice(0, 3).forEach((path, idx) => {
+                    pathHtml += `${idx + 1}. ${path.reverse().join(' → ')}<br>`;
+                });
+                if (paths.length > 3) {
+                    pathHtml += `... and ${paths.length - 3} more`;
+                }
+            }
+
+            // Add version constraints section
+            if (pkg.constrainedBy && Object.keys(pkg.constrainedBy).length > 0) {
+                pathHtml += '<div class="version-constraints">';
+                pathHtml += '<div style="font-weight: 600; margin-bottom: 4px;">Version Constraints:</div>';
+                for (const [parentPkg, constraint] of Object.entries(pkg.constrainedBy)) {
+                    const parentInfo = allPackages[parentPkg];
+                    const condition = parentInfo?.dependencyConditions?.[pkg.name];
+
+                    pathHtml += `<div class="constraint-item">• <span class="constraint-from">${parentPkg}</span>: ${constraint || 'any'}`;
+                    if (condition) {
+                        pathHtml += ` <span style="color: #888;">(${condition})</span>`;
+                    }
+                    pathHtml += `</div>`;
+                }
+                pathHtml += '</div>';
+            }
+
+            graphInfo.innerHTML = pathHtml;
+            graphInfo.style.display = 'block';
+            graphInfo.classList.add('locked');
+        }
+
+        function clearHighlight() {
+            if (!network) return;
+
+            highlightActive = false;
+            graphInfo.style.display = 'none';
+            graphInfo.classList.remove('locked');
+
+            // Recalculate filter state
+            const packages = Object.values(allPackages);
+            const matching = new Set(packages.filter(matchesFilters).map(p => p.name));
+
+            // Reset all nodes with filter awareness
+            const allNodes = network.body.data.nodes.get();
+            const style = getComputedStyle(document.body);
+            const cDefault = style.getPropertyValue('--node-default').trim();
+            const cBinary = style.getPropertyValue('--node-binary').trim();
+            const cNoAbi3 = style.getPropertyValue('--node-no-abi3').trim();
+            const cNoSdist = style.getPropertyValue('--node-no-sdist').trim();
+            const cSubprocess = style.getPropertyValue('--node-subprocess').trim();
+            const cTextActive = style.getPropertyValue('--node-text-active').trim();
+            const cTextDim = style.getPropertyValue('--node-text-dim').trim();
+
+            allNodes.forEach(node => {
+                const pkg = allPackages[node.id];
+                const isMatching = matching.has(node.id);
+
+                let color = cDefault;
+
+                if (pkg.isBinaryOnly && !pkg.hasSdist) {
+                    color = cNoSdist;
+                } else if (pkg.isBinaryOnly && !pkg.hasAbi3) {
+                    color = cNoAbi3;
+                } else if (pkg.isBinaryOnly) {
+                    color = cBinary;
+                } else if (pkg.hasSubprocess) {
+                    color = cSubprocess;
+                }
+
+                const opacity = isMatching ? 1.0 : 0.1;
+                const fontColor = isMatching ? cTextActive : cTextDim;
+
+                network.body.data.nodes.update({
+                    id: node.id,
+                    opacity: opacity,
+                    color: {
+                        background: color,
+                        border: color,
+                        highlight: { background: color, border: color }
+                    },
+                    font: {
+                        color: fontColor,
+                        size: pkg.depth === 0 ? 16 : 14,
+                        face: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto',
+                        bold: pkg.depth === 0
+                    }
+                });
+            });
+
+            // Reset all edges with filter awareness
+            const allEdges = network.body.data.edges.get();
+            allEdges.forEach(edge => {
+                const isFromMatching = matching.has(edge.from);
+                const isToMatching = matching.has(edge.to);
+                const isMatchingEdge = isFromMatching && isToMatching;
+
+                const edgeOpacity = isMatchingEdge ? 0.6 : 0.05;
+                const edgeColorVal = isMatchingEdge ? '#ccc' : '#e5e5e5';
+
+                network.body.data.edges.update({
+                    id: edge.id,
+                    color: { color: edgeColorVal, opacity: edgeOpacity },
+                    width: 1
+                });
+            });
+        }
+
+        function updateGraph() {
+            const packages = Object.values(allPackages);
+
+            if (packages.length === 0) {
+                graphContainer.innerHTML = '<div class="loading">No data to display</div>';
+                return;
+            }
+
+            const matching = new Set(packages.filter(matchesFilters).map(p => p.name));
+
+            const nodes = [];
+            const edges = [];
+            const edgeIds = new Set(); // Add this to track edge IDs
+
+            // Get colors from CSS variables once
+            const style = getComputedStyle(document.body);
+            const cDefault = style.getPropertyValue('--node-default').trim();
+            const cBinary = style.getPropertyValue('--node-binary').trim();
+            const cNoAbi3 = style.getPropertyValue('--node-no-abi3').trim();
+            const cNoSdist = style.getPropertyValue('--node-no-sdist').trim();
+            const cSubprocess = style.getPropertyValue('--node-subprocess').trim();
+            const cTextActive = style.getPropertyValue('--node-text-active').trim();
+            const cTextDim = style.getPropertyValue('--node-text-dim').trim();
+
+            for (const pkg of packages) {
+                const isMatching = matching.has(pkg.name);
+                let color = cDefault;
+
+
+                if (pkg.isBinaryOnly && !pkg.hasSdist) {
+                    color = cNoSdist;
+                } else if (pkg.isBinaryOnly && !pkg.hasAbi3) {
+                    color = cNoAbi3;
+                } else if (pkg.isBinaryOnly) {
+                    color = cBinary;
+                } else if (pkg.hasSubprocess) {
+                    color = cSubprocess;
+                }
+
+                // Make root package slightly larger
+                const nodeSize = pkg.depth === 0 ? 12 : 8;
+                const fontSize = pkg.depth === 0 ? 16 : 14;
+
+                // Opacity logic for filtering
+                // If filters are active, dim non-matching nodes
+                const opacity = isMatching ? 1.0 : 0.1;
+                const fontColor = isMatching ? cTextActive : cTextDim;
+
+                nodes.push({
+                    id: pkg.name,
+                    label: pkg.name,
+                    color: {
+                        background: color,
+                        border: color,
+                        highlight: {
+                            background: color,
+                            border: color
+                        }
+                    },
+                    opacity: opacity,
+                    font: {
+                        color: fontColor,
+                        size: fontSize,
+                        face: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto',
+                        bold: pkg.depth === 0
+                    },
+                    size: nodeSize,
+                    shape: 'dot',
+                    hidden: false, // Always show in graph view
+                    title: `${pkg.name} v${pkg.version}`,
+                    labelHighlightBold: false
+                });
+
+                if (pkg.dependencies) {
+                    for (const dep of pkg.dependencies) {
+                        if (allPackages[dep]) {
+                            const edgeId = `${pkg.name}-${dep}`;
+
+                            // Only add if we haven't seen this edge before
+                            if (!edgeIds.has(edgeId)) {
+                                edgeIds.add(edgeId);
+
+                                const isDepMatching = matching.has(dep);
+                                const edgeOpacity = (isMatching && isDepMatching) ? 0.6 : 0.05;
+                                const edgeColorVal = (isMatching && isDepMatching) ? '#ccc' : '#e5e5e5';
+
+                                edges.push({
+                                    id: edgeId,
+                                    from: pkg.name,
+                                    to: dep,
+                                    arrows: {
+                                        to: {
+                                            enabled: true,
+                                            scaleFactor: 0.5
+                                        }
+                                    },
+                                    color: {
+                                        color: edgeColorVal,
+                                        highlight: edgeColorVal,
+                                        opacity: edgeOpacity
+                                    },
+                                    width: 1,
+                                    smooth: {
+                                        enabled: true,
+                                        type: 'continuous',
+                                        roundness: 0.5
+                                    },
+                                    hidden: false // Always show edges
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+
+            const data = { nodes, edges };
+            const options = {
+                nodes: {
+                    shape: 'dot',
+                    borderWidth: 2,
+                    borderWidthSelected: 2,
+                    font: {
+                        size: 14,
+                        color: '#333',
+                        face: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto'
+                    }
+                },
+                edges: {
+                    width: 1,
+                    color: {
+                        inherit: false
+                    },
+                    smooth: {
+                        enabled: true,
+                        type: 'continuous',
+                        roundness: 0.5
+                    },
+                    selectionWidth: 0
+                },
+                physics: {
+                    enabled: true,
+                    solver: 'forceAtlas2Based',
+                    forceAtlas2Based: {
+                        gravitationalConstant: -50,
+                        centralGravity: 0.01,
+                        springLength: 150,
+                        springConstant: 0.08,
+                        damping: 0.4,
+                        avoidOverlap: 1
+                    },
+                    stabilization: {
+                        enabled: true,
+                        iterations: 1000,
+                        updateInterval: 25
+                    }
+                },
+                interaction: {
+                    hover: true,
+                    tooltipDelay: 100,
+                    zoomView: true,
+                    dragView: true,
+                    navigationButtons: true,
+                    selectConnectedEdges: false,
+                    hoverConnectedEdges: false
+                },
+                layout: {
+                    improvedLayout: true,
+                    randomSeed: 42
+                }
+            };
+
+            if (network) {
+                network.destroy();
+            }
+
+            network = new vis.Network(graphContainer, data, options);
+
+            // Handle hover for preview (subtle)
+            network.on('hoverNode', function(params) {
+                if (!lockedHighlight) {
+                    const nodeId = params.node;
+                    previewPath(nodeId);
+                }
+            });
+
+            // Handle hover leaving node
+            network.on('blurNode', function(params) {
+                if (!lockedHighlight) {
+                    clearHighlight();
+                }
+            });
+
+            // Handle node clicks to lock (strong highlight)
+            network.on('click', function(params) {
+                params.event.preventDefault();
+
+                if (params.nodes.length > 0) {
+                    const nodeId = params.nodes[0];
+                    lockedHighlight = true;
+                    highlightPath(nodeId);
+                } else {
+                    lockedHighlight = false;
+                    clearHighlight();
+                }
+            });
+
+            // Prevent default selection behavior
+            network.on('selectNode', function(params) {
+                // Do nothing - we handle this in the click event
+            });
+
+            // Auto-fit after stabilization
+            network.once('stabilizationIterationsDone', function() {
+                network.stopSimulation();
+                network.fit({
+                    animation: {
+                        duration: 1000,
+                        easingFunction: 'easeInOutQuad'
+                    }
+                });
+            });
+        }
+
+        // Listen for system theme changes and update graph colors
+        // We listen to both just to be safe across browsers/inspectors
+        const themeQuery = window.matchMedia('(prefers-color-scheme: dark)');
+        function handleThemeChange(e) {
+             if (Object.keys(allPackages).length > 0) {
+                 // Update both list (legends) and graph
+                 updateDisplay();
+             }
+        }
+
+        try {
+            themeQuery.addEventListener('change', handleThemeChange);
+        } catch (e) {
+            // Fallback for older browsers
+            try { themeQuery.addListener(handleThemeChange); } catch (e2) {}
+        }
+
+        // Helper to scan text for subprocess calls
+        function scanTextForSubprocess(filename, text) {
+            const results = [];
+            const lines = text.split('\n');
+
+            // State for imports
+            let subprocessAlias = 'subprocess';
+            let osAlias = 'os';
+            const dangerousGlobals = new Set();
+            const subprocessFuncs = ['run', 'call', 'Popen', 'check_call', 'check_output'];
+
+            // First pass: detecting imports to build regexes
+            // We do a simple line scan. Multi-line imports with parens might be missed,
+            // but this covers the 90% case and the specific request.
+            for (let line of lines) {
+                line = line.trim();
+                if (line.startsWith('#')) continue;
+                if (line.includes('#')) line = line.split('#')[0].trim();
+
+                // import subprocess as sp
+                const subAliasMatch = line.match(/^import\s+subprocess\s+as\s+(\w+)/);
+                if (subAliasMatch) subprocessAlias = subAliasMatch[1];
+
+                // import os as o
+                const osAliasMatch = line.match(/^import\s+os\s+as\s+(\w+)/);
+                if (osAliasMatch) osAlias = osAliasMatch[1];
+
+                // from subprocess import Popen, call as my_call
+                if (line.startsWith('from subprocess import')) {
+                    const parts = line.replace('from subprocess import', '').split(',');
+                    for (let part of parts) {
+                        part = part.trim();
+                        // Handle "Popen as P"
+                        if (part.includes(' as ')) {
+                            const [orig, alias] = part.split(' as ').map(s => s.trim());
+                            if (orig === '*' || subprocessFuncs.includes(orig)) {
+                                dangerousGlobals.add(alias);
+                            }
+                        } else {
+                            if (part === '*') {
+                                subprocessFuncs.forEach(f => dangerousGlobals.add(f));
+                            } else if (subprocessFuncs.includes(part)) {
+                                dangerousGlobals.add(part);
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Build regex patterns based on detected imports
+            const patterns = [];
+
+            // Standard/Aliased module usage: sp.Popen(...)
+            patterns.push({
+                regex: new RegExp(`${subprocessAlias}\\.(run|call|Popen|check_call|check_output)\\s*\\(([^)]+)`, 'g'),
+                type: 'subprocess',
+                indexFunc: 1,
+                indexArgs: 2
+            });
+
+            patterns.push({
+                regex: new RegExp(`${osAlias}\\.(system|popen|spawn[a-z]*|exec[a-z]*)\\s*\\(([^)]+)`, 'g'),
+                type: 'os',
+                indexFunc: 1,
+                indexArgs: 2
+            });
+
+            patterns.push({
+                regex: /commands\.get(status|output|statusoutput)\s*\(([^)]+)/g,
+                type: 'commands',
+                indexFunc: 1,
+                indexArgs: 2
+            });
+
+            // Imported global usage: Popen(...)
+            // We use (?:^|[^.]) to ensure we don't match obj.Popen(...) where Popen is a method
+            if (dangerousGlobals.size > 0) {
+                const funcPattern = Array.from(dangerousGlobals).join('|');
+                patterns.push({
+                    regex: new RegExp(`(?:^|[^.])\\b(${funcPattern})\\s*\\(([^)]+)`, 'g'),
+                    type: 'subprocess_import',
+                    indexFunc: 1,
+                    indexArgs: 2
+                });
+            }
+
+            // Second pass: scanning for usage
+            for (let i = 0; i < lines.length; i++) {
+                let line = lines[i]; // Use raw line for regex boundary checks
+                const trimmed = line.trim();
+                if (trimmed.startsWith('#')) continue;
+
+                // Effective line for matching (ignoring end-of-line comments)
+                let effectiveLine = line;
+                const commentIdx = line.indexOf('#');
+                if (commentIdx >= 0) {
+                    effectiveLine = line.substring(0, commentIdx);
+                }
+
+                if (!effectiveLine.trim()) continue;
+
+                for (const pattern of patterns) {
+                    let match;
+                    pattern.regex.lastIndex = 0;
+                    while ((match = pattern.regex.exec(effectiveLine)) !== null) {
+                        results.push({
+                            file: filename,
+                            line: i + 1,
+                            func: match[pattern.indexFunc],
+                            args: match[pattern.indexArgs].substring(0, 100).trim(),
+                            type: pattern.type,
+                            fullMatch: match[0].substring(0, 100)
+                        });
+                    }
+                }
+            }
+            return results;
+        }
+
+        async function scanWheelContent(url) {
+            try {
+                const response = await fetch(url);
+                if (!response.ok) return [];
+
+                const blob = await response.blob();
+                const zip = await JSZip.loadAsync(blob);
+                const calls = [];
+
+                // Iterate over files in the zip
+                const filePromises = [];
+
+                zip.forEach((relativePath, zipEntry) => {
+                    if (!zipEntry.dir && relativePath.endsWith('.py')) {
+                        filePromises.push(async () => {
+                            try {
+                                const content = await zipEntry.async('string');
+                                const found = scanTextForSubprocess(relativePath, content);
+                                calls.push(...found);
+                            } catch (e) {
+                                console.warn('Failed to read', relativePath, e);
+                            }
+                        });
+                    }
+                });
+
+                // Execute in parallel (limited)? JS is single threaded but async helps I/O
+                // Just wait all
+                await Promise.all(filePromises.map(p => p()));
+
+                return calls;
+            } catch (error) {
+                console.error('Error scanning wheel:', error);
+                return [];
+            }
+        }
+    </script>
+</body>
+</html>

@@ -37,7 +37,7 @@ extensions = [
 ]
 
 templates_path = ["_templates"]
-exclude_patterns = ["_build", "Thumbs.db", ".DS_Store", "images.toml"]
+exclude_patterns = ["_build", "Thumbs.db", ".DS_Store", "images.toml", "capa"]
 
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
@@ -99,7 +99,7 @@ download_images_from_toml(toml_file_path, image_directory)
 # https://surfactant.readthedocs.io/en/latest/database_sources.toml
 # Make CyTRICS schema available as a static file in a subfolder
 # -------------------------------------------------------------------
-html_extra_path = ["database_sources.toml"]
+html_extra_path = ["database_sources.toml", "_static_html"]
 
 
 # -------------------------------------------------------------------
@@ -116,6 +116,34 @@ def _copy_cytrics_schema(app, exception):
     shutil.copy(src, os.path.join(dst_dir, "schema.json"))
 
 
+# -------------------------------------------------------------------
+# Make capa rules available in the capa/ subfolder
+# -------------------------------------------------------------------
+def _setup_capa_directory(app, exception):
+    # Copy local capa files to output directory
+    src_dir = os.path.join(os.path.dirname(__file__), "capa")
+    dst_dir = os.path.join(app.outdir, "capa")
+    if os.path.exists(src_dir):
+        shutil.copytree(
+            src_dir,
+            dst_dir,
+            dirs_exist_ok=True,
+            ignore=shutil.ignore_patterns("venv", "__pycache__", ".DS_Store"),
+        )
+
+    # Download capa rules
+    url = "https://github.com/mandiant/capa-rules/archive/refs/tags/v9.3.1.zip"
+    dst_file = os.path.join(dst_dir, "rules.zip")
+    response = requests.get(url)
+    if response.status_code == 200:
+        with open(dst_file, "wb") as f:
+            f.write(response.content)
+    else:
+        print(f"Failed to download capa rules from {url}")
+        # Don't fail the build, just log the error
+
+
 # Build process needs some customization to preserve the cytrics_schema subfolder
 def setup(app):
     app.connect("build-finished", _copy_cytrics_schema)
+    app.connect("build-finished", _setup_capa_directory)
