@@ -44,7 +44,7 @@ dependencies = [
     "pyelftools==0.32.*",
     # This isn't semver so fix it to a specific release
     "pefile==2024.8.26",
-    "dnfile==0.17.*",
+    "dnfile>=0.17,<0.19",
     "olefile==0.47.*",
     "defusedxml==0.7.*",
     "spdx-tools==0.8.*",
