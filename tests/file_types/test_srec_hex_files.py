@@ -14,7 +14,7 @@ from surfactant.infoextractors.srec_hex import (
 
 _base_path = pathlib.Path(__file__).parent.absolute()
 _data_dir = os.path.join(_base_path, "..", "data", "binary")
-_expected_output_loc = os.path.join(_base_path, "..", "data", "msitest_no1", "test.msi")
+_expected_output_loc = os.path.join(_base_path, "..", "data", "binary", "test.msi")
 
 
 def test_srec_extract(tmp_path):
