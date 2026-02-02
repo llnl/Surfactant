@@ -52,10 +52,12 @@ def test_pe_import_via_fs_tree(basic_pe_sbom):
     assert results[0] == Relationship(binary.UUID, dll.UUID, "Uses")
 
 
-def test_pe_import_legacy_fallback():
+def test_pe_import_legacy_fallback(monkeypatch):
     """
-    Test that PE relationship fallback works when fs_tree does not contain the path.
-    It should fall back to installPath + fileName matching.
+    Verify that a PE dependency is resolved when fs_tree-based resolution is unavailable.
+
+    This test exercises the legacy installPath-only fallback logic, which mirrors
+    the behavior of legacy pe_relationships.
     """
     sbom = SBOM()
 
@@ -74,11 +76,12 @@ def test_pe_import_legacy_fallback():
     sbom.add_software(dll)
     sbom.add_software(binary)
 
+    # Force Phase 1 to fail so Phase 2 is exercised
+    monkeypatch.setattr(sbom, "get_software_by_path", lambda *a, **k: None)
+
     results = pe_relationship.establish_relationships(sbom, binary, binary.metadata[0])
 
-    assert results is not None
     assert results == [Relationship("uuid-bin", "uuid-dll", "Uses")]
-
 
 def test_pe_same_directory_match():
     """
@@ -87,8 +90,7 @@ def test_pe_same_directory_match():
     Note:
     - This will typically resolve in Phase 1 (fs_tree exact path). If fs_tree were
       unavailable for the exact path, the resolver’s fallback also matches by
-      fileName + shared directory. (In the current resolver, Phase 2 and Phase 3
-      both use that criterion.)
+      fileName + same directory. (In the current resolver, Phase 2 uses that criterion.)
     """
     sbom = SBOM()
 
@@ -119,7 +121,7 @@ def test_pe_same_directory_match():
 def test_pe_no_match():
     """
     Ensure no relationship is emitted if the imported DLL cannot be resolved
-    through any mechanism (fs_tree, legacy, or heuristic).
+    through any mechanism (fs_tree or legacy).
     """
     sbom = SBOM()
 
@@ -217,4 +219,35 @@ def test_pe_case_insensitive_matching():
     results = pe_relationship.establish_relationships(sbom, binary, binary.metadata[0])
 
     # The resolver should treat basenames case-insensitively and produce a match
+    assert results == [Relationship("uuid-bin", "uuid-dll", "Uses")]
+
+def test_pe_legacy_fallback_directory_case_mismatch():
+    """
+    Ensure the legacy fallback resolves dependencies when directory casing differs.
+
+    Phase 1 (fs_tree) performs a parent-directory + basename lookup with a limited
+    Windows-style case-insensitive fallback that only compares basenames inside the
+    exact parent node. This test exercises the legacy installPath-only fallback:
+    when the importer and dependency use differing directory casing (e.g. "C:/bin"
+    vs "c:/BIN"), fs_tree may not match but the legacy installPath matcher should,
+    producing the expected Uses relationship.
+    """
+    sbom = SBOM()
+
+    dll = Software(
+        UUID="uuid-dll",
+        installPath=["C:/bin/foo.dll"],
+    )
+
+    binary = Software(
+        UUID="uuid-bin",
+        installPath=["c:/BIN/app.exe"],  # directory casing differs
+        metadata=[{"peImport": ["foo.dll"]}],
+    )
+
+    sbom.add_software(dll)
+    sbom.add_software(binary)
+
+    results = pe_relationship.establish_relationships(sbom, binary, binary.metadata[0])
+
     assert results == [Relationship("uuid-bin", "uuid-dll", "Uses")]

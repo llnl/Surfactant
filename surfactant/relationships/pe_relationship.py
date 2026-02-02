@@ -11,10 +11,15 @@ from loguru import logger
 import surfactant.plugin
 from surfactant.sbomtypes import SBOM, Relationship, Software
 from surfactant.utils.paths import normalize_path
+from ._internal.windows_utils import find_installed_software
 
 
 def has_required_fields(metadata: dict[str, Any]) -> bool:
-    """Returns True if any known PE import fields are present in the metadata."""
+    """Returns True if any known PE import fields are present in the metadata.
+    
+    Note: SBOM metadata items are not guaranteed to be dicts (plugins may emit
+    dataclasses/objects). We therefore guard the key check.
+    """
     return any(k in metadata for k in ("peImport", "peBoundImport", "peDelayImport"))
 
 
@@ -29,7 +34,6 @@ def establish_relationships(
     Phases:
       1. [fs_tree] Exact path match via sbom.get_software_by_path()
       2. [legacy]  installPath + fileName matching
-      3. [heuristic] fileName match + shared directory (symlink-aware)
     """
     if not has_required_fields(metadata):
         logger.debug(f"[PE][skip] No PE import metadata for UUID={software.UUID} ({software.name})")
@@ -37,11 +41,12 @@ def establish_relationships(
 
     relationships: List[Relationship] = []
     field_map = {
-        "peImport": "Direct",
+        "peImport": "Direct", # NOTE: UWP apps have their own search order for libraries; they use a .appx or .msix file extension and appear to be zip files, so our SBOM probably doesn't even include them
         "peBoundImport": "Bound",
         "peDelayImport": "Delay",
     }
 
+    # metadata is dict here due to has_required_fields() guard above
     for field, label in field_map.items():
         if field in metadata:
             entries = metadata[field] or []
@@ -63,13 +68,15 @@ def get_windows_pe_dependencies(sbom: SBOM, sw: Software, peImports) -> List[Rel
 
       1. **Primary: Direct path resolution via ``sbom.fs_tree``**
          Uses ``get_software_by_path()`` to match DLL names to concrete file locations,
-         following injected symlink metadata, directory symlink expansions, and
-         hash-equivalence links, using Windows-style case-insensitive matching for PE paths.
+         following symlink edges in ``fs_tree`` (including synthesized directory-link
+         children) with Windows-style case-insensitive matching.
 
-      2. **Secondary: Legacy string-based resolution**
-         Falls back to case-insensitive matching of the DLL name against ``fileName`` and
-         then confirming that at least one ``installPath`` entry lies under a probed
-         parent directory *and* has a basename equal to the DLL name.
+      2. **Legacy installPath fallback**  
+         If phase 1 yields no matches for a DLL, the resolver delegates to
+         ``find_installed_software()``, reproducing the legacy PE relationship
+         algorithm. This fallback matches dependencies strictly by comparing
+         ``PureWindowsPath(probedir, dll_name)`` against each candidate’s
+         ``installPath`` entries.
 
     Background and References
     -------------------------
@@ -117,7 +124,7 @@ def get_windows_pe_dependencies(sbom: SBOM, sw: Software, peImports) -> List[Rel
     conservatively limited to:
 
       - The directory/paths associated with the importing software (``installPath``)
-      - Alias/symlink/hash-equivalent paths injected during SBOM generation
+      - Alias/symlink paths injected during SBOM generation
       - Legacy name/directory matching when no direct fs_tree match exists
 
     Notes & Implementation Details
@@ -161,7 +168,9 @@ def get_windows_pe_dependencies(sbom: SBOM, sw: Software, peImports) -> List[Rel
         # -----------------------------------
         # Phase 1: Direct fs_tree resolution
         # -----------------------------------
-        probedirs = []
+        # Build probe directories from the importing binary's installPath parents.
+        # This mirrors the legacy behavior (Windows DLL search: "application directory").
+        probedirs: List[str] = []
         if isinstance(sw.installPath, Iterable):
             for ipath in sw.installPath or []:
                 # Extract the parent directory in normalized POSIX form
@@ -184,45 +193,20 @@ def get_windows_pe_dependencies(sbom: SBOM, sw: Software, peImports) -> List[Rel
                 used_method[match.UUID] = "fs_tree"
 
         # ----------------------------------------
-        # Phase 2: Legacy installPath + fileName
-        # This only runs if Phase 1 (fs_tree / symlinks) finds no matches.
+        # Phase 2: legacy fallback (installPath-only)
+        # Mirrors legacy by delegating to find_installed_software().
         # ----------------------------------------
         if not matched_uuids:
-            fname_ci = fname.casefold()  # normalize DLL name for case-insensitive matching
-
-            for item in sbom.software:
-                # 1) Name match (case-insensitive) on fileName[]
-                if not isinstance(item.fileName, Iterable):
-                    continue
-
-                names_ci = {
-                    n.casefold() for n in (item.fileName or []) if isinstance(n, str)
-                }  # normalize declared file names for case-insensitive comparison
-
-                if fname_ci not in names_ci:
-                    continue  # skip: software does not claim this DLL name
-
-                # 2) Directory + basename match (case-insensitive) on installPath entries
-                if isinstance(item.installPath, Iterable):
-                    for ipath in item.installPath or []:
-                        win_path = pathlib.PureWindowsPath(ipath)
-                        ip_dir = win_path.parent.as_posix()
-                        ip_name_ci = win_path.name.casefold()
-
-                        if ip_dir in probedirs and ip_name_ci == fname_ci:
-                            if item.UUID != dependent_uuid:
-                                logger.debug(f"[PE][legacy] {fname} in {ipath} → UUID={item.UUID}")
-                                matched_uuids.add(item.UUID)
-                                used_method[item.UUID] = "legacy_installPath"
-                                break  # Stop checking more install paths for this item
+            for e in find_installed_software(sbom, probedirs, fname):
+                logger.debug(f"[PE][legacy] {fname} → UUID={e.UUID}")
+                matched_uuids.add(e.UUID)
+                used_method[e.UUID] = "legacy_installPath"
 
         # ----------------------------------------
         # Emit final relationships (if any found)
         # ----------------------------------------
         if matched_uuids:
             for uuid in matched_uuids:
-                if uuid == dependent_uuid:
-                    continue
                 rel = Relationship(dependent_uuid, uuid, "Uses")
                 if rel not in relationships:
                     method = used_method.get(uuid, "unknown")
