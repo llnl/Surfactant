@@ -83,6 +83,7 @@ def test_pe_import_legacy_fallback(monkeypatch):
 
     assert results == [Relationship("uuid-bin", "uuid-dll", "Uses")]
 
+
 def test_pe_same_directory_match():
     """
     Verify that a DLL with a matching fileName in the importer's directory is resolved.
@@ -220,6 +221,7 @@ def test_pe_case_insensitive_matching():
 
     # The resolver should treat basenames case-insensitively and produce a match
     assert results == [Relationship("uuid-bin", "uuid-dll", "Uses")]
+
 
 def test_pe_legacy_fallback_directory_case_mismatch():
     """

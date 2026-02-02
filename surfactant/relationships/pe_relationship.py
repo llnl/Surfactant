@@ -11,12 +11,13 @@ from loguru import logger
 import surfactant.plugin
 from surfactant.sbomtypes import SBOM, Relationship, Software
 from surfactant.utils.paths import normalize_path
+
 from ._internal.windows_utils import find_installed_software
 
 
 def has_required_fields(metadata: dict[str, Any]) -> bool:
     """Returns True if any known PE import fields are present in the metadata.
-    
+
     Note: SBOM metadata items are not guaranteed to be dicts (plugins may emit
     dataclasses/objects). We therefore guard the key check.
     """
@@ -41,7 +42,7 @@ def establish_relationships(
 
     relationships: List[Relationship] = []
     field_map = {
-        "peImport": "Direct", # NOTE: UWP apps have their own search order for libraries; they use a .appx or .msix file extension and appear to be zip files, so our SBOM probably doesn't even include them
+        "peImport": "Direct",  # NOTE: UWP apps have their own search order for libraries; they use a .appx or .msix file extension and appear to be zip files, so our SBOM probably doesn't even include them
         "peBoundImport": "Bound",
         "peDelayImport": "Delay",
     }
@@ -71,7 +72,7 @@ def get_windows_pe_dependencies(sbom: SBOM, sw: Software, peImports) -> List[Rel
          following symlink edges in ``fs_tree`` (including synthesized directory-link
          children) with Windows-style case-insensitive matching.
 
-      2. **Legacy installPath fallback**  
+      2. **Legacy installPath fallback**
          If phase 1 yields no matches for a DLL, the resolver delegates to
          ``find_installed_software()``, reproducing the legacy PE relationship
          algorithm. This fallback matches dependencies strictly by comparing
