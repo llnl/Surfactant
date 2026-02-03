@@ -25,7 +25,7 @@ class _ExportDict:
     @classmethod
     def create_export_dict(cls, sbom: SBOM) -> None:
         """Build (or reuse) the export lookup map for the provided SBOM."""
-        if cls._sbom_ref is not None and cls._sbom_ref() is sbom: # pylint: disable=not-callable
+        if cls._sbom_ref is not None and cls._sbom_ref() is sbom:  # pylint: disable=not-callable
             return
 
         cls._sbom_ref = weakref.ref(sbom)

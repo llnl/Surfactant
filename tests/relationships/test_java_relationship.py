@@ -1,5 +1,4 @@
 # pylint: disable=redefined-outer-name
-import pytest
 
 from surfactant.relationships import java_relationship
 from surfactant.sbomtypes import SBOM, Relationship, Software
