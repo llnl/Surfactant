@@ -1,6 +1,6 @@
+import weakref
 from typing import Dict, List, Optional
 
-import weakref
 from loguru import logger
 
 import surfactant.plugin
