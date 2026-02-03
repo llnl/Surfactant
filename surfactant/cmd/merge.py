@@ -98,7 +98,11 @@ def merge(
         merged_sbom.merge(sbom_m)
 
     # Find root nodes: those with zero incoming edges
-    roots = [n for n, deg in merged_sbom.graph.in_degree() if deg == 0]
+    roots = [
+        n
+        for n, deg in merged_sbom.graph.in_degree()
+        if deg == 0 and merged_sbom.graph.nodes.get(n, {}).get("type") != "Path"
+    ]
     logger.info(f"ROOT NODES: {roots}")
 
     # Detect any directed cycles
@@ -122,6 +126,8 @@ def merge(
         if config and "systemRelationship" in config:
             system_relationship = config["systemRelationship"]
         for root_uuid in roots:
+            if merged_sbom.graph.nodes.get(root_uuid, {}).get("type") == "Path":
+                continue
             merged_sbom.create_relationship(system_obj.UUID, root_uuid, system_relationship)
     else:
         logger.warning(
