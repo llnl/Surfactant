@@ -90,8 +90,10 @@ def write_sbom(sbom: SBOM, outfile) -> None:
         if outformat == "json"
         else cyclonedx.output.OutputFormat.XML
     )
+    # The docs say that you don't need to specify a version (it says it defaults to the latest)
+    # but I got a missing keyword error when doing so, so just specify 1.6 for now
     outputter: cyclonedx.output.BaseOutput = cyclonedx.output.make_outputter(
-        bom=bom, output_format=output_fmt, schema_version=cyclonedx.schema.SchemaVersion.V1_5
+        bom=bom, output_format=output_fmt, schema_version=cyclonedx.schema.SchemaVersion.V1_6
     )
     outfile.write(outputter.output_as_string())
 
