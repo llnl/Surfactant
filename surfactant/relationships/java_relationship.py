@@ -19,7 +19,7 @@ class _ExportDict:
     (via weakref).
     """
 
-    _sbom_ref: Optional[weakref.ReferenceType] = None
+    _sbom_ref: Optional[weakref.ref[SBOM]] = None
     supplied_by: Dict[str, str] = {}
 
     @classmethod
