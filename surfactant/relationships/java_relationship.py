@@ -25,7 +25,7 @@ class _ExportDict:
     @classmethod
     def create_export_dict(cls, sbom: SBOM) -> None:
         """Build (or reuse) the export lookup map for the provided SBOM."""
-        if cls._sbom_ref is not None and cls._sbom_ref() is sbom:
+        if cls._sbom_ref is not None and cls._sbom_ref() is sbom: # pylint: disable=not-callable
             return
 
         cls._sbom_ref = weakref.ref(sbom)
@@ -93,7 +93,7 @@ def establish_relationships(
             if supplier_uuid is None:
                 supplier_uuid = _ExportDict.get_supplier(import_name)
                 method = "legacy_exports" if supplier_uuid else None
-                logger.debug(f"[PE][legacy] {import_name} → UUID={supplier_uuid}")
+                logger.debug(f"[Java][legacy] {import_name} → UUID={supplier_uuid}")
 
             # Emit relationship if resolved and not self.
             if supplier_uuid and supplier_uuid != dependent_uuid:
@@ -107,13 +107,3 @@ def establish_relationships(
 
     logger.debug(f"[Java][final] emitted {len(relationships)} relationships")
     return relationships
-
-
-def class_to_path(class_name: str) -> str:
-    """
-    Convert a fully qualified Java class name to a relative path.
-
-    Example:
-        "com.example.MyClass" → "com/example/MyClass.class"
-    """
-    return f"{class_name.replace('.', '/')}.class"
