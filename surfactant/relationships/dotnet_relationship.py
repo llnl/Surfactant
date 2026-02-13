@@ -245,7 +245,7 @@ def establish_relationships(
     sbom: SBOM, software: Software, metadata
 ) -> Optional[List[Relationship]]:
     """
-    SurfActant plugin: Establish 'Uses' relationships for .NET assembly dependencies.
+    Establish 'Uses' relationships for .NET assembly dependencies.
 
     Implements a 3-phase resolution strategy for managed (.dll/.exe) assemblies:
 

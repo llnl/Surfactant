@@ -29,7 +29,7 @@ def establish_relationships(
     sbom: SBOM, software: Software, metadata: dict
 ) -> Optional[List[Relationship]]:
     """
-    SurfActant plugin: establish 'Uses' relationships based on PE import metadata.
+    Establish 'Uses' relationships based on PE import metadata.
 
     Handles peImport, peBoundImport, and peDelayImport using a Windows-specific resolver.
     Phases:
