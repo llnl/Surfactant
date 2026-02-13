@@ -97,9 +97,6 @@ def test_elf_relationship_cases(example_sbom, label):
       - Exactly one "Uses" relationship is emitted.
       - The dependency resolves to `expected_uuid`, and never to the consumer itself.
     """
-    # Debug prints are helpful during bring-up, but can be noisy in CI.
-    # Keep them for now; if logs are cluttered, consider replacing with logger.debug or removing.
-    print(f"==== RUNNING: {label} ====")
     sbom, case_map = example_sbom
 
     # Retrieve the consumer under test and the expected supplier UUID
@@ -107,13 +104,6 @@ def test_elf_relationship_cases(example_sbom, label):
 
     # Pull the ELF metadata for this software (may include elfDependencies, elfRunpath/Rpath, etc.)
     metadata = sw.metadata[0] if sw.metadata else {}
-    print("Dependency paths:", metadata.get("elfDependencies", []))
-    print("fs_tree nodes:", list(sbom.fs_tree.nodes))
-
-    # Optional trace: show how raw dependency strings normalize to POSIX and what fs_tree returns
-    for dep in metadata.get("elfDependencies", []):
-        norm = pathlib.PurePosixPath(dep).as_posix()
-        print(f"Trying lookup: {norm} ->", sbom.get_software_by_path(norm))
 
     # Execute the plugin and assert a single, correct relationship is produced
     result = elf_relationship.establish_relationships(sbom, sw, metadata)

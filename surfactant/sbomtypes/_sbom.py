@@ -193,7 +193,7 @@ class SBOM:
         for path in sw.installPath:
             # Normalize Windows or Unix paths to a consistent POSIX string
             norm_path = normalize_path(path)
-            parts = pathlib.PurePosixPath(norm_path).parts
+            parts = PurePosixPath(norm_path).parts
 
             # Build parent-child relationships for all intermediate directories
             for i in range(1, len(parts)):
@@ -273,13 +273,13 @@ class SBOM:
         # Optional Windows-style, case-insensitive fallback
         # Only for callers that explicitly opt-in, to avoid changing ELF/Unix semantics.
         if case_insensitive:
-            target = pathlib.PurePosixPath(norm_path)
+            target = PurePosixPath(norm_path)
             parent = target.parent.as_posix()
             basename_ci = target.name.casefold()
 
             if self.fs_tree.has_node(parent):
                 for _src, child, _data in self.fs_tree.out_edges(parent, data=True):
-                    child_name_ci = pathlib.PurePosixPath(child).name.casefold()
+                    child_name_ci = PurePosixPath(child).name.casefold()
                     if child_name_ci == basename_ci:
                         candidate = self.fs_tree.nodes.get(child)
                         if candidate and "software_uuid" in candidate:

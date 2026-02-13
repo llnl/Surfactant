@@ -531,46 +531,6 @@ def establish_relationships(
             matched_uuids = set()
             used_method = {}
 
-            # def is_valid_match(sw: Software, refVersion=refVersion, refCulture=refCulture) -> bool:
-            #     """
-            #     Apply identity-based filters to ensure that a candidate assembly
-            #     truly corresponds to the referenced assembly.
-
-            #     A match is rejected when:
-            #     - The candidate is the dependent software itself (avoid self-loops).
-            #     - Version metadata exists on both sides and the versions differ.
-            #     - Culture metadata exists on both sides and the cultures differ.
-
-            #     Only explicit mismatches are filtered out; if metadata is absent on
-            #     either side, the function allows the match to proceed so that other
-            #     phases may evaluate it.
-            #     """
-            #     # Do not match the importing software to itself
-            #     if sw.UUID == dependent_uuid:
-            #         return False
-
-            #     # Check version and culture metadata when present
-            #     for md in sw.metadata or []:
-            #         asm = md.get("dotnetAssembly")
-            #         if asm:
-            #             sw_version = asm.get("Version")
-            #             sw_culture = asm.get("Culture")
-
-            #             # Version mismatch
-            #             if refVersion and sw_version and sw_version != refVersion:
-            #                 logger.debug(
-            #                     f"[.NET][filter] skipping {sw.UUID}: version {sw_version} != {refVersion}"
-            #                 )
-            #                 return False
-
-            #             # Culture mismatch
-            #             if refCulture and sw_culture and sw_culture != refCulture:
-            #                 logger.debug(
-            #                     f"[.NET][filter] skipping {sw.UUID}: culture {sw_culture} != {refCulture}"
-            #                 )
-            #                 return False
-            #     return True
-
             # Phase 1: fs_tree lookup
             #
             # Construct fully qualified candidate paths by combining each probing

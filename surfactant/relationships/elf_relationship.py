@@ -310,6 +310,56 @@ def generate_search_paths(sw: Software, md) -> List[pathlib.PurePosixPath]:
 
 
 def generate_runpaths(sw: Software, md) -> List[pathlib.PurePosixPath]:
+    """
+    Generate a list of resolved runpaths based on the metadata from
+    an ELF file and the provided software object.
+
+    This function determines the appropriate runpath entries by analyzing
+    DT_RPATH and DT_RUNPATH from ELF metadata (`md`) and substitutes
+    dynamic string tokens (DSTs) to produce formatted paths.
+
+    The logic follows these rules:
+    1. If `elfRpath` is present in the metadata and `elfRunpath` is not,
+       the function uses `elfRpath` as the source of runpaths. Note that
+       the use of DT_RPATH is deprecated.
+    2. If `elfRunpath` exists, it takes precedence and the function uses
+       `elfRunpath` as the source of runpath.
+    3. Paths are split using `:` as a separator, and empty path components
+       are ignored.
+    4. All paths perform DST substitution using the
+       `substitute_all_dst()` function.
+
+    Args:
+        sw (Software): An object containing dependency and installation information, where
+           the software path can be iterated on through all runpath entries.
+        md: ELF metadata containing key-values such as `elfRpath`
+            and `elfRunpath`.
+
+    Returns:
+        List[pathlib.PurePosixPath]: A list of finalized runpaths where
+        all dynamic string tokens are resolved. Each path is represented
+        as a `pathlib.PurePosixPath` object.
+
+    Example:
+        Suppose `md` contains ELF metadata with the following entries:
+        ```
+       >>>md = {
+       >>>"elfRpath": ["/lib:/usr/lib"],
+       >>>"elfRunpath": None,
+        }
+        [
+            PurePosixPath('/lib'),
+            PurePosixPath('/usr/lib')
+        ]
+        ```
+        And `sw` enables substitution tokens such as `$LIB`.
+        The function will return resolved paths by splitting `"/lib:/usr/lib"`
+        and applying substitutions where `$LIB` is located.
+
+    Notes:
+        - If the ELF file specifies both `DT_RPATH` and `DT_RUNPATH`,
+          `DT_RUNPATH` is given precedence.
+    """
     # rpath and runpath are lists of strings (just in case an ELF file has several, though that is probably an invalid ELF file)
     rp_to_use = []
     rpath = None

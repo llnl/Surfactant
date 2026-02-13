@@ -98,7 +98,7 @@ def test_pe_same_directory_match():
     dll = Software(
         UUID="uuid-dll",
         fileName=["common.dll"],
-        installPath=["E:/bin/common.dll"],  # <== change this
+        installPath=["E:/bin/common.dll"],
     )
 
     binary = Software(
