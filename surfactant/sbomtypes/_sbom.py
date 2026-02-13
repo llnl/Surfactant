@@ -320,7 +320,9 @@ class SBOM:
                 if attrs.get("type") == "symlink":
                     target_node = self.fs_tree.nodes.get(target, {})
                     if "software_uuid" in target_node:
-                        logger.debug(f"[fs_tree] Resolved {path} via symlink: {current} -> {target}")
+                        logger.debug(
+                            f"[fs_tree] Resolved {path} via symlink: {current} -> {target}"
+                        )
                         return self._find_software_entry(uuid=target_node["software_uuid"])
                     if target not in visited:
                         queue.append((target, depth + 1))
