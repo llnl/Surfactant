@@ -10,7 +10,7 @@ def normalize_path(*path_parts: Union[str, pathlib.PurePosixPath]) -> str:
     inputs are replaced with forward slashes ('/'), producing a consistent,
     POSIX-style representation. However, if any argument is already a
     ``pathlib.PurePath`` (such as a PurePosixPath), it is passed through
-    unchanged — ensuring that literal backslashes within file or directory
+    unchanged -- ensuring that literal backslashes within file or directory
     names are preserved.
 
     Args:
@@ -29,7 +29,7 @@ def normalize_path(*path_parts: Union[str, pathlib.PurePosixPath]) -> str:
     """
     cleaned_parts = [
         # If this part is already a PurePath (e.g. PurePosixPath),
-        # don't modify it — we assume it already uses the correct separators.
+        # don't modify it -- we assume it already uses the correct separators.
         # Otherwise, replace Windows backslashes in string inputs.
         p if isinstance(p, pathlib.PurePath) else str(p).replace("\\", "/")
         for p in path_parts

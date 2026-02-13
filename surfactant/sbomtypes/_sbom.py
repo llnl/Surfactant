@@ -54,7 +54,7 @@ class SBOM:
     software: List[Software] = field(default_factory=list)
     # relationships: Set[Relationship] = field(default_factory=set)  # (removed relationships field. Graph is now the single source of truth)
     _loaded_relationships: List[Relationship] = (
-        field(  # this metadata will capture the old array on load (but won’t re-emit it)
+        field(  # this metadata will capture the old array on load (but won't re-emit it)
             default_factory=list,
             metadata=config(field_name="relationships", exclude=lambda _: True),
         )
@@ -185,7 +185,7 @@ class SBOM:
         Example:
             For installPath = ["C:\\app\\bin"], this will create:
                 - Nodes: "C:", "C:/app", "C:/app/bin"
-                - Edges: "C:" → "C:/app", "C:/app" → "C:/app/bin"
+                - Edges: "C:" -> "C:/app", "C:/app" -> "C:/app/bin"
                 - Node "C:/app/bin" will have attribute {"software_uuid": sw.UUID}
         """
         if not sw.installPath:
@@ -209,7 +209,7 @@ class SBOM:
             # Associate this path node with the software UUID
             self.fs_tree.nodes[norm_path]["software_uuid"] = sw.UUID
 
-            # wire the file → hash edge so hash-equivalence works
+            # wire the file -> hash edge so hash-equivalence works
             if sw.sha256:
                 try:
                     self.record_hash_node(norm_path, sw.sha256)
@@ -285,7 +285,7 @@ class SBOM:
                         candidate = self.fs_tree.nodes.get(child)
                         if candidate and "software_uuid" in candidate:
                             logger.debug(
-                                "[fs_tree] case-insensitive match: %s → %s",
+                                "[fs_tree] case-insensitive match: %s -> %s",
                                 norm_path,
                                 child,
                             )
@@ -321,7 +321,7 @@ class SBOM:
                 if attrs.get("type") == "symlink":
                     target_node = self.fs_tree.nodes.get(target, {})
                     if "software_uuid" in target_node:
-                        logger.debug(f"[fs_tree] Resolved {path} via symlink: {current} → {target}")
+                        logger.debug(f"[fs_tree] Resolved {path} via symlink: {current} -> {target}")
                         return self._find_software_entry(uuid=target_node["software_uuid"])
                     if target not in visited:
                         queue.append((target, depth + 1))
@@ -335,7 +335,7 @@ class SBOM:
 
         This function performs a *reverse traversal* of the filesystem graph (`fs_tree`),
         starting from the specified `path` and walking **incoming** symlink edges
-        (`link → target`) to collect every symlink node that ultimately resolves to
+        (`link -> target`) to collect every symlink node that ultimately resolves to
         that target.
 
         The method is effectively the inverse of :meth:`get_software_by_path`, which
@@ -344,7 +344,7 @@ class SBOM:
         Behavior:
             - Follows only edges with attribute ``type="symlink"``.
             - Traverses breadth-first to handle multi-hop symlink chains
-              (e.g., A → B → C → /usr/bin/ls).
+              (e.g., A -> B -> C -> /usr/bin/ls).
             - Avoids cycles and repeated nodes using a visited set.
             - Returns all normalized symlink paths that resolve to the given target path.
             - Logs debug information for each edge visited and for each discovered source.
@@ -359,12 +359,12 @@ class SBOM:
 
         Example:
             Given:
-                /usr/bin/dirE/link_to_F → /usr/bin/dirF
-                /usr/bin/dirF/runthat → /usr/bin/echo
+                /usr/bin/dirE/link_to_F -> /usr/bin/dirF
+                /usr/bin/dirF/runthat -> /usr/bin/echo
 
             Then:
                 get_symlink_sources_for_path("/usr/bin/echo")
-                → ["/usr/bin/dirF/runthat", "/usr/bin/dirE/link_to_F/runthat"]
+                -> ["/usr/bin/dirF/runthat", "/usr/bin/dirE/link_to_F/runthat"]
         """
         norm_target = normalize_path(path)
         if not self.fs_tree.has_node(norm_target):
@@ -383,14 +383,14 @@ class SBOM:
                 continue
             visited.add(current)
 
-            # Iterate over all incoming symlink edges: src → current
+            # Iterate over all incoming symlink edges: src -> current
             for src, _dst, attrs in self.fs_tree.in_edges(current, data=True):
                 if attrs.get("type") != "symlink":
                     continue
 
                 if src not in results:
                     results.add(src)
-                    logger.debug(f"[fs_tree] Found symlink source: {src} → {current}")
+                    logger.debug(f"[fs_tree] Found symlink source: {src} -> {current}")
 
                 # Continue traversal upward through the graph (transitive links)
                 if src not in visited:
@@ -415,7 +415,7 @@ class SBOM:
             self.graph.add_edge(rel.xUUID, rel.yUUID, key=rel.relationship)
 
     def add_relationship(self, rel: Relationship) -> None:
-        # The Relationship object get wired into the graph key=…
+        # The Relationship object get wired into the graph key=...
         if not self.graph.has_node(rel.xUUID):
             self.graph.add_node(rel.xUUID, type="Unknown")
         if not self.graph.has_node(rel.yUUID):
@@ -439,7 +439,7 @@ class SBOM:
 
     def find_relationship_object(self, r: Relationship) -> bool:
         """
-        Return True if an exact edge (r.xUUID → r.yUUID) exists
+        Return True if an exact edge (r.xUUID -> r.yUUID) exists
         in the graph with key=r.relationship.
         """
         return self.graph.has_edge(r.xUUID, r.yUUID, key=r.relationship)
@@ -457,7 +457,7 @@ class SBOM:
         relationship: Optional[str] = None,
     ) -> bool:
         """
-        Return True if there exists at least one edge u→v in the graph
+        Return True if there exists at least one edge u->v in the graph
         matching the optional filters (u, v, and/or relationship key).
         """
         # Fast-path if all three are specified
@@ -512,7 +512,7 @@ class SBOM:
         # Add edge to fs_tree if not present
         if not self.fs_tree.has_edge(src, dst):
             self.fs_tree.add_edge(src, dst, type="symlink", subtype=subtype)
-            logger.debug(f"{log_prefix} Added symlink edge: {src} → {dst} [subtype={subtype}]")
+            logger.debug(f"{log_prefix} Added symlink edge: {src} -> {dst} [subtype={subtype}]")
 
         # Ensure both nodes exist and are typed as Path in the logical graph
         for node in (src, dst):
@@ -524,7 +524,7 @@ class SBOM:
         # Add mirrored edge in graph if not already present
         if not self.graph.has_edge(src, dst, key="symlink"):
             self.graph.add_edge(src, dst, key="symlink")
-            logger.debug(f"[graph] Added symlink edge: {src} → {dst}")
+            logger.debug(f"[graph] Added symlink edge: {src} -> {dst}")
 
     def _record_symlink(
         self, link_path: str, target_path: str, *, subtype: Optional[str] = None
@@ -533,7 +533,7 @@ class SBOM:
         Record a filesystem symlink in both the SBOM's relationship graph and its fs_tree.
 
         This method adds the given symlink as a relationship between two filesystem
-        path nodes (`link_path` → `target_path`). It ensures the link exists in both
+        path nodes (`link_path` -> `target_path`). It ensures the link exists in both
         the logical relationship graph (`graph`) and the physical filesystem graph (`fs_tree`),
         maintaining internal consistency between them.
 
@@ -573,7 +573,7 @@ class SBOM:
         logger.debug(f"[fs_tree] subtype={subtype}")
         if subtype != "directory" and not self.fs_tree.has_node(target_node):
             self._pending_file_links.append((link_node, target_node, subtype))
-            logger.debug(f"[fs_tree] Queued deferred file symlink: {link_node} → {target_node}")
+            logger.debug(f"[fs_tree] Queued deferred file symlink: {link_node} -> {target_node}")
             return
 
         # ----------------------------------------------------------------------
@@ -582,14 +582,14 @@ class SBOM:
         self._add_symlink_edge(link_node, target_node, subtype=subtype)
 
         # ----------------------------------------------------------------------
-        # Step 4: Handle directory symlinks — queue and synthesize one-hop children
+        # Step 4: Handle directory symlinks -- queue and synthesize one-hop children
         # ----------------------------------------------------------------------
         if subtype == "directory":
             # Register for deferred expansion after all directories are processed
             self._pending_dir_links.append((link_node, target_node))
             logger.debug(
                 f"[fs_tree] Queued directory symlink for deferred expansion: "
-                f"{link_node} → {target_node}"
+                f"{link_node} -> {target_node}"
             )
 
             # Identify direct (non-symlink) children under the target directory
@@ -614,7 +614,7 @@ class SBOM:
                 self._add_symlink_edge(synthetic_link, child, subtype="file")
                 logger.debug(
                     f"[fs_tree] (immediate) Synthetic chained symlink created: "
-                    f"{synthetic_link} → {child}"
+                    f"{synthetic_link} -> {child}"
                 )
 
     def record_symlink(
@@ -646,7 +646,7 @@ class SBOM:
         This method links the given file node to a virtual hash node (e.g., "sha256:<digest>"),
         allowing the fs_tree to represent content-equivalence relationships across files.
         Such hash-based edges enable detection of identical files that were copied,
-        flattened, or dereferenced during extraction—restoring logical symlink equivalence
+        flattened, or dereferenced during extraction--restoring logical symlink equivalence
         and supporting later deduplication.
 
         Args:
@@ -656,10 +656,10 @@ class SBOM:
         Behavior:
             - Normalizes `file_path` to POSIX-style notation for consistent node keys.
             - Ensures the hash node exists in the fs_tree with type="Hash".
-            - Adds a directed "hash" edge from the file node → hash node.
+            - Adds a directed "hash" edge from the file node -> hash node.
 
         Example:
-            /usr/bin/su  →  sha256:f163759953aafc083e9ee25c20cda300ae01e37612eb24e54086cacffe1aca5a
+            /usr/bin/su  ->  sha256:f163759953aafc083e9ee25c20cda300ae01e37612eb24e54086cacffe1aca5a
         """
         file_node = normalize_path(file_path)
         hash_node = f"sha256:{sha256}"
@@ -682,7 +682,7 @@ class SBOM:
 
         self.fs_tree.nodes[hash_node]["type"] = "Hash"  # enforce correct type
         self.fs_tree.add_edge(file_node, hash_node, type="hash")
-        logger.debug(f"[fs_tree] Added hash edge: {file_node} → {hash_node} (type=hash)")
+        logger.debug(f"[fs_tree] Added hash edge: {file_node} -> {hash_node} (type=hash)")
 
     def get_hash_equivalents(self, path_node: str) -> set[str]:
         """
@@ -701,10 +701,10 @@ class SBOM:
             logger.debug(f"[fs_tree] get_hash_equivalents: target node not found: {path_node}")
             return equivalents
 
-        # Find hash edges (path → sha256:...)
+        # Find hash edges (path -> sha256:...)
         for _, hash_node, data in self.fs_tree.out_edges(path_node, data=True):
             if data.get("type") == "hash":
-                logger.debug(f"[fs_tree] Found hash edge: {path_node} → {hash_node}")
+                logger.debug(f"[fs_tree] Found hash edge: {path_node} -> {hash_node}")
                 # For each path that shares this hash node, collect siblings
                 for src, _ in self.fs_tree.in_edges(hash_node):
                     if src != path_node:
@@ -747,7 +747,7 @@ class SBOM:
 
             if existing:
                 # Merge into existing node
-                # Duplicate → merge data & edges, drop the old UUID
+                # Duplicate -> merge data & edges, drop the old UUID
                 kept_uuid, old_uuid = existing.merge(sw)
                 logger.debug(f"Merged {sw.UUID} into {kept_uuid}, removing {old_uuid}")
 
@@ -767,7 +767,7 @@ class SBOM:
                 node_uuid = kept_uuid
 
             else:
-                # New software → add node
+                # New software -> add node
                 self.add_software(sw)
                 node_uuid = sw.UUID
                 logger.debug(f"Added new software node {node_uuid}")
@@ -778,7 +778,7 @@ class SBOM:
                 if sw.sha256:
                     for other in self.software:
                         if other is not sw and other.sha256 == sw.sha256:
-                            # Both files share the same content hash — link them to the same hash node
+                            # Both files share the same content hash -- link them to the same hash node
                             for path in sw.installPath or []:
                                 try:
                                     self.record_hash_node(path, sw.sha256)
@@ -795,7 +795,7 @@ class SBOM:
                                     )
                             logger.debug(
                                 f"[fs_tree] Linked identical content by hash: "
-                                f"{sw.installPath} ↔ {other.installPath}"
+                                f"{sw.installPath} <-> {other.installPath}"
                             )
                             break
 
@@ -804,7 +804,7 @@ class SBOM:
                 parent_uuid = parent_entry.UUID
                 if not self.graph.has_edge(parent_uuid, node_uuid, key="Contains"):
                     self.graph.add_edge(parent_uuid, node_uuid, key="Contains")
-                    logger.debug(f"Attached Contains edge: {parent_uuid} → {node_uuid}")
+                    logger.debug(f"Attached Contains edge: {parent_uuid} -> {node_uuid}")
 
             # Symlink capture under each installPath ---
             for raw in sw.installPath or []:
@@ -814,7 +814,7 @@ class SBOM:
                 if p.is_symlink():
                     real = p.resolve()
                     subtype = "file" if not p.is_dir() else "directory"
-                    logger.debug(f"Found installPath symlink: {p} → {real} (subtype={subtype})")
+                    logger.debug(f"Found installPath symlink: {p} -> {real} (subtype={subtype})")
                     # Call the helper to record this symlink in fs_tree
                     self._record_symlink(str(p), str(real), subtype=subtype)
 
@@ -825,7 +825,7 @@ class SBOM:
                             real = child.resolve()
                             subtype = "file" if not child.is_dir() else "directory"
                             logger.debug(
-                                f"Found child symlink: {child} → {real} (subtype={subtype})"
+                                f"Found child symlink: {child} -> {real} (subtype={subtype})"
                             )
                             self._record_symlink(str(child), str(real), subtype=subtype)
 
@@ -834,16 +834,16 @@ class SBOM:
         Expand all deferred directory symlinks recorded in `_pending_dir_links`.
 
         Each deferred pair `(link_node, target_node)` represents a directory-level
-        symlink such as `/usr/bin/dirE/link_to_F → /usr/bin/dirF`.
+        symlink such as `/usr/bin/dirE/link_to_F -> /usr/bin/dirF`.
 
         This function performs a one-hop mirror expansion to create synthetic
         symlink edges linking each immediate child of the target directory back
         under the symlink source. For example:
 
-            /usr/bin/dirE/link_to_F/runthat → /usr/bin/dirF/runthat
+            /usr/bin/dirE/link_to_F/runthat -> /usr/bin/dirF/runthat
 
-        The goal is to replicate the main branch’s behavior for cross-directory
-        mirroring (e.g., dirE ↔ dirF) without over-expanding into recursive
+        The goal is to replicate the main branch's behavior for cross-directory
+        mirroring (e.g., dirE <-> dirF) without over-expanding into recursive
         `link_to_F/link_to_E/...` chains.
 
         Behavior:
@@ -863,7 +863,7 @@ class SBOM:
         for link_node, target_node in list(self._pending_dir_links):
             if not self.fs_tree.has_node(target_node):
                 logger.debug(
-                    f"[fs_tree] Skipping {link_node} → {target_node} (target missing in fs_tree)"
+                    f"[fs_tree] Skipping {link_node} -> {target_node} (target missing in fs_tree)"
                 )
                 continue
 
@@ -881,7 +881,7 @@ class SBOM:
                         immediate_children.append(child)
 
             logger.debug(
-                f"[fs_tree] Deferred mirror for {link_node} → {target_node}: "
+                f"[fs_tree] Deferred mirror for {link_node} -> {target_node}: "
                 f"{len(immediate_children)} immediate children found"
             )
 
@@ -895,22 +895,22 @@ class SBOM:
 
                 # Skip if this symlink edge already exists
                 if self.fs_tree.has_edge(synthetic_link, child):
-                    logger.debug(f"[fs_tree] Skipping existing edge: {synthetic_link} → {child}")
+                    logger.debug(f"[fs_tree] Skipping existing edge: {synthetic_link} -> {child}")
                     continue
 
                 # Add synthetic symlink edge to both fs_tree and graph
                 self._add_symlink_edge(synthetic_link, child, subtype="file")
                 logger.debug(
                     f"[fs_tree] (deferred) Synthetic chained symlink created: "
-                    f"{synthetic_link} → {child}"
+                    f"{synthetic_link} -> {child}"
                 )
 
         logger.debug(
-            f"[fs_tree] Deferred symlink expansion complete — processed {pending_count} entries."
+            f"[fs_tree] Deferred symlink expansion complete -- processed {pending_count} entries."
         )
 
         logger.debug(
-            f"[fs_tree] Deferred symlink expansion complete — processed {pending_count} entries."
+            f"[fs_tree] Deferred symlink expansion complete -- processed {pending_count} entries."
         )
 
     def expand_pending_file_symlinks(self) -> None:
@@ -928,11 +928,11 @@ class SBOM:
                 continue
             if not self.fs_tree.has_node(target_node):
                 logger.debug(
-                    f"[fs_tree] Skipping deferred file link {link_node} → {target_node} (missing target)"
+                    f"[fs_tree] Skipping deferred file link {link_node} -> {target_node} (missing target)"
                 )
                 continue
             self._add_symlink_edge(link_node, target_node, subtype=subtype)
-            logger.debug(f"[fs_tree] Deferred file symlink created: {link_node} → {target_node}")
+            logger.debug(f"[fs_tree] Deferred file symlink created: {link_node} -> {target_node}")
 
         self._pending_file_links.clear()
 
@@ -947,7 +947,7 @@ class SBOM:
         It collects three classes of alias information:
 
             1. **Filesystem Symlinks:** incoming symlink edges in `fs_tree`
-               (e.g., "usr/sbin/runuser" → "usr/bin/su")
+               (e.g., "usr/sbin/runuser" -> "usr/bin/su")
 
             2. **Hash-Equivalent Siblings:** other files that share identical content
                (sha256) but appear at different install paths.
@@ -960,14 +960,14 @@ class SBOM:
         The resulting metadata entries are merged or appended under each
         `Software.metadata` list in a legacy-compatible format:
 
-            - ``fileNameSymlinks`` — list of alternate basenames
-            - ``installPathSymlinks`` — list of alternate full install paths
+            - ``fileNameSymlinks`` -- list of alternate basenames
+            - ``installPathSymlinks`` -- list of alternate full install paths
 
         This operation:
-            • Traverses all Software entries
-            • Derives alias sets from symlink edges, identical hashes, and fileName extras
-            • Merges metadata without duplication
-            • Does *not* alter fs_tree or graph topology
+            - Traverses all Software entries
+            - Derives alias sets from symlink edges, identical hashes, and fileName extras
+            - Merges metadata without duplication
+            - Does *not* alter fs_tree or graph topology
 
         Example output:
             {
@@ -1140,7 +1140,7 @@ class SBOM:
                             self.graph.add_edge(pred, u1, key=key, **attrs)
 
                         # For each successor of u2, add edge (u1 -> succ)
-                        # Redirect outgoing edges from u2 → u1
+                        # Redirect outgoing edges from u2 -> u1
                         for _, succ, key, attrs in self.graph.out_edges(u2, keys=True, data=True):
                             self.graph.add_edge(u1, succ, key=key, **attrs)
 
@@ -1170,7 +1170,7 @@ class SBOM:
                         # Redirect incoming edges to the merged node u1
                         for pred, _, key, attrs in self.graph.in_edges(u2, keys=True, data=True):
                             self.graph.add_edge(pred, u1, key=key, **attrs)
-                        # Redirect outgoing edges from u2 → u1
+                        # Redirect outgoing edges from u2 -> u1
                         for _, succ, key, attrs in self.graph.out_edges(u2, keys=True, data=True):
                             self.graph.add_edge(u1, succ, key=key, **attrs)
 
@@ -1184,7 +1184,7 @@ class SBOM:
                     if hasattr(self, "graph"):
                         self.graph.add_node(sw.UUID, type="Software")
 
-        # 3) Merge relationships from the incoming SBOM’s MultiDiGraph
+        # 3) Merge relationships from the incoming SBOM's MultiDiGraph
         for src, dst, rel_type in sbom_m.graph.edges(keys=True):
             # Skip path/symlink edges during merge as well
             if str(rel_type).lower() == "symlink":
@@ -1200,7 +1200,7 @@ class SBOM:
 
             # skip exact duplicates
             if self.graph.has_edge(xUUID, yUUID, key=rel_type):
-                logger.info(f"DUPLICATE RELATIONSHIP: {xUUID} → {yUUID} [{rel_type}]")
+                logger.info(f"DUPLICATE RELATIONSHIP: {xUUID} -> {yUUID} [{rel_type}]")
             else:
                 # add a new edge, keyed by the relationship
                 self.graph.add_edge(xUUID, yUUID, key=rel_type)
@@ -1331,7 +1331,7 @@ class SBOM:
                 continue
             if relationship and key.upper() != relationship.upper():
                 continue
-            # reconstruct the Relationship object for merge‐logic
+            # reconstruct the Relationship object for merge-logic
             return Relationship(xUUID=u, yUUID=v, relationship=key)
         return None
 
@@ -1382,7 +1382,7 @@ class SBOM:
 
     def get_children(self, xUUID: str, rel_type: Optional[str] = None) -> List[str]:
         """
-        Return all v such that there is an edge xUUID → v,
+        Return all v such that there is an edge xUUID -> v,
         optionally filtered by relationship key.
         """
         children = []
@@ -1393,7 +1393,7 @@ class SBOM:
 
     def get_parents(self, yUUID: str, rel_type: Optional[str] = None) -> List[str]:
         """
-        Return all u such that there is an edge u → yUUID,
+        Return all u such that there is an edge u -> yUUID,
         optionally filtered by relationship key.
         """
         parents = []
@@ -1435,7 +1435,7 @@ class SBOM:
         data.pop("_pending_dir_links", None)
         data.pop("_pending_file_links", None)
 
-        # Convert sets → lists for JSON
+        # Convert sets -> lists for JSON
         for k, v in list(data.items()):
             if isinstance(v, set):
                 data[k] = list(v)

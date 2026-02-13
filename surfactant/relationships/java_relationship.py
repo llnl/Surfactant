@@ -13,7 +13,7 @@ def has_required_fields(metadata) -> bool:
 
 
 class _ExportDict:
-    """Legacy export lookup table: Java export class → supplier UUID.
+    """Legacy export lookup table: Java export class -> supplier UUID.
 
     Mirrors java_relationship._ExportDict (Legacy), but caches per-SBOM instance
     (via weakref).
@@ -55,11 +55,11 @@ def establish_relationships(
 ) -> Optional[List[Relationship]]:
     """Establish 'Uses' relationships for Java class-level imports.
 
-    Resolution phases (new → old):
+    Resolution phases (new -> old):
       1. TODO: Not Implemented: [fs_tree] Attempt to resolve the imported class to a Software entry by
          path lookup in SBOM.fs_tree (sbom.get_software_by_path()).
       2. [legacy] Fall back to the legacy export-dict behavior
-         (javaExports → supplier UUID).
+         (javaExports -> supplier UUID).
 
     The Phase-2 fallback is intended to mirror java_relationship.py (Legacy) as
     closely as possible, and should produce the same relationships when fs_tree
@@ -93,7 +93,7 @@ def establish_relationships(
             if supplier_uuid is None:
                 supplier_uuid = _ExportDict.get_supplier(import_name)
                 method = "legacy_exports" if supplier_uuid else None
-                logger.debug(f"[Java][legacy] {import_name} → UUID={supplier_uuid}")
+                logger.debug(f"[Java][legacy] {import_name} -> UUID={supplier_uuid}")
 
             # Emit relationship if resolved and not self.
             if supplier_uuid and supplier_uuid != dependent_uuid:
@@ -101,7 +101,7 @@ def establish_relationships(
                 if rel not in relationships:
                     if method:
                         logger.debug(
-                            f"[Java][final] {dependent_uuid} Uses {import_name} → UUID={supplier_uuid} [{method}]"
+                            f"[Java][final] {dependent_uuid} Uses {import_name} -> UUID={supplier_uuid} [{method}]"
                         )
                     relationships.append(rel)
 

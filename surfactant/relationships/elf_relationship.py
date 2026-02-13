@@ -99,9 +99,9 @@ def establish_relationships(
 
     Notes:
         - Dependency paths may originate from:
-            • absolute paths in metadata
-            • relative paths joined against each installPath
-            • computed runpaths (RPATH/RUNPATH) and default library paths
+            - absolute paths in metadata
+            - relative paths joined against each installPath
+            - computed runpaths (RPATH/RUNPATH) and default library paths
         - Duplicate relationships are suppressed.
         - Self-dependencies are not emitted.
 
@@ -120,9 +120,9 @@ def establish_relationships(
 
     # Each entry in metadata["elfDependencies"] is a DT_NEEDED-style string
     # extracted from the ELF dynamic section. These can be:
-    #   • Bare filenames, e.g. "libc.so.6"
-    #   • Relative paths, e.g. "subdir/libfoo.so"
-    #   • Absolute paths, e.g. "/opt/lib/libbar.so"
+    #   - Bare filenames, e.g. "libc.so.6"
+    #   - Relative paths, e.g. "subdir/libfoo.so"
+    #   - Absolute paths, e.g. "/opt/lib/libbar.so"
     #
     # The dynamic loader interprets these differently, and the resolution logic
     # below mirrors that behavior. We normalize each dependency into candidate
@@ -134,7 +134,7 @@ def establish_relationships(
     #     path comparisons consistent with fs_tree key normalization.
     #   - No directory inference or fuzzy matching occurs: all candidate paths
     #     must be derived strictly from ELF semantics (slashes vs. bare names)
-    #     and from the calling software’s installPath or runpath metadata.
+    #     and from the calling software's installPath or runpath metadata.
     for dep in metadata["elfDependencies"]:
         dep_str = dep
         fpaths = []
@@ -145,7 +145,7 @@ def establish_relationships(
         # reside. ELF dependency strings come in two forms:
         #
         #   Case 1: The string contains a slash (e.g., "somedir/libfoo.so")
-        #           → The dynamic loader interprets this as a literal path.
+        #           -> The dynamic loader interprets this as a literal path.
         #             - If absolute, the path is used directly.
         #             - If relative, it is resolved relative to each installPath
         #               of the referencing software. This mirrors runtime behavior
@@ -153,7 +153,7 @@ def establish_relationships(
         #               interpreted relative to the binary's directory.
         #
         #   Case 2: Bare filename (e.g., "libfoo.so")
-        #           → The loader searches a sequence of directories:
+        #           -> The loader searches a sequence of directories:
         #             runpaths, rpaths, LD_LIBRARY_PATH, cache entries,
         #             and system defaults. Here we approximate that search by
         #             joining the filename onto the generated search paths
@@ -165,7 +165,7 @@ def establish_relationships(
         # Later phases attempt to match these paths against the SBOM via fs_tree
         # or exact installPath equality.
 
-        # Case 1: Dependency has slash — treat as direct path
+        # Case 1: Dependency has slash -- treat as direct path
         if "/" in dep_str:
             if dep.is_absolute():
                 fpaths = [dep.as_posix()]
@@ -176,7 +176,7 @@ def establish_relationships(
                         combined = posix_normpath(str(ipath_posix.parent.joinpath(dep))).as_posix()
                         fpaths.append(combined)
 
-        # Case 2: Bare filename — use runpaths and fallback paths
+        # Case 2: Bare filename -- use runpaths and fallback paths
         else:
             fpaths = [p.joinpath(fname).as_posix() for p in default_search_paths]
 
@@ -192,7 +192,7 @@ def establish_relationships(
         #     follows recorded filesystem symlinks (file- and directory-level)
         #     using BFS until a software entry is reached.
         #
-        # This phase yields only concrete, evidence-based matches—no inference.
+        # This phase yields only concrete, evidence-based matches--no inference.
         # A match is accepted only if:
         #   - The target resolves through the fs_tree to a software entry, AND
         #   - The dependency is not self-referential.
@@ -202,7 +202,7 @@ def establish_relationships(
         for path in fpaths:
             match = sbom.get_software_by_path(path)
             ok = bool(match and match.UUID != software.UUID)
-            logger.debug(f"[ELF][fs_tree] {path} → {'UUID=' + match.UUID if ok else 'no match'}")
+            logger.debug(f"[ELF][fs_tree] {path} -> {'UUID=' + match.UUID if ok else 'no match'}")
             if ok:
                 matched_uuids.add(match.UUID)
                 used_method[match.UUID] = "fs_tree"
@@ -235,7 +235,7 @@ def establish_relationships(
                         # software matching requirements to be the loaded dependency was found
                         if item.UUID != software.UUID:
                             dependency_uuid = item.UUID
-                            logger.debug(f"[ELF][legacy] {fname} in {fp} → UUID={item.UUID}")
+                            logger.debug(f"[ELF][legacy] {fname} in {fp} -> UUID={item.UUID}")
                             matched_uuids.add(dependency_uuid)
                             used_method[dependency_uuid] = "legacy_installPath"
 
@@ -249,10 +249,10 @@ def establish_relationships(
                     relationships.append(rel)
                     method = used_method.get(dependency_uuid, "unknown")
                     logger.debug(
-                        f"[ELF][final] {dependent_uuid} Uses {fname} → UUID={dependency_uuid} [{method}]"
+                        f"[ELF][final] {dependent_uuid} Uses {fname} -> UUID={dependency_uuid} [{method}]"
                     )
         else:
-            logger.debug(f"[ELF][final] {dependent_uuid} Uses {fname} → no match")
+            logger.debug(f"[ELF][final] {dependent_uuid} Uses {fname} -> no match")
 
     logger.debug(f"[ELF][final] emitted {len(relationships)} relationships")
     return relationships
@@ -379,7 +379,7 @@ def substitute_all_dst(sw: Software, md, path) -> List[pathlib.PurePosixPath]:
         - Filename arguments to dlopen() and dlmopen()
 
     More details:
-        See the “Dynamic string tokens” section of:
+        See the "Dynamic string tokens" section of:
         https://man7.org/linux/man-pages/man8/ld.so.8.html
 
     Token behavior summary:
@@ -393,14 +393,14 @@ def substitute_all_dst(sw: Software, md, path) -> List[pathlib.PurePosixPath]:
 
         $LIB / ${LIB}:
             Expands to either "lib" or "lib64" depending on architecture
-            (e.g. x86-64 → lib64, x86-32 → lib).
+            (e.g. x86-64 -> lib64, x86-32 -> lib).
 
         $PLATFORM / ${PLATFORM}:
             Expands to the CPU type string (e.g. "x86_64").
             On some architectures this comes from AT_PLATFORM in the auxiliary vector.
             Implementing full substitution would require target-specific enumeration
             of possible platform values (from glibc or musl sources), which is nontrivial
-            and rarely used — similar to hardware capability (hwcaps) subfolder searching.
+            and rarely used -- similar to hardware capability (hwcaps) subfolder searching.
             For now, such paths are discarded if unresolved.
 
     Returns a list of expanded paths; if no supported tokens are present, returns an empty list.
@@ -427,7 +427,7 @@ def substitute_all_dst(sw: Software, md, path) -> List[pathlib.PurePosixPath]:
         # Returning empty disables unresolved PLATFORM paths.
         return []
 
-    # No tokens → keep path as-is
+    # No tokens -> keep path as-is
     if not (has_origin or has_lib):
         return [posix_normpath(path)]
 

@@ -476,11 +476,11 @@ def sbom(
                                             install_source, install_dest, subtype="directory"
                                         )
                                         logger.debug(
-                                            f"[fs_tree] (dir) {install_source} → {install_dest}"
+                                            f"[fs_tree] (dir) {install_source} -> {install_dest}"
                                         )
                                     except (NetworkXError, ValueError) as e:
                                         logger.warning(
-                                            f"Failed to record directory symlink in fs_tree: {install_source} → {install_dest}: {e}"
+                                            f"Failed to record directory symlink in fs_tree: {install_source} -> {install_dest}: {e}"
                                         )
 
                     entries: List[Software] = []
@@ -521,7 +521,7 @@ def sbom(
                                 new_sbom.record_hash_node(install_filepath, true_file_sha256)
                                 new_sbom.record_hash_node(install_dest, true_file_sha256)
                                 logger.debug(
-                                    f"[fs_tree] Linked symlink + target by hash: {install_filepath} ↔ {install_dest}"
+                                    f"[fs_tree] Linked symlink + target by hash: {install_filepath} <-> {install_dest}"
                                 )
                             except Exception as e:  # pylint: disable=broad-exception-caught
                                 logger.warning(
@@ -563,11 +563,11 @@ def sbom(
                                         install_filepath, install_dest, subtype=subtype
                                     )
                                     logger.debug(
-                                        f"[fs_tree] ({subtype}) {install_filepath} → {install_dest}"
+                                        f"[fs_tree] ({subtype}) {install_filepath} -> {install_dest}"
                                     )
                                 except (NetworkXError, ValueError) as e:
                                     logger.warning(
-                                        f"Failed to record symlink in fs_tree: {install_filepath} → {install_dest}: {e}"
+                                        f"Failed to record symlink in fs_tree: {install_filepath} -> {install_dest}: {e}"
                                     )
                             # NOTE Two cases that don't get recorded (but maybe should?) are:
                             # 1. If the file pointed to is outside the extract paths, it won't

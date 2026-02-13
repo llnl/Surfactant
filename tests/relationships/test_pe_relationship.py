@@ -90,7 +90,7 @@ def test_pe_same_directory_match():
 
     Note:
     - This will typically resolve in Phase 1 (fs_tree exact path). If fs_tree were
-      unavailable for the exact path, the resolver’s fallback also matches by
+      unavailable for the exact path, the resolver's fallback also matches by
       fileName + same directory. (In the current resolver, Phase 2 uses that criterion.)
     """
     sbom = SBOM()

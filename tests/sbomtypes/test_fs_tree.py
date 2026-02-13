@@ -20,7 +20,7 @@ def test_fs_tree_population(software_entries):
     Expectations:
       - Each installPath is normalized and inserted into fs_tree.
       - All intermediate directory nodes are created (e.g., /usr, /usr/bin).
-      - Edges reflect parent→child directory hierarchy.
+      - Edges reflect parent->child directory hierarchy.
       - Leaf nodes (final installPath) are tagged with the correct software_uuid.
     """
     sbom = SBOM()
@@ -95,8 +95,8 @@ def test_get_software_by_path_symlink_traversal():
     Verify get_software_by_path() can resolve symlinks in fs_tree.
 
     Cases:
-      - Single-hop alias: /lib/libc.so.6 → /usr/lib/libc.so.6
-      - Multi-hop alias:  /lib/libc.so → /lib/libc.so.6 → /usr/lib/libc.so.6
+      - Single-hop alias: /lib/libc.so.6 -> /usr/lib/libc.so.6
+      - Multi-hop alias:  /lib/libc.so -> /lib/libc.so.6 -> /usr/lib/libc.so.6
 
     Expected:
       - Both /lib/libc.so.6 and /lib/libc.so resolve to the target Software at
@@ -120,8 +120,8 @@ def test_get_software_by_path_symlink_cycle_guard():
     Ensure symlink cycles do not cause infinite loops.
 
     Case:
-      - /a → /b
-      - /b → /a
+      - /a -> /b
+      - /b -> /a
       - Neither node has a software_uuid tag.
 
     Expected:
@@ -139,7 +139,7 @@ def test_to_dict_override_filters_path_edges():
 
     Steps:
       - Add a Software with installPath=/usr/bin/ls.
-      - Record a symlink /bin/ls → /usr/bin/ls (creates Path nodes and symlink edge).
+      - Record a symlink /bin/ls -> /usr/bin/ls (creates Path nodes and symlink edge).
       - Call to_dict_override().
 
     Expected:
@@ -164,12 +164,12 @@ def test_expand_pending_dir_symlinks_creates_chained_edges(tmp_path):
     for deferred directory symlinks.
 
     Scenario:
-        dirE/link_to_F → dirF
-        dirF/runthat    → /bin/echo
+        dirE/link_to_F -> dirF
+        dirF/runthat    -> /bin/echo
 
     Expected:
         After expansion, fs_tree contains:
-        /dirE/link_to_F/runthat → /dirF/runthat
+        /dirE/link_to_F/runthat -> /dirF/runthat
     """
     sbom = SBOM()
 

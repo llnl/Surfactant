@@ -76,7 +76,7 @@ def get_windows_pe_dependencies(sbom: SBOM, sw: Software, peImports) -> List[Rel
          If phase 1 yields no matches for a DLL, the resolver delegates to
          ``find_installed_software()``, reproducing the legacy PE relationship
          algorithm. This fallback matches dependencies strictly by comparing
-         ``PureWindowsPath(probedir, dll_name)`` against each candidate’s
+         ``PureWindowsPath(probedir, dll_name)`` against each candidate's
          ``installPath`` entries.
 
     Background and References
@@ -102,7 +102,7 @@ def get_windows_pe_dependencies(sbom: SBOM, sw: Software, peImports) -> List[Rel
 
       - **Explicit or redirected paths** (e.g., LoadLibrary full paths, .local redirection)
       - **Application directory search**
-      - **Directories implied by the importing file’s ``installPath``**
+      - **Directories implied by the importing file's ``installPath``**
       - **Name-based matching when directory information is limited**
 
     Features not modeled statically include:
@@ -187,7 +187,7 @@ def get_windows_pe_dependencies(sbom: SBOM, sw: Software, peImports) -> List[Rel
             )
             ok = bool(match and match.UUID != dependent_uuid)
             logger.debug(
-                f"[PE][fs_tree] {full_path} → {'UUID=' + match.UUID if ok else 'no match'}"
+                f"[PE][fs_tree] {full_path} -> {'UUID=' + match.UUID if ok else 'no match'}"
             )
             if ok:
                 matched_uuids.add(match.UUID)
@@ -199,7 +199,7 @@ def get_windows_pe_dependencies(sbom: SBOM, sw: Software, peImports) -> List[Rel
         # ----------------------------------------
         if not matched_uuids:
             for e in find_installed_software(sbom, probedirs, fname):
-                logger.debug(f"[PE][legacy] {fname} → UUID={e.UUID}")
+                logger.debug(f"[PE][legacy] {fname} -> UUID={e.UUID}")
                 matched_uuids.add(e.UUID)
                 used_method[e.UUID] = "legacy_installPath"
 
@@ -212,10 +212,10 @@ def get_windows_pe_dependencies(sbom: SBOM, sw: Software, peImports) -> List[Rel
                 if rel not in relationships:
                     method = used_method.get(uuid, "unknown")
                     logger.debug(
-                        f"[PE][final] {dependent_uuid} Uses {fname} → UUID={uuid} [{method}]"
+                        f"[PE][final] {dependent_uuid} Uses {fname} -> UUID={uuid} [{method}]"
                     )
                     relationships.append(rel)
         else:
-            logger.debug(f"[PE][final] {dependent_uuid} Uses {fname} → no match")
+            logger.debug(f"[PE][final] {dependent_uuid} Uses {fname} -> no match")
 
     return relationships

@@ -81,7 +81,7 @@ from surfactant.utils.paths import normalize_path
 #      (Legacy comments reference Issue #80, noting the need to verify that
 #       these candidate combinations behave correctly across platforms.)
 #    - Versioned ".so" variations were NOT evaluated.
-#      (Related to Issue #79 — regex matching needed for versioned .so names.)
+#      (Related to Issue #79 -- regex matching needed for versioned .so names.)
 #    - Determine probing directories by taking the parent directory of each
 #      entry in software.installPath.
 #    - Search for all candidate filenames using find_installed_software().
@@ -217,12 +217,12 @@ from surfactant.utils.paths import normalize_path
 #       * For each software entry in the SBOM:
 #             For each installPath of that entry:
 #                 If the absolute path exactly matches installPath:
-#                     → Create a Relationship(dependent_uuid, match.UUID, "Uses")
+#                     -> Create a Relationship(dependent_uuid, match.UUID, "Uses")
 #
 #   - If absolute, no probing or variant-name construction occurs.
 #
 #   - If not absolute:
-#       → Apply unmanaged probing behavior:
+#       -> Apply unmanaged probing behavior:
 #            * Candidate filename list (dll/so/dylib/lib variants)
 #            * Search installer directories via find_installed_software()
 # -------------------------------------------------------------------------
@@ -360,7 +360,7 @@ def establish_relationships(
                 match = sbom.get_software_by_path(norm, case_insensitive=True)
                 if match and match.UUID != dependent_uuid:
                     logger.debug(
-                        f"[.NET][unmanaged][abs] {refName} (norm={norm}) → UUID={match.UUID}"
+                        f"[.NET][unmanaged][abs] {refName} (norm={norm}) -> UUID={match.UUID}"
                     )
                     relationships.append(Relationship(dependent_uuid, match.UUID, "Uses"))
                     continue
@@ -377,13 +377,13 @@ def establish_relationships(
                         for ifile in e.installPath:
                             if ref_abspath == pathlib.PureWindowsPath(ifile):
                                 logger.debug(
-                                    f"[.NET][unmanaged][abs] {refName} → UUID={e.UUID} [legacy_fallback]"
+                                    f"[.NET][unmanaged][abs] {refName} -> UUID={e.UUID} [legacy_fallback]"
                                 )
                                 relationships.append(Relationship(dependent_uuid, e.UUID, "Uses"))
                                 legacy_found = True
 
                 if not legacy_found:
-                    logger.debug(f"[.NET][unmanaged][abs] {refName} (norm={norm}) → no match")
+                    logger.debug(f"[.NET][unmanaged][abs] {refName} (norm={norm}) -> no match")
 
                 # Legacy behavior: absolute path means no probing/variants
                 continue
@@ -419,12 +419,12 @@ def establish_relationships(
             for e in find_installed_software(sbom, probedirs, combinations):
                 if e and e.UUID != dependent_uuid:
                     dependency_uuid = e.UUID
-                    logger.debug(f"[.NET][unmanaged] {refName} → UUID={dependency_uuid}")
+                    logger.debug(f"[.NET][unmanaged] {refName} -> UUID={dependency_uuid}")
                     relationships.append(Relationship(dependent_uuid, dependency_uuid, "Uses"))
                     found = True
 
             if not found:
-                logger.debug(f"[.NET][unmanaged] {refName} → no match")
+                logger.debug(f"[.NET][unmanaged] {refName} -> no match")
 
     if "dotnetAssemblyRef" in metadata:
         logger.debug(
@@ -480,7 +480,7 @@ def establish_relationships(
                                         )
                                         if match and match.UUID != dependent_uuid:
                                             logger.debug(
-                                                f"[.NET][codeBase] {codebase_href} → UUID={match.UUID} [graph]"
+                                                f"[.NET][codeBase] {codebase_href} -> UUID={match.UUID} [graph]"
                                             )
                                             relationships.append(
                                                 Relationship(dependent_uuid, match.UUID, "Uses")
@@ -497,7 +497,7 @@ def establish_relationships(
                                             ):
                                                 if e and e.UUID != dependent_uuid:
                                                     logger.debug(
-                                                        f"[.NET][codeBase] {codebase_href} → UUID={e.UUID} [legacy_fallback]"
+                                                        f"[.NET][codeBase] {codebase_href} -> UUID={e.UUID} [legacy_fallback]"
                                                     )
                                                     relationships.append(
                                                         Relationship(dependent_uuid, e.UUID, "Uses")
@@ -506,7 +506,7 @@ def establish_relationships(
 
                                             if not legacy_found:
                                                 logger.debug(
-                                                    f"[.NET][codeBase] {codebase_href} → no match"
+                                                    f"[.NET][codeBase] {codebase_href} -> no match"
                                                 )
 
             # --- Build probing dirs (legacy patterns + fs_tree) ---
@@ -537,9 +537,9 @@ def establish_relationships(
             #     truly corresponds to the referenced assembly.
 
             #     A match is rejected when:
-            #     • The candidate is the dependent software itself (avoid self-loops).
-            #     • Version metadata exists on both sides and the versions differ.
-            #     • Culture metadata exists on both sides and the cultures differ.
+            #     - The candidate is the dependent software itself (avoid self-loops).
+            #     - Version metadata exists on both sides and the versions differ.
+            #     - Culture metadata exists on both sides and the cultures differ.
 
             #     Only explicit mismatches are filtered out; if metadata is absent on
             #     either side, the function allows the match to proceed so that other
@@ -559,14 +559,14 @@ def establish_relationships(
             #             # Version mismatch
             #             if refVersion and sw_version and sw_version != refVersion:
             #                 logger.debug(
-            #                     f"[.NET][filter] skipping {sw.UUID}: version {sw_version} ≠ {refVersion}"
+            #                     f"[.NET][filter] skipping {sw.UUID}: version {sw_version} != {refVersion}"
             #                 )
             #                 return False
 
             #             # Culture mismatch
             #             if refCulture and sw_culture and sw_culture != refCulture:
             #                 logger.debug(
-            #                     f"[.NET][filter] skipping {sw.UUID}: culture {sw_culture} ≠ {refCulture}"
+            #                     f"[.NET][filter] skipping {sw.UUID}: culture {sw_culture} != {refCulture}"
             #                 )
             #                 return False
             #     return True
@@ -579,8 +579,8 @@ def establish_relationships(
             # filesystem graph (fs_tree+ symlink edges)
             #
             # A match is accepted only when:
-            #   • A software entry exists at the resolved path, and
-            #   • It satisfies version and culture filters (is_valid_match).
+            #   - A software entry exists at the resolved path, and
+            #   - It satisfies version and culture filters (is_valid_match).
             #
             # This phase provides the most precise form of resolution because it
             # operates on concrete filesystem paths derived from .NET probing rules.
@@ -590,7 +590,7 @@ def establish_relationships(
                     match = sbom.get_software_by_path(path, case_insensitive=True)
                     # ok = bool(match and is_valid_match(match))
                     logger.debug(
-                        f"[.NET][fs_tree] {path} → {'UUID=' + match.UUID if match else 'no match'}"
+                        f"[.NET][fs_tree] {path} -> {'UUID=' + match.UUID if match else 'no match'}"
                     )
                     if match and match.UUID != dependent_uuid:
                         matched_uuids.add(match.UUID)
@@ -600,7 +600,7 @@ def establish_relationships(
             if not matched_uuids:
                 for e in find_installed_software(sbom, probedirs, refName + ".dll"):
                     if e.UUID != dependent_uuid:
-                        logger.debug(f"[.NET][legacy_phase2] {refName} → UUID={e.UUID}")
+                        logger.debug(f"[.NET][legacy_phase2] {refName} -> UUID={e.UUID}")
                         matched_uuids.add(e.UUID)
                         used_method[e.UUID] = "legacy_full_scan"
 
@@ -610,12 +610,12 @@ def establish_relationships(
                 if rel not in relationships:
                     method = used_method.get(uuid, "unknown")
                     logger.debug(
-                        f"[.NET][final] {dependent_uuid} Uses {refName} → UUID={uuid} [{method}]"
+                        f"[.NET][final] {dependent_uuid} Uses {refName} -> UUID={uuid} [{method}]"
                     )
                     relationships.append(rel)
                     # logging assemblies not found would be nice but is a lot of noise as it mostly just prints system/core .NET libraries
 
             if not matched_uuids:
-                logger.debug(f"[.NET][final] {dependent_uuid} Uses {refName} → no match")
+                logger.debug(f"[.NET][final] {dependent_uuid} Uses {refName} -> no match")
 
     return relationships
