@@ -8,6 +8,7 @@ from surfactant.sbomtypes import SBOM, Software
 
 try:
     from dapper_python.databases.linuxDB import LinuxDB
+    from dapper_python.databases.nugetDB import NuGetDB
     from dapper_python.dataset_loader import DatasetCatalog
     from dapper_python.normalize import NormalizedFileName, normalize_file_name
 
@@ -32,17 +33,23 @@ class DapperPackageInfo:
     @classmethod
     def from_result(cls, result, dataset_name, filename):
         """Create DapperPackageInfo from database query result."""
-
-        normalized_result = normalize_file_name(filename)
-
-        if isinstance(normalized_result, NormalizedFileName):
-            version = normalized_result.version
-            soabi = normalized_result.soabi
-            normalized_name = normalized_result.name
-        else:
+        if "nuget" in dataset_name.lower():
+            # NuGet package - version comes from package metadata
+            # Windows DLLs don't have version in filename, so normalized = original
             version = None
             soabi = None
-            normalized_name = filename
+            normalized_name = None
+        else:
+            normalized_result = normalize_file_name(filename)
+
+            if isinstance(normalized_result, NormalizedFileName):
+                version = normalized_result.version
+                soabi = normalized_result.soabi
+                normalized_name = normalized_result.name
+            else:
+                version = None
+                soabi = None
+                normalized_name = filename
 
         return cls(
             package_name=result.package_name,
@@ -62,7 +69,7 @@ class DapperPlugin:  # pylint: disable=too-few-public-methods
         """Initialize the Dapper plugin with dataset catalog."""
         self.catalog = None
         self.linux_datasets = []
-        self.nuget_dataset = None
+        self.nuget_datasets = []
         if DAPPER_AVAILABLE:
             self._init_catalog()
 
@@ -79,6 +86,8 @@ class DapperPlugin:  # pylint: disable=too-few-public-methods
             for dataset in available:
                 if any(distro in dataset for distro in ["debian", "ubuntu"]):
                     self.linux_datasets.append(dataset)
+                elif "nuget" in dataset.lower():
+                    self.nuget_datasets.append(dataset)
 
             if not self.linux_datasets:
                 pass  # No Linux datasets found for Dapper plugin
@@ -145,6 +154,33 @@ class DapperPlugin:  # pylint: disable=too-few-public-methods
                 except Exception:  # pylint: disable=broad-exception-caught
                     pass  # Error querying dataset
 
+        # Query all NuGet datasets for PE files
+        if file_type == "PE" and self.nuget_datasets:
+            for dataset_name in self.nuget_datasets:
+                try:
+                    db_path = self.catalog.get_dataset_path(dataset_name)
+
+                    # Path resolution
+                    if db_path and not db_path.is_absolute():
+                        app_dir = Path(self.catalog.get_app_data_dir(self.catalog.app_name))
+                        db_path = app_dir / db_path
+
+                    if not db_path or not db_path.exists():
+                        continue
+
+                    nuget_db = NuGetDB(db_path)
+                    results = nuget_db.query_filename(filename)
+
+                    if results:
+                        # Use unified from_result method - detects NuGet by dataset name
+                        packages = [
+                            asdict(DapperPackageInfo.from_result(r, dataset_name, filename))
+                            for r in results
+                        ]
+                        all_results.extend(packages)
+
+                except Exception:  # pylint: disable=broad-exception-caught
+                    pass  # Error querying dataset
         if all_results:
             return {"dapper_packages": all_results}
 
