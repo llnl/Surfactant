@@ -232,6 +232,8 @@ def has_required_fields(metadata) -> bool:
     """
     Check whether the metadata includes .NET assembly references.
     """
+    if not isinstance(metadata, dict):
+        return False
     return "dotnetAssemblyRef" in metadata
 
 

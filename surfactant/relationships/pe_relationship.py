@@ -21,6 +21,8 @@ def has_required_fields(metadata: dict[str, Any]) -> bool:
     Note: SBOM metadata items are not guaranteed to be dicts (plugins may emit
     dataclasses/objects). We therefore guard the key check.
     """
+    if not isinstance(metadata, dict):
+        return False
     return any(k in metadata for k in ("peImport", "peBoundImport", "peDelayImport"))
 
 

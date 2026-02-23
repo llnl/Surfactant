@@ -32,6 +32,8 @@ def has_required_fields(metadata) -> bool:
         None
     """
     # no elfDependencies info, can't establish relationships
+    if not isinstance(metadata, dict):
+        return False
     return "elfDependencies" in metadata
 
 
