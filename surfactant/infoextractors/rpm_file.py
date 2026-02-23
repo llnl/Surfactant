@@ -12,6 +12,7 @@ from loguru import logger
 
 import surfactant.plugin
 from surfactant.sbomtypes import SBOM, Software
+from surfactant.context import ContextEntry
 
 # from surfactant.context import ContextEntry   # Present for use in future extraction implementation
 
@@ -119,10 +120,17 @@ def extract_file_info(
     filetype: List[str],
     software_field_hints: List[Tuple[str, object, int]],
     # context_queue: "Queue[ContextEntry]",     # Present for use in future extraction implementation
-    # current_context: Optional[ContextEntry],
+    current_context: Optional[ContextEntry],
 ) -> object:
     if not supports_file(filetype):
         return None
+    logger.warning(f"ContextEntry contains: {current_context}")
+    # if current_context and current_context.pluginConf and "surfactant.infoextractors.rpm_file" in current_context.pluginConf:
+    #     config = current_context.pluginConf["surfactant.infoextractors.rpm_file"]
+    #     logger.warning(f"ContextEntry contains: {config}")
+    #     if "mountPrefix" in config:
+    #         mount_prefix = config["mountPrefix"]
+    #         logger.warning(f"ContextEntry contains: {config}")
     rpm_info = extract_rpm_info(filename)
 
     for key in rpm_info["rpm"]:

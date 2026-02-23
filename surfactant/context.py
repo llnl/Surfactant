@@ -3,7 +3,7 @@
 #
 # SPDX-License-Identifier: MIT
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 
 
 @dataclass
@@ -30,6 +30,7 @@ class ContextEntry:
             Software entry for the archive file will only contain basic information such as hashes. Default is False.
         containerPrefix (Optional[str]): The prefix to use for the generated SBOM's containerPath.  Used to indicate that the
             `extractPaths` specified should map to a specific subfolder within the corresponding archive file.
+        pluginConf (Optional[Dict[str,Any]]): Configuration information for specific plugins. See individual plugins for defaults.
     """
 
     extractPaths: List[str]
@@ -40,3 +41,4 @@ class ContextEntry:
     excludeFileExts: Optional[List[str]] = None
     skipProcessingArchive: Optional[bool] = False
     containerPrefix: Optional[str] = None
+    pluginConf: Optional[Dict[str,Any]] = None
