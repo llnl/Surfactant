@@ -72,7 +72,7 @@ dev = ["build", "pre-commit"]
 docs = ["sphinx", "myst-parser", "furo>=2025.9.25", "sphinx-copybutton>=0.5.2"]
 
 [project.optional-dependencies]
-macho = ["lief==0.17.3"]
+macho = ["lief==0.17.4"]
 java = ["javatools>=1.6,==1.*"]
 test = ["pytest", "pytest-asyncio"]
 dev = ["build", "pre-commit"]
