@@ -482,11 +482,21 @@ class PluginSetting(textual.widgets.Static):
             self.input_field = textual.widgets.Checkbox()
             default_value = self.info.default
             if default_value is None:
-                default_value = True
+                default_value = False
             else:
                 # Have to convert from string to Boolean
                 default_value = default_value.lower() == "true"
-            self.value = self.__config_manager.get(self.plugin_name, self.info.name, default_value)
+            self.value = str(
+                self.__config_manager.get(self.plugin_name, self.info.name, default_value)
+            )
+        elif self.info.type_ == "int":
+            self.input_field = textual.widgets.Input(type="integer")
+            default_value = self.info.default
+            if default_value is None:
+                default_value = 0
+            self.value = str(
+                self.__config_manager.get(self.plugin_name, self.info.name, int(default_value))
+            )
         else:
             raise TypeError(f'Invalid plugin setting of type "{self.info.type_}"')
 
