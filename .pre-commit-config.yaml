@@ -1,7 +1,7 @@
 exclude: ^(.gitignore|generate_sbom.py|extract_file_info.py|pe_info.py)
 repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.15.1
+    rev: v0.15.2
     hooks:
       # Run the linter
       - id: ruff
@@ -9,7 +9,7 @@ repos:
       # Run the formatter
       - id: ruff-format
   - repo: https://github.com/pycqa/pylint
-    rev: v4.0.4
+    rev: v4.0.5
     hooks:
       - id: pylint
   - repo: https://github.com/pre-commit/pre-commit-hooks
