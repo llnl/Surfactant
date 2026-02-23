@@ -18,7 +18,7 @@ def test_with_purepath():
     assert normalize_path(PurePosixPath("C:/Program Files"), "App") == "C:/Program Files/App"
 
 
-def test_trailing_slash_is_preserved():
+def test_trailing_slash_is_stripped():
     """Strip trailing slashes from non-root POSIX paths."""
     assert normalize_path("C:/App/") == "C:/App"  # PosixPath strips trailing slashes
 
