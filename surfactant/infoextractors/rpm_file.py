@@ -12,7 +12,6 @@ from loguru import logger
 
 import surfactant.plugin
 from surfactant.sbomtypes import SBOM, Software
-from surfactant.context import ContextEntry
 
 # from surfactant.context import ContextEntry   # Present for use in future extraction implementation
 

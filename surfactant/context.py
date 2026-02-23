@@ -3,7 +3,7 @@
 #
 # SPDX-License-Identifier: MIT
 from dataclasses import dataclass
-from typing import List, Optional, Dict, Any
+from typing import Any, Dict, List, Optional
 
 
 @dataclass
@@ -41,4 +41,4 @@ class ContextEntry:
     excludeFileExts: Optional[List[str]] = None
     skipProcessingArchive: Optional[bool] = False
     containerPrefix: Optional[str] = None
-    pluginConf: Optional[Dict[str,Any]] = None
+    pluginConf: Optional[Dict[str, Any]] = None
