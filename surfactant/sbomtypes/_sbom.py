@@ -813,8 +813,10 @@ class SBOM:
     ):
         """
         Add software entries to the SBOM graph, merging duplicates, preserving existing edges,
-        attaching "Contains" relationships to an optional parent, and recording ANY
-        file- or directory-level symlinks under each installPath.
+        and attaching "Contains" relationships to an optional parent.
+
+        Symlink information should already be captured during the extraction/crawl phase
+        and stored in metadata (installPathSymlinks, fileNameSymlinks).
 
         Args:
             entries (Optional[List[Software]]): list of Software instances to add.
@@ -890,29 +892,6 @@ class SBOM:
                 if not self.graph.has_edge(parent_uuid, node_uuid, key="Contains"):
                     self.graph.add_edge(parent_uuid, node_uuid, key="Contains")
                     logger.debug(f"Attached Contains edge: {parent_uuid} -> {node_uuid}")
-
-            # Symlink capture under each installPath ---
-            for raw in sw.installPath or []:
-                p = pathlib.Path(raw)
-
-                # If the installPath itself is a symlink (file or dir)
-                if p.is_symlink():
-                    real = p.resolve()
-                    subtype = "file" if not p.is_dir() else "directory"
-                    logger.debug(f"Found installPath symlink: {p} -> {real} (subtype={subtype})")
-                    # Call the helper to record this symlink in fs_tree
-                    self._record_symlink(str(p), str(real), subtype=subtype)
-
-                # If it's a directory, scan immediate children for symlinks
-                if p.is_dir():
-                    for child in p.iterdir():
-                        if child.is_symlink():
-                            real = child.resolve()
-                            subtype = "file" if not child.is_dir() else "directory"
-                            logger.debug(
-                                f"Found child symlink: {child} -> {real} (subtype={subtype})"
-                            )
-                            self._record_symlink(str(child), str(real), subtype=subtype)
 
     def expand_pending_dir_symlinks(self) -> None:
         """
