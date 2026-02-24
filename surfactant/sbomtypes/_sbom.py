@@ -583,7 +583,7 @@ class SBOM:
         Internal helper to safely add a symlink edge to both fs_tree and graph.
 
         Ensures:
-        - Both nodes exist in fs_tree and graph with type="Path".
+        - Both nodes exist in fs_tree and graph with type="path".
         - The fs_tree edge is labeled type="symlink" with optional subtype.
         - The logical graph mirrors the same edge with key="symlink".
         - Duplicate edges are ignored gracefully.
@@ -602,9 +602,9 @@ class SBOM:
         # Ensure both nodes exist and are typed as Path in the logical graph
         for node in (src, dst):
             if not self.graph.has_node(node):
-                self.graph.add_node(node, type="Path")
+                self.graph.add_node(node, type="path")
             elif "type" not in self.graph.nodes[node]:
-                self.graph.nodes[node]["type"] = "Path"
+                self.graph.nodes[node]["type"] = "path"
 
         # Add mirrored edge in graph if not already present
         if not self.graph.has_edge(src, dst, key="symlink"):
@@ -740,7 +740,7 @@ class SBOM:
 
         Behavior:
             - Normalizes `file_path` to POSIX-style notation for consistent node keys.
-            - Ensures the hash node exists in the fs_tree with type="Hash".
+            - Ensures the hash node exists in the fs_tree with type="hash".
             - Adds a directed "hash" edge from the file node -> hash node.
 
         Example:
@@ -754,18 +754,18 @@ class SBOM:
         # Ensure both nodes exist, guarding against accidental type overrides
         if self.fs_tree.has_node(hash_node):
             existing_type = self.fs_tree.nodes[hash_node].get("type")
-            if existing_type != "Hash":
+            if existing_type != "hash":
                 logger.warning(
                     f"[fs_tree] Node {hash_node} already exists with type={existing_type}, "
-                    "overwriting to type=Hash"
+                    "overwriting to type=hash"
                 )
             else:
                 logger.debug(f"[fs_tree] Reusing existing hash node: {hash_node}")
         else:
-            self.fs_tree.add_node(hash_node, type="Hash")
+            self.fs_tree.add_node(hash_node, type="hash")
             logger.debug(f"[fs_tree] Added new hash node: {hash_node}")
 
-        self.fs_tree.nodes[hash_node]["type"] = "Hash"  # enforce correct type
+        self.fs_tree.nodes[hash_node]["type"] = "hash"  # enforce correct type
         self.fs_tree.add_edge(file_node, hash_node, type="hash")
         logger.debug(f"[fs_tree] Added hash edge: {file_node} -> {hash_node} (type=hash)")
 
@@ -1270,9 +1270,9 @@ class SBOM:
             # Skip path/symlink edges during merge as well
             if str(rel_type).lower() == "symlink":
                 continue
-            if sbom_m.graph.nodes.get(src, {}).get("type") == "Path":
+            if sbom_m.graph.nodes.get(src, {}).get("type") == "path":
                 continue
-            if sbom_m.graph.nodes.get(dst, {}).get("type") == "Path":
+            if sbom_m.graph.nodes.get(dst, {}).get("type") == "path":
                 continue
 
             # apply any UUID remaps from merged systems/software
@@ -1498,7 +1498,7 @@ class SBOM:
         output is JSON-compatible.
         4. Builds a filtered `relationships` list from the SBOM's main `graph`:
         - Skips any edges where the key (relationship type) is `"symlink"`.
-        - Skips edges where either endpoint node has `type="Path"`, indicating
+        - Skips edges where either endpoint node has `type="path"`, indicating
             the node represents a filesystem path rather than a logical software
             entity.
         - Keeps only logical relationships between software UUIDs or other
@@ -1530,7 +1530,7 @@ class SBOM:
             # Skip any edge where either endpoint is a filesystem Path node
             utype = self.graph.nodes.get(u, {}).get("type")
             vtype = self.graph.nodes.get(v, {}).get("type")
-            if utype == "Path" or vtype == "Path":
+            if utype == "path" or vtype == "path":
                 continue
             rels.append({"xUUID": u, "yUUID": v, "relationship": key})
 
