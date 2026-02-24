@@ -6,7 +6,6 @@
 from __future__ import annotations
 
 import json
-import pathlib
 import uuid as uuid_module
 from collections import deque
 from dataclasses import asdict, dataclass, field, fields
