@@ -1474,10 +1474,11 @@ class SBOM:
         (filesystem-related) relationships.
 
         This method performs the following steps:
-        1. Creates a dictionary from the SBOM dataclass fields using `asdict()`.
-        2. Removes internal-only attributes that should not be serialized
-           (`graph`, `fs_tree`, `_loaded_relationships`, `_pending_dir_links`,
-           `_pending_file_links`).
+        1. Builds a dictionary from non-internal SBOM dataclass fields, avoiding
+           unnecessary deep-copy of large graph structures (graph, fs_tree).
+        2. Excludes internal-only attributes (`graph`, `fs_tree`,
+           `_loaded_relationships`, `_pending_dir_links`, `_pending_file_links`,
+           `software_lookup_by_sha256`).
         3. Converts any `set` values in the remaining fields to `list` so the
         output is JSON-compatible.
         4. Builds a filtered `relationships` list from the SBOM's main `graph`:
@@ -1492,18 +1493,40 @@ class SBOM:
             dict: A JSON-serializable representation of the SBOM, with only
                 logical relationships included in the `relationships` list.
         """
-        # Start with the dataclass dump and strip internals
-        data = asdict(self)
-        data.pop("graph", None)
-        data.pop("fs_tree", None)
-        data.pop("_loaded_relationships", None)
-        data.pop("_pending_dir_links", None)
-        data.pop("_pending_file_links", None)
+        # Fields to exclude from serialization
+        EXCLUDE_FIELDS = {
+            "graph",
+            "fs_tree",
+            "_loaded_relationships",
+            "_pending_dir_links",
+            "_pending_file_links",
+            "software_lookup_by_sha256",
+        }
 
-        # Convert sets -> lists for JSON
-        for k, v in list(data.items()):
-            if isinstance(v, set):
-                data[k] = list(v)
+        # Build data dict by iterating over fields, skipping internals
+        # This avoids deep-copying large NetworkX graphs via asdict()
+        data = {}
+        for fld in fields(self):
+            if fld.name in EXCLUDE_FIELDS:
+                continue
+            value = getattr(self, fld.name)
+
+            # Convert dataclass instances to dicts
+            if isinstance(value, list):
+                data[fld.name] = [
+                    asdict(item) if hasattr(item, "__dataclass_fields__") else item
+                    for item in value
+                ]
+            elif isinstance(value, set):
+                # Convert sets to sorted lists for JSON compatibility
+                data[fld.name] = [
+                    asdict(item) if hasattr(item, "__dataclass_fields__") else item
+                    for item in value
+                ]
+            elif hasattr(value, "__dataclass_fields__"):
+                data[fld.name] = asdict(value)
+            else:
+                data[fld.name] = value
 
         # Only emit logical relationships (exclude filesystem/path symlinks)
         rels = []
