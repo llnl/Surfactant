@@ -994,10 +994,6 @@ class SBOM:
             f"[fs_tree] Deferred symlink expansion complete -- processed {pending_count} entries."
         )
 
-        logger.debug(
-            f"[fs_tree] Deferred symlink expansion complete -- processed {pending_count} entries."
-        )
-
     def expand_pending_file_symlinks(self) -> None:
         """
         Expand all deferred file symlinks recorded in `_pending_file_links`.
