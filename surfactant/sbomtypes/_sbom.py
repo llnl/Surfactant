@@ -1020,23 +1020,18 @@ class SBOM:
     def inject_symlink_metadata(self) -> None:
         """
         Populate legacy-style symlink metadata into each Software entry using fs_tree
-        relationships, hash-equivalence, and gathered filename aliases.
+        relationships and hash-equivalence.
 
         This method restores compatibility with legacy SBOM outputs by reintroducing
         metadata fields that explicitly describe file aliasing relationships.
 
-        It collects three classes of alias information:
+        It collects two classes of alias information:
 
             1. **Filesystem Symlinks:** incoming symlink edges in `fs_tree`
                (e.g., "usr/sbin/runuser" -> "usr/bin/su")
 
             2. **Hash-Equivalent Siblings:** other files that share identical content
                (sha256) but appear at different install paths.
-
-            3. **Gathered Filename Aliases:** additional names from `sw.fileName`
-               that were injected during the gather phase but are not canonical
-               basenames of the install paths (e.g., bash-completion stubs like
-               "runuser" for "su").
 
         The resulting metadata entries are merged or appended under each
         `Software.metadata` list in a legacy-compatible format:
@@ -1046,7 +1041,7 @@ class SBOM:
 
         This operation:
             - Traverses all Software entries
-            - Derives alias sets from symlink edges, identical hashes, and fileName extras
+            - Derives alias sets from symlink edges and identical hashes
             - Merges metadata without duplication
             - Does *not* alter fs_tree or graph topology
 
@@ -1102,24 +1097,13 @@ class SBOM:
                             file_symlinks.add(PurePosixPath(equiv).name)
 
             # ------------------------------------------------------------------
-            # 3. Add gathered filename aliases not tied to install basenames
-            # ------------------------------------------------------------------
-            primary_basenames = {PurePosixPath(p).name for p in (sw.installPath or [])}
-            file_name_extras = set(sw.fileName or []) - primary_basenames
-            if file_name_extras:
-                file_symlinks |= file_name_extras
-                logger.debug(
-                    f"[fs_tree] Added gathered filename aliases for {sw.UUID}: {sorted(file_name_extras)}"
-                )
-
-            # ------------------------------------------------------------------
             # Skip entries with no discovered symlink or hash equivalence
             # ------------------------------------------------------------------
             if not (file_symlinks or path_symlinks):
                 continue
 
             # ------------------------------------------------------------------
-            # 4. Merge alias metadata into Software.metadata
+            # 3. Merge alias metadata into Software.metadata
             # ------------------------------------------------------------------
             if sw.metadata is None:
                 sw.metadata = []
