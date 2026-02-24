@@ -166,6 +166,9 @@ class SBOM:
         for sw in self.software:
             self._add_software_to_fs_tree(sw)
 
+        # Rebuild symlink edges from metadata (needed for deserialized SBOMs)
+        self._rebuild_fs_tree_from_metadata()
+
     def _add_software_to_fs_tree(self, sw: "Software") -> None:
         """
         Adds the install paths of a Software object to the SBOM's filesystem tree (fs_tree).
@@ -215,6 +218,88 @@ class SBOM:
                     self.record_hash_node(norm_path, sw.sha256)
                 except Exception as e:  # pylint: disable=broad-exception-caught
                     logger.warning(f"[fs_tree] Failed to attach hash edge for {norm_path}: {e}")
+
+    def _rebuild_fs_tree_from_metadata(self) -> None:
+        """
+        Rebuild fs_tree symlink edges from persisted metadata after deserialization.
+
+        When an SBOM is loaded from JSON, fs_tree is excluded from serialization but
+        the installPathSymlinks metadata is preserved. This method reconstructs symlink
+        edges from that metadata, restoring enough structure for get_software_by_path()
+        symlink traversal to work post-deserialization.
+
+        This method:
+            - Scans all Software entries for installPathSymlinks metadata
+            - Creates symlink edges from each alias path to the primary installPath
+            - Ensures directory structure exists for symlink paths
+            - Associates symlink nodes with the correct software_uuid
+            - Reconstructs hash-equivalence edges from sha256 attributes
+
+        Limitations:
+            - When multiple installPath entries exist, uses the first as symlink target
+            - Cannot perfectly recreate complex multi-hop symlink chains
+            - Does not probe the host filesystem
+
+        Called by __post_init__() after basic fs_tree population.
+        """
+        logger.debug("[fs_tree] Rebuilding symlink edges from metadata")
+
+        for sw in self.software:
+            if not sw.metadata or not sw.installPath:
+                continue
+
+            # Find installPathSymlinks metadata entry
+            symlink_paths = []
+            for md in sw.metadata:
+                if isinstance(md, dict) and "installPathSymlinks" in md:
+                    symlink_paths = md["installPathSymlinks"]
+                    break
+
+            if not symlink_paths:
+                continue
+
+            # Use first installPath as the symlink target
+            # (Most software has one installPath; if multiple, they're often hash-equivalent)
+            target_path = sw.installPath[0]
+            norm_target = normalize_path(target_path)
+
+            for link_path in symlink_paths:
+                norm_link = normalize_path(link_path)
+
+                # Skip if this is already in installPath (not a true alias)
+                if norm_link in [normalize_path(p) for p in sw.installPath]:
+                    continue
+
+                # Ensure symlink path's directory structure exists in fs_tree
+                parts = PurePosixPath(norm_link).parts
+                for i in range(1, len(parts)):
+                    parent = normalize_path(*parts[:i])
+                    child = normalize_path(*parts[: i + 1])
+                    if not self.fs_tree.has_edge(parent, child):
+                        self.fs_tree.add_edge(parent, child)
+
+                if not self.fs_tree.has_node(norm_link):
+                    self.fs_tree.add_node(norm_link)
+
+                # Create symlink edge (type="symlink" for consistency with record_symlink)
+                if not self.fs_tree.has_edge(norm_link, norm_target):
+                    self.fs_tree.add_edge(norm_link, norm_target, type="symlink")
+                    logger.debug(f"[fs_tree] Reconstructed symlink: {norm_link} -> {norm_target}")
+
+                # Associate symlink node with software UUID
+                self.fs_tree.nodes[norm_link]["software_uuid"] = sw.UUID
+
+            # Reconstruct hash-equivalence edges for all installPaths
+            if hasattr(sw, "sha256") and sw.sha256:
+                for path in sw.installPath:
+                    try:
+                        self.record_hash_node(path, sw.sha256)
+                    except Exception as e:  # pylint: disable=broad-exception-caught
+                        logger.warning(
+                            f"[fs_tree] Failed to reconstruct hash edge for {path}: {e}"
+                        )
+
+        logger.debug("[fs_tree] Completed symlink edge reconstruction")
 
     def get_software_by_path(
         self,

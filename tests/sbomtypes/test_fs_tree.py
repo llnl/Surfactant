@@ -186,3 +186,52 @@ def test_expand_pending_dir_symlinks_creates_chained_edges(tmp_path):
 
     # Verify synthetic chained edge was created
     assert sbom.fs_tree.has_edge("/usr/bin/dirE/link_to_F/runthat", "/usr/bin/dirF/runthat")
+
+
+def test_fs_tree_reconstruction_from_metadata():
+    """
+    Verify that fs_tree symlink edges are reconstructed from metadata after deserialization.
+
+    Scenario:
+        1. Create SBOM with software and symlinks
+        2. Inject symlink metadata (simulating serialization prep)
+        3. Serialize to JSON and deserialize
+        4. Verify get_software_by_path() works with symlinks post-deserialization
+
+    This tests the fix for the issue where SBOMs loaded from JSON lost all
+    symlink edges because fs_tree is excluded from serialization.
+    """
+    # Create SBOM with a library and its symlink aliases
+    sbom = SBOM()
+    lib = Software(
+        UUID="uuid-libzmq",
+        fileName=["libzmq.so.5.2.6"],
+        installPath=["/usr/lib64/libzmq.so.5.2.6"],
+        sha256="abc123def456",
+    )
+    sbom.add_software(lib)
+
+    # Manually add installPathSymlinks metadata (normally done by inject_symlink_metadata)
+    lib.metadata = [
+        {"fileNameSymlinks": ["libzmq.so", "libzmq.so.5"]},
+        {"installPathSymlinks": ["/usr/lib64/libzmq.so", "/usr/lib64/libzmq.so.5"]},
+    ]
+
+    # Verify direct lookup works before serialization
+    assert sbom.get_software_by_path("/usr/lib64/libzmq.so.5.2.6").UUID == "uuid-libzmq"
+
+    # Serialize to JSON and deserialize (simulating save/load cycle)
+    json_str = sbom.to_json()
+    sbom_restored = SBOM.from_json(json_str)
+
+    # Critical test: symlink paths should resolve after deserialization
+    # These should work because _rebuild_fs_tree_from_metadata() reconstructs the edges
+    assert sbom_restored.get_software_by_path("/usr/lib64/libzmq.so.5.2.6").UUID == "uuid-libzmq"
+    assert sbom_restored.get_software_by_path("/usr/lib64/libzmq.so").UUID == "uuid-libzmq"
+    assert sbom_restored.get_software_by_path("/usr/lib64/libzmq.so.5").UUID == "uuid-libzmq"
+
+    # Verify fs_tree has the symlink edges
+    assert sbom_restored.fs_tree.has_node("/usr/lib64/libzmq.so")
+    assert sbom_restored.fs_tree.has_node("/usr/lib64/libzmq.so.5")
+    assert sbom_restored.fs_tree.has_edge("/usr/lib64/libzmq.so", "/usr/lib64/libzmq.so.5.2.6")
+    assert sbom_restored.fs_tree.has_edge("/usr/lib64/libzmq.so.5", "/usr/lib64/libzmq.so.5.2.6")
