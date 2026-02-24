@@ -295,9 +295,7 @@ class SBOM:
                     try:
                         self.record_hash_node(path, sw.sha256)
                     except Exception as e:  # pylint: disable=broad-exception-caught
-                        logger.warning(
-                            f"[fs_tree] Failed to reconstruct hash edge for {path}: {e}"
-                        )
+                        logger.warning(f"[fs_tree] Failed to reconstruct hash edge for {path}: {e}")
 
         logger.debug("[fs_tree] Completed symlink edge reconstruction")
 
