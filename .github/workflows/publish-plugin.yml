@@ -81,7 +81,7 @@ jobs:
           echo "Extracted package name: $PACKAGE_NAME"
 
       - name: Upload Python package dist artifacts
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: python-package-dist
           path: plugins/${{ inputs.plugin_name }}/dist
