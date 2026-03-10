@@ -3,10 +3,11 @@
 #
 # SPDX-License-Identifier: MIT
 from dataclasses import dataclass
-from inspect import getframeinfo, stack
+
+# from inspect import getframeinfo, stack
 from typing import Any, Dict, List, Optional
 
-import loguru
+from loguru import logger
 
 
 @dataclass
@@ -57,25 +58,19 @@ class ContextEntry:
             default (Optional[Any]): Default value to use if conf_key has no associated value
         """
         if not self.pluginConf:
-            caller = getframeinfo(stack()[1][0])
-            loguru.trace(f"get_pconf() called from {caller.filename}:{caller.lineno}")
-            loguru.debug(
+            logger.debug(
                 f"No plugin configuration present, using default value: {default} for {name}: {conf_key}"
             )
             return default
         module = self.pluginConf[name]
         if not module:
-            caller = getframeinfo(stack()[1][0])
-            loguru.trace(f"get_pconf() called from {caller.filename}:{caller.lineno}")
-            loguru.debug(
+            logger.debug(
                 f"No plugin configuration for {name}, using default value: {default} for {conf_key}"
             )
             return default
         field = module[conf_key]
         if not field:
-            caller = getframeinfo(stack()[1][0])
-            loguru.trace(f"get_pconf() called from {caller.filename}:{caller.lineno}")
-            loguru.debug(
+            logger.debug(
                 f"No plugin configuration for {name}: {conf_key}, using default value: {default}"
             )
             return default
