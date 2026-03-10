@@ -1,4 +1,4 @@
-# Copyright 2025 Lawrence Livermore Natioanl Security, LLC
+# Copyright 2026 Lawrence Livermore Natioanl Security, LLC
 # See the top-level LICENSE file for details.
 #
 # SPDX-License-Identifier: MIT
