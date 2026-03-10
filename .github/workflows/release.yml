@@ -24,7 +24,7 @@ jobs:
           python -m build
           python -m twine check dist/*
       - name: Upload Python package dist artifacts
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: python-package-dist
           path: dist
@@ -41,7 +41,7 @@ jobs:
       id-token: write  # IMPORTANT: this permission is mandatory for trusted publishing
     steps:
     - name: Download Python package dist artifacts
-      uses: actions/download-artifact@v7
+      uses: actions/download-artifact@v8
       with:
         name: python-package-dist
         path: dist
