@@ -48,7 +48,7 @@ pip install git+https://github.com/LLNL/Surfactant#subdirectory=plugins/fuzzyhas
 
 ### For Developers:
 
-1. Create a virtual environment with python >= 3.9 [Optional, but recommended]
+1. Create a virtual environment with python >= 3.10 [Optional, but recommended]
 
 ```bash
 python -m venv venv

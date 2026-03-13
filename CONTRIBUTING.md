@@ -18,7 +18,7 @@ All contributions to Surfactant are made under the MIT license (MIT).
 
 ### For Developers:
 
-1. Create a virtual environment with python >= 3.8 [Optional, but recommended]
+1. Create a virtual environment with python >= 3.10 [Optional, but recommended]
 
 ```bash
 python -m venv venv
