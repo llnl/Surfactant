@@ -1,0 +1,51 @@
+name: Deploy GitHub Pages Redirect
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: Deploy redirect page to GitHub Pages
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Create redirect page
+        run: |
+          mkdir _site
+          cat > _site/index.html << 'EOF'
+          <!DOCTYPE html>
+          <html lang="en">
+            <head>
+              <meta charset="utf-8" />
+              <meta http-equiv="refresh" content="0; url=https://surfactant.readthedocs.io/en/latest/" />
+              <link rel="canonical" href="https://surfactant.readthedocs.io/en/latest/" />
+              <title>Redirecting to Surfactant Documentation</title>
+            </head>
+            <body>
+              <p>
+                Redirecting to
+                <a href="https://surfactant.readthedocs.io/en/latest/">surfactant.readthedocs.io</a>&hellip;
+              </p>
+            </body>
+          </html>
+          EOF
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
