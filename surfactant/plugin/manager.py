@@ -29,6 +29,7 @@ def _register_plugins(pm: pluggy.PluginManager) -> None:
         ole_file,
         pe_file,
         rpm_file,
+        srec_hex,
         uimage_file,
     )
     from surfactant.input_readers import cytrics_reader
@@ -59,6 +60,7 @@ def _register_plugins(pm: pluggy.PluginManager) -> None:
         js_file,
         pe_file,
         ole_file,
+        srec_hex,
         uimage_file,
         rpm_file,
         dotnet_relationship,
