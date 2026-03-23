@@ -62,16 +62,16 @@ class ContextEntry:
                 f"No plugin configuration present, using default value: {default} for {name}: {conf_key}"
             )
             return default
-        module = self.pluginConf[name]
-        if not module:
+        if not name in self.pluginConf:
             logger.debug(
                 f"No plugin configuration for {name}, using default value: {default} for {conf_key}"
             )
             return default
-        field = module[conf_key]
-        if not field:
+        module = self.pluginConf[name]
+        if not conf_key in module:
             logger.debug(
                 f"No plugin configuration for {name}: {conf_key}, using default value: {default}"
             )
             return default
+        field = module[conf_key]
         return field
