@@ -13,6 +13,7 @@ from loguru import logger
 import surfactant.plugin
 from surfactant.sbomtypes import SBOM, Software
 from surfactant.context import ContextEntry
+from qiling.extensions import pipe
 
 import platform
 
@@ -24,6 +25,24 @@ try:
 except ImportError:
     QILING_AVAILABLE = False
     logger.warning("qiling not installed. QilingExec plugin will be disabled.")
+
+# Regex for version checking is currently looking
+# for 1+ alphanumeric character(s), followed by a
+# period, followed by 1+ alphanumeric character(s).
+# This is only being done on line 1 of stdout.
+versionRegex = re.compile(r'[a-zA-Z0-9]+\.[a-zA-Z0-9]+')
+
+def grab_version(fd: io.BytesIO, regex: re.Pattern[str]) -> Optional[Tuple[str,str]]:
+#def grab_version(fd, regex: re.Pattern[str]) -> Optional[Tuple[str,str]]:
+    """Returns a tuple of the word in the first line of fd that matches the given regex pattern and the entire first line
+    """
+    output = fd.getvalue().decode()
+    lines = output.splitlines()
+    words = lines[0].split(" ")
+    for j in words:
+        if versionRegex.search(j):
+            return (j,lines[0])
+    return ("",lines[0])
 
 
 @surfactant.plugin.hookimpl
@@ -77,11 +96,11 @@ def extract_file_info(
     arch = current_context.get_pconf(__name__,"arch_type", QL_ARCH.X8664)
     os = current_context.get_pconf(__name__,"os_type", QL_OS.LINUX)
 
-    fd = io.BytesIO()
+    fd = pipe.SimpleStringBuffer()
     ql = Qiling(argv=[filename, '--version'], rootfs=mountPoint, archtype=arch, ostype=os, verbose=QL_VERBOSE.OFF)
     ql.os.stdout = fd
     # Emulate executable
-    ql.run(timeout=100000)
+    ql.run(timeout=1000000)
     file_details: Dict[str, Any] = {
         "qilingexec": {}
     }
@@ -90,22 +109,3 @@ def extract_file_info(
         software_field_hints.append(("version", version, 80))
         file_details["qilingexec"]["version"] = version
     return file_details
-
-# Regex for version checking is currently looking
-# for 1+ alphanumeric character(s), followed by a
-# period, followed by 1+ alphanumeric character(s).
-# This is only being done on line 1 of stdout.
-versionRegex = re.compile(r'[a-zA-Z0-9]+\.[a-zA-Z0-9]+')
-
-def grab_version(fd: io.BytesIO, regex: re.Pattern[str]) -> Optional[Tuple[str,str]]:
-#def grab_version(fd, regex: re.Pattern[str]) -> Optional[Tuple[str,str]]:
-    """Returns a tuple of the word in the first line of fd that matches the given regex pattern and the entire first line
-    """
-    output = fd.getvalue().decode()
-    lines = output.splitlines()
-    print(lines)
-    words = lines[0].split(" ")
-    for j in words:
-        if versionRegex.search(j):
-            return (j,lines[0])
-    return ("",lines[0])
