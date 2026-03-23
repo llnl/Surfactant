@@ -18,7 +18,7 @@ import platform
 
 try:
     from qiling import *
-    from qiling.const import QL_VERBOSE, QL_ARCH
+    from qiling.const import QL_VERBOSE, QL_ARCH, QL_OS
 
     QILING_AVAILABLE = True
 except ImportError:
@@ -75,15 +75,16 @@ def extract_file_info(
     (def_mount, def_os) = (r'/', r'Linux') if platform.system() == 'Linux' else ("C:\\", 'Windows')
     mountPoint = current_context.get_pconf(__name__,"mountPrefix", def_mount)
     arch = current_context.get_pconf(__name__,"arch_type", QL_ARCH.X8664)
-    os = current_context.get_pconf(__name__,"os_type", def_os)
+    os = current_context.get_pconf(__name__,"os_type", QL_OS.LINUX)
 
     fd = io.BytesIO()
     ql = Qiling(argv=[filename, '--version'], rootfs=mountPoint, archtype=arch, ostype=os, verbose=QL_VERBOSE.OFF)
     ql.os.stdout = fd
     # Emulate executable
     ql.run(timeout=100000)
-    file_details: Dict[str, Any] = {}
-    file_details["qilingexec"] = {}
+    file_details: Dict[str, Any] = {
+        "qilingexec": {}
+    }
     (version, file_details["qilingexec"]["stdout"]) = grab_version(fd,versionRegex)
     if version:
         software_field_hints.append(("version", version, 80))
