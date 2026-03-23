@@ -6,20 +6,20 @@
 
 # from pathlib import Path
 import io
+import platform
 import re
 from typing import Any, Dict, List, Optional, Tuple
+
 from loguru import logger
 
 import surfactant.plugin
-from surfactant.sbomtypes import SBOM, Software
 from surfactant.context import ContextEntry
-from qiling.extensions import pipe
-
-import platform
+from surfactant.sbomtypes import SBOM, Software
 
 try:
-    from qiling import *
-    from qiling.const import QL_VERBOSE, QL_ARCH, QL_OS
+    from qiling import Qiling
+    from qiling.const import QL_ARCH, QL_OS, QL_VERBOSE
+    from qiling.extensions import pipe
 
     QILING_AVAILABLE = True
 except ImportError:
@@ -30,19 +30,26 @@ except ImportError:
 # for 1+ alphanumeric character(s), followed by a
 # period, followed by 1+ alphanumeric character(s).
 # This is only being done on line 1 of stdout.
-versionRegex = re.compile(r'[a-zA-Z0-9]+\.[a-zA-Z0-9]+')
+versionRegex = re.compile(r"[a-zA-Z0-9]+\.[a-zA-Z0-9]+")
 
-def grab_version(fd: io.BytesIO, regex: re.Pattern[str]) -> Optional[Tuple[str,str]]:
-#def grab_version(fd, regex: re.Pattern[str]) -> Optional[Tuple[str,str]]:
-    """Returns a tuple of the word in the first line of fd that matches the given regex pattern and the entire first line
-    """
+
+def grab_version(fd: io.BytesIO, regex: re.Pattern[str]) -> Optional[Tuple[str, str]]:
+    """Returns a tuple of the word in the first line of fd that matches the given regex pattern and the entire first line"""
     output = fd.getvalue().decode()
     lines = output.splitlines()
     words = lines[0].split(" ")
     for j in words:
         if versionRegex.search(j):
-            return (j,lines[0])
-    return ("",lines[0])
+            return (j, lines[0])
+    return ("", lines[0])
+
+
+def env_mismatch(filetype: str, os: QL_OS) -> bool:
+    if "PE" in filetype and os != QL_OS.WINDOWS:
+        return True
+    if "ELF" in filetype and os in (QL_OS.WINDOWS, QL_OS.DOS):
+        return True
+    return False
 
 
 @surfactant.plugin.hookimpl
@@ -91,20 +98,28 @@ def extract_file_info(
     if not current_context:
         current_context = ContextEntry()
     # Set up configuration
-    (def_mount, def_os) = (r'/', r'Linux') if platform.system() == 'Linux' else ("C:\\", 'Windows')
-    mountPoint = current_context.get_pconf(__name__,"mountPrefix", def_mount)
-    arch = current_context.get_pconf(__name__,"arch_type", QL_ARCH.X8664)
-    os = current_context.get_pconf(__name__,"os_type", QL_OS.LINUX)
+    (def_mount, def_os) = (r"/", r"Linux") if platform.system() == "Linux" else ("C:\\", "Windows")
+    mountPoint = current_context.get_pconf(__name__, "mountPrefix", def_mount)
+    arch = current_context.get_pconf(__name__, "arch_type", QL_ARCH.X8664)
+    os = current_context.get_pconf(__name__, "os_type", QL_OS.LINUX)
+
+    # Prevent running binaries when environment doesn't match
+    if env_mismatch(filetype, os):
+        return None
 
     fd = pipe.SimpleStringBuffer()
-    ql = Qiling(argv=[filename, '--version'], rootfs=mountPoint, archtype=arch, ostype=os, verbose=QL_VERBOSE.OFF)
+    ql = Qiling(
+        argv=[filename, "--version"],
+        rootfs=mountPoint,
+        archtype=arch,
+        ostype=os,
+        verbose=QL_VERBOSE.OFF,
+    )
     ql.os.stdout = fd
     # Emulate executable
-    ql.run(timeout=1000000)
-    file_details: Dict[str, Any] = {
-        "qilingexec": {}
-    }
-    (version, file_details["qilingexec"]["stdout"]) = grab_version(fd,versionRegex)
+    ql.run(timeout=100000)
+    file_details: Dict[str, Any] = {"qilingexec": {}}
+    (version, file_details["qilingexec"]["stdout"]) = grab_version(fd, versionRegex)
     if version:
         software_field_hints.append(("version", version, 80))
         file_details["qilingexec"]["version"] = version
