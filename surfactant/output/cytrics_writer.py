@@ -4,6 +4,8 @@
 # SPDX-License-Identifier: MIT
 from typing import Optional
 
+from loguru import logger
+
 import surfactant.plugin
 from surfactant.sbomtypes import SBOM
 
@@ -11,6 +13,7 @@ from surfactant.sbomtypes import SBOM
 @surfactant.plugin.hookimpl
 def write_sbom(sbom: SBOM, outfile) -> None:
     # outfile is a file pointer, not a file name
+    logger.debug("writing SBOM")
     outfile.write(sbom.to_json(indent=2))
 
 
