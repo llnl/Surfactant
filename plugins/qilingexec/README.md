@@ -10,12 +10,6 @@ The QilingExec plugin enhances Surfactant's SBOM generation by identifying which
 
 - **Executable-level package detection**: Determines the package name and version from output to `stdout` when executed
 
-## Prerequisites
-
-### Install QilingExec and 
-
-
-
 ## Installation
 
 In the same virtual environment that Surfactant was installed in, install this plugin:
@@ -36,43 +30,47 @@ pip install -e .
 
 ## Output Format
 
-The plugin adds package information to the metadata field of software entries in the SBOM. For each binary file, it provides:
+The plugin adds version information and the 1st line of stdout from running the executable to the metadata field of software entries in the SBOM. For each binary file, it provides:
 
 ```json
 {
-   "dapper_packages": [
-            {
-              "package_name": "libssl3",
-              "package_dataset": "ubuntu-jammy",
-              "original_name": "libssl.so.3",
-              "file_path": "usr/lib/x86_64-linux-gnu/libssl.so.3",
-              "normalized_name": "libssl.so",
-              "version": null,
-              "soabi": "3"
-            },
-            {
-              "package_name": "libssl3t64",
-              "package_dataset": "ubuntu-noble",
-              "original_name": "libssl.so.3",
-              "file_path": "usr/lib/x86_64-linux-gnu/libssl.so.3",
-              "normalized_name": "libssl.so",
-              "version": null,
-              "soabi": "3"
-            }
-          ]
+   "qilingexec": {
+      "stdout": "GNU ld (GNU Binutils for Ubuntu) 2.38",
+      "version": "2.38"
+    }
 }
 ```
 
 ### Key Fields
 
-- **package_name**: Short package name (e.g., "libssl3")
-- **full_package_name**: Complete package identifier with version
-- **package_dataset**: Source dataset/distribution
-- **normalized_name**: Normalized filename used for matching
-- **original_output**: Original output of running `<executable> --version` as found
-- **file_path**: Installation path within the package
+- **stdout**: 1st line of text sent to stdout
+- **version**: Identified version number
 
 ## Configuration
+
+### Context File
+
+Here is a basic example context file:
+```json
+[
+  {
+    "extractPaths": [
+      "/usr/bin/ld"
+    ],
+    "pluginConf": {
+      "surfactantplugin_qilingexec": {
+        "mount_prefix": "/"
+      }
+    }
+  }
+]
+```
+
+#### Key Fields
+
+- **mount_prefix**: Base folder to look for libraries from. If using Surfactant on an extracted filesystem please specify the equivalent of the `/` or `C:\` folders.
+- **arch_type**: ISA of the executable. By default, this is set to x86_64.
+- **os_type**: What type of Operating System does the executable run under? By default, this is set to Linux.
 
 ### Enabling/Disabling
 
@@ -93,7 +91,7 @@ Currently supported:
 - **ELF files** (Linux binaries): `.o`, and extensionless executables
 
 Planned support:
-- **PE files** (Windows binaries): `.dll`, `.exe`, `.sys` (pending NuGet dataset availability)
+- **PE files** (Windows binaries): `.dll`, `.exe`, `.sys`
 
 
 ## Uninstalling
