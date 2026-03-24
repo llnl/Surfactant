@@ -1124,7 +1124,7 @@ class SBOM:
         fileName: Optional[List[str]] = None,
         installPath: Optional[List[str]] = None,
         containerPath: Optional[List[str]] = None,
-        captureTime: Optional[int] = None,
+        captureTime: Optional[str] = None,
         version: Optional[str] = None,
         vendor: Optional[List[str]] = None,
         description: Optional[str] = None,
