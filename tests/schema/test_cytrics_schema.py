@@ -21,7 +21,6 @@ from jsonschema import Draft7Validator, FormatChecker, ValidationError
 
 from surfactant.utils.capture_time import utc_now_rfc3339
 
-
 SCHEMA_PATH = Path("docs/cytrics_schema/schema.json")
 
 
@@ -68,9 +67,7 @@ def test_hardware_capture_time_accepts_rfc3339_string(
     validator.validate(instance)
 
 
-def test_hardware_capture_time_accepts_null(
-    schema: dict, format_checker: FormatChecker
-) -> None:
+def test_hardware_capture_time_accepts_null(schema: dict, format_checker: FormatChecker) -> None:
     """Verify hardware.captureTime accepts null as allowed by the schema."""
     hardware_item_schema = schema["definitions"]["hardware"]["items"]
     validator = Draft7Validator(hardware_item_schema, format_checker=format_checker)
@@ -115,9 +112,7 @@ def test_software_capture_time_accepts_rfc3339_string(
     validator.validate(instance)
 
 
-def test_software_capture_time_accepts_null(
-    schema: dict, format_checker: FormatChecker
-) -> None:
+def test_software_capture_time_accepts_null(schema: dict, format_checker: FormatChecker) -> None:
     """Verify software.captureTime accepts null as allowed by the schema."""
     software_item_schema = schema["definitions"]["software"]["items"]
     validator = Draft7Validator(software_item_schema, format_checker=format_checker)
@@ -184,9 +179,7 @@ def test_file_capture_time_accepts_rfc3339_string(
     validator.validate(instance)
 
 
-def test_file_capture_time_rejects_null(
-    schema: dict, format_checker: FormatChecker
-) -> None:
+def test_file_capture_time_rejects_null(schema: dict, format_checker: FormatChecker) -> None:
     """Verify sharedDefinitions.file.captureTime rejects null because it must be a string."""
     file_schema = schema["sharedDefinitions"]["file"]
     validator = Draft7Validator(file_schema, format_checker=format_checker)
