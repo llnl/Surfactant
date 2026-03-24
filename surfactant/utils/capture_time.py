@@ -20,13 +20,14 @@ from typing import Optional
 #   using datetime parsing.
 _RFC3339_CAPTURE_TIME_RE = re.compile(
     r"^"
-    r"\d{4}-\d{2}-\d{2}"          # date
+    r"\d{4}-\d{2}-\d{2}"  # date
     r"[Tt]"
-    r"\d{2}:\d{2}:\d{2}"          # time
-    r"(?:\.\d+)?"                 # optional fractional seconds
-    r"(?:[Zz]|[+-]\d{2}:\d{2})"   # required timezone
+    r"\d{2}:\d{2}:\d{2}"  # time
+    r"(?:\.\d+)?"  # optional fractional seconds
+    r"(?:[Zz]|[+-]\d{2}:\d{2})"  # required timezone
     r"$"
 )
+
 
 def validate_capture_time(
     value: Optional[str],
@@ -77,9 +78,7 @@ def validate_capture_time(
 
     if not isinstance(value, str):
         allowed = "string or null" if nullable else "string"
-        raise TypeError(
-            f"{field_name} must be a {allowed}; got {type(value).__name__}"
-        )
+        raise TypeError(f"{field_name} must be a {allowed}; got {type(value).__name__}")
 
     if not _RFC3339_CAPTURE_TIME_RE.fullmatch(value):
         raise ValueError(
@@ -94,9 +93,7 @@ def validate_capture_time(
     try:
         datetime.fromisoformat(normalized)
     except ValueError as exc:
-        raise ValueError(
-            f"{field_name} is not a valid calendar date/time: {value!r}"
-        ) from exc
+        raise ValueError(f"{field_name} is not a valid calendar date/time: {value!r}") from exc
 
     return value
 

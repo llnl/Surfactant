@@ -10,10 +10,7 @@ def test_validate_capture_time_accepts_zulu() -> None:
 
 def test_validate_capture_time_accepts_offset() -> None:
     """Verify validate_capture_time accepts timestamps with numeric timezone offsets."""
-    assert (
-        validate_capture_time("2024-12-10T20:39:10+01:00")
-        == "2024-12-10T20:39:10+01:00"
-    )
+    assert validate_capture_time("2024-12-10T20:39:10+01:00") == "2024-12-10T20:39:10+01:00"
 
 
 def test_validate_capture_time_accepts_null() -> None:
