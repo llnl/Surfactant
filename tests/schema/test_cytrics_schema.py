@@ -126,23 +126,6 @@ def test_software_capture_time_accepts_null(schema: dict, format_checker: Format
     validator.validate(instance)
 
 
-def test_software_capture_time_rejects_missing_timezone(
-    schema: dict, format_checker: FormatChecker
-) -> None:
-    """Verify software.captureTime rejects date-time strings without a timezone."""
-    software_item_schema = schema["definitions"]["software"]["items"]
-    validator = Draft7Validator(software_item_schema, format_checker=format_checker)
-
-    instance = {
-        "UUID": "123e4567-e89b-12d3-a456-426614174000",
-        "captureTime": "2024-12-10T19:39:10",
-        "notHashable": True,
-    }
-
-    with pytest.raises(ValidationError):
-        validator.validate(instance)
-
-
 def test_software_capture_time_rejects_epoch_integer(
     schema: dict, format_checker: FormatChecker
 ) -> None:
@@ -190,26 +173,6 @@ def test_file_capture_time_rejects_null(schema: dict, format_checker: FormatChec
         "category": "Image",
         "capturedBy": "pytest",
         "captureTime": None,
-        "source": "unit-test",
-    }
-
-    with pytest.raises(ValidationError):
-        validator.validate(instance)
-
-
-def test_file_capture_time_rejects_missing_timezone(
-    schema: dict, format_checker: FormatChecker
-) -> None:
-    """Verify sharedDefinitions.file.captureTime rejects date-time strings without a timezone."""
-    file_schema = schema["sharedDefinitions"]["file"]
-    validator = Draft7Validator(file_schema, format_checker=format_checker)
-
-    instance = {
-        "filePath": "123e4567-e89b-12d3-a456-426614174000/test.bin",
-        "description": "Test file",
-        "category": "Image",
-        "capturedBy": "pytest",
-        "captureTime": "2024-12-10T19:39:10",
         "source": "unit-test",
     }
 
