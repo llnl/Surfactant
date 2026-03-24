@@ -98,18 +98,20 @@ def extract_file_info(
     if not current_context:
         current_context = ContextEntry()
     # Set up configuration
-    (def_mount, def_os) = (r"/", r"Linux") if platform.system() == "Linux" else ("C:\\", "Windows")
-    mountPoint = current_context.get_pconf(__name__, "mountPrefix", def_mount)
+    (def_mount, def_os) = (r"/", r"Linux") if platform.system() == "Linux" else (r"C:\\", r"Windows")
+    mountPoint = current_context.get_pconf(__name__, "mount_prefix", def_mount)
     arch = current_context.get_pconf(__name__, "arch_type", QL_ARCH.X8664)
     os = current_context.get_pconf(__name__, "os_type", QL_OS.LINUX)
+    args = [filename, "--version"]
 
     # Prevent running binaries when environment doesn't match
     if env_mismatch(filetype, os):
+        logger.warning(f"Trying to run qilingexec on {filetype} when os is: {os}")
         return None
 
     fd = pipe.SimpleStringBuffer()
     ql = Qiling(
-        argv=[filename, "--version"],
+        argv=args,
         rootfs=mountPoint,
         archtype=arch,
         ostype=os,
@@ -117,7 +119,10 @@ def extract_file_info(
     )
     ql.os.stdout = fd
     # Emulate executable
-    ql.run(timeout=100000)
+    try:
+        ql.run(timeout=100000)
+    except Exception as error:
+        logger.warning(f"qilingexec ran into a(n) {error} exception when trying to run {filename}")
     file_details: Dict[str, Any] = {"qilingexec": {}}
     (version, file_details["qilingexec"]["stdout"]) = grab_version(fd, versionRegex)
     if version:
