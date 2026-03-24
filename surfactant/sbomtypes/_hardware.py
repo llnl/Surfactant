@@ -16,7 +16,7 @@ from ._provenance import HardwareProvenance
 class Hardware:
     UUID: str = field(default_factory=lambda: str(uuid.uuid4()))
     name: Optional[str] = None
-    captureTime: Optional[int] = None
+    captureTime: Optional[str] = None
     officialName: Optional[str] = None
     countryOfOrigin: Optional[List[str]] = None
     countryOfOriginSource: Optional[str] = None

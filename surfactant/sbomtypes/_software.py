@@ -7,7 +7,6 @@ from __future__ import annotations
 
 import pathlib
 import platform
-import time
 import uuid
 from collections.abc import Iterable
 from dataclasses import dataclass, field, fields
@@ -19,6 +18,7 @@ from surfactant.fileinfo import calc_file_hashes, get_file_info
 
 from ._file import File
 from ._provenance import SoftwareComponentProvenance, SoftwareProvenance
+from .utils.capture_time import utc_now_rfc3339
 
 # pylint: disable=too-many-instance-attributes
 
@@ -27,7 +27,7 @@ from ._provenance import SoftwareComponentProvenance, SoftwareProvenance
 @dataclass
 class SoftwareComponent:
     name: str
-    captureTime: Optional[int] = None
+    captureTime: Optional[str] = None
     version: Optional[str] = None
     vendor: Optional[List[str]] = None
     description: Optional[str] = None
@@ -47,7 +47,7 @@ class Software:
     fileName: Optional[List[str]] = None
     installPath: Optional[List[str]] = None
     containerPath: Optional[List[str]] = None
-    captureTime: Optional[int] = None
+    captureTime: Optional[str] = None
     version: Optional[str] = None
     vendor: Optional[List[str]] = None
     description: Optional[str] = None
@@ -91,7 +91,7 @@ class Software:
             installPath=[],
             containerPath=[],
             size=stat_file_info["size"],
-            captureTime=int(time.time()),
+            captureTime=utc_now_rfc3339(),
             version="",
             vendor=[],
             description="",
