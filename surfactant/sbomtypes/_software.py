@@ -18,7 +18,7 @@ from surfactant.fileinfo import calc_file_hashes, get_file_info
 
 from ._file import File
 from ._provenance import SoftwareComponentProvenance, SoftwareProvenance
-from .utils.capture_time import utc_now_rfc3339
+from ..utils.capture_time import utc_now_rfc3339
 
 # pylint: disable=too-many-instance-attributes
 
