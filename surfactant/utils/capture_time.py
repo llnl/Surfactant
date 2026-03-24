@@ -1,5 +1,6 @@
 from datetime import datetime, timezone
 
+
 def utc_now_rfc3339() -> str:
     """
     Generate a captureTime value compliant with the CyTRICS v1.0.1 schema.
@@ -16,9 +17,4 @@ def utc_now_rfc3339() -> str:
     Returns:
         str: RFC 3339-compliant UTC timestamp
     """
-    return (
-        datetime.now(timezone.utc)
-        .replace(microsecond=0)
-        .isoformat()
-        .replace("+00:00", "Z")
-    )
+    return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
