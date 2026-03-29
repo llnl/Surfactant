@@ -19,9 +19,9 @@ from surfactant.sbomtypes import SBOM, Software
 try:
     from qiling import Qiling
     from qiling.const import QL_ARCH, QL_OS, QL_VERBOSE
+    from qiling.exception import QlErrorBase
     from qiling.extensions import pipe
-    #from qiling.exception import QlErrorNotImplemented, QlOutOfMemory, QlMemoryMappedError
-    from unicorn import UcError, UC_ERR_READ_UNMAPPED, UC_ERR_FETCH_UNMAPPED
+    from unicorn import UcError  # , UC_ERR_FETCH_UNMAPPED
 
     QILING_AVAILABLE = True
 except ImportError:
@@ -36,14 +36,33 @@ versionRegex = re.compile(r"[a-zA-Z0-9]+\.[a-zA-Z0-9]+")
 
 
 def grab_version(fd: io.BytesIO, regex: re.Pattern[str]) -> Optional[Tuple[str, str]]:
-    """Returns a tuple of the word in the first line of fd that matches the given regex pattern and the entire first line"""
-    output = fd.getvalue().decode()
-    stdout = output.splitlines()
-    words = stdout[0].split(" ")
-    for version in words:
-        if versionRegex.search(version):
-            return (version, stdout[0])
-    return ("", stdout[0])
+    """Returns a tuple of the word in the first line of fd that matches the given regex pattern and the entire first line
+
+    Args:
+        fd (io.BytesIO): File descriptor used as stdout or stderr when running an executable
+        regex (re.Pattern[str]): Regular expression to check for matches against
+    """
+    if fd and regex:
+        stdout = fd.getvalue().decode().splitlines()
+        words = stdout[0].split(" ")
+        for version in words:
+            if regex.search(version):
+                return (version, stdout[0])
+        return ("", stdout[0])
+    return None
+
+
+def handle_help(fd: io.BytesIO) -> Optional[List[str]]:
+    """Returns a string if there is anything in the input file descriptor
+
+    Args:
+        fd (io.BytesIO): File descriptor used as stdout or stderr when running an executable
+    """
+    if fd:
+        lines = fd.getvalue().decode().splitlines()
+        line_num = 10 if len(lines) >= 10 else len(lines)
+        return lines[:line_num]
+    return None
 
 
 def env_mismatch(filetype: str, os: QL_OS) -> bool:
@@ -55,7 +74,7 @@ def env_mismatch(filetype: str, os: QL_OS) -> bool:
 
 
 @surfactant.plugin.hookimpl
-def extract_file_info(
+def extract_file_info(  # pylint: disable=too-many-positional-arguments
     sbom: SBOM,
     software: Software,
     filename: str,
@@ -100,10 +119,13 @@ def extract_file_info(
     if not current_context:
         current_context = ContextEntry()
     # Set up configuration
-    (def_mount, def_os) = (r"/", r"Linux") if platform.system() == "Linux" else (r"C:\\", r"Windows")
+    (def_mount, def_os) = (
+        (r"/", r"Linux") if platform.system() == "Linux" else (r"C:\\", r"Windows")
+    )
     mountPoint = current_context.get_pconf(__name__, "mount_prefix", def_mount)
     arch = current_context.get_pconf(__name__, "arch_type", QL_ARCH.X8664)
     os = current_context.get_pconf(__name__, "os_type", QL_OS.LINUX)
+    timeout = current_context.get_pconf(__name__, "timeout", 150000)
     args_version = [filename, "--version"]
     args_help = [filename, "--help"]
 
@@ -123,17 +145,26 @@ def extract_file_info(
     ql_version.os.stdout = fd_version
     # Emulate executable
     try:
-        ql_version.run(timeout=100000)
-    except Exception as error:
-        logger.warning(f"qilingexec ran into a(n) {error} exception when trying to run {args_version}")
+        ql_version.run(timeout=timeout)
+    except UcError as error:
         # This error occurs even during normal emulation
-        if error is not UC_ERR_FETCH_UNMAPPED:
-            return None
+        logger.error(
+            f"qilingexec ran into a(n) {error} exception when trying to run {args_version}"
+        )
+    except QlErrorBase as error:
+        # raise error
+        logger.error(
+            f"qilingexec ran into a(n) {error} exception when trying to run {args_version}"
+        )
+        return None
     file_details: Dict[str, Any] = {"qilingexec": {}}
     (version, file_details["qilingexec"]["stdout"]) = grab_version(fd_version, versionRegex)
     if version:
         software_field_hints.append(("version", version, 80))
         file_details["qilingexec"]["version"] = version
+    else:
+        logger.error(f"No version information returned by {args_version}")
+        return None
 
     fd_help = pipe.SimpleStringBuffer()
     ql_help = Qiling(
@@ -146,10 +177,17 @@ def extract_file_info(
     ql_help.os.stdout = fd_help
     # Emulate executable
     try:
-        ql_help.run(timeout=100000)
-    except Exception as error:
-        logger.warning(f"qilingexec ran into a(n) {error} exception when trying to run {args_help}")
-        if error is not UC_ERR_FETCH_UNMAPPED:
-            return file_details
-    file_details["qilingexec"]["help_stdout"] = fd_help.getvalue().decode()
+        ql_help.run(timeout=timeout)
+    except UcError as error:
+        # This error occurs even during normal emulation
+        logger.warning(
+            f"qilingexec ran into a(n) {error} exception when trying to run {args_version}"
+        )
+    except QlErrorBase as error:
+        # raise error
+        logger.warning(
+            f"qilingexec ran into a(n) {error} exception when trying to run {args_version}"
+        )
+        return file_details
+    file_details["qilingexec"]["help_stdout"] = handle_help(fd_help)
     return file_details

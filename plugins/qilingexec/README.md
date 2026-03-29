@@ -1,6 +1,6 @@
 # QilingExec Plugin for SBOM Surfactant
 
-A plugin for Surfactant that uses [Qiling](https://github.com/qilingframework/qiling) to identify software packages from executable binary files by running any binaries found under Qiling.
+A plugin for Surfactant that uses [Qiling](https://github.com/qilingframework/qiling) to identify software packages from executable binary files by running any binaries found under Qiling. By default, this plugin expects to load libraries from your system and that the python environment running this plugin to have an OS and Architecture matching that of the executables being emulated. Do not use this plugin on binaries you do not trust.
 
 ## Overview
 
@@ -36,7 +36,19 @@ The plugin adds version information and the 1st line of stdout from running the 
 {
    "qilingexec": {
       "stdout": "GNU ld (GNU Binutils for Ubuntu) 2.38",
-      "version": "2.38"
+      "version": "2.38",
+      "help_stdout": [
+        "Usage: /usr/bin/ld [options] file...",
+        "Options:",
+        "  -a KEYWORD                  Shared library control for HP/UX compatibility",
+        "  -A ARCH, --architecture ARCH",
+        "                              Set architecture",
+        "  -b TARGET, --format TARGET  Specify target for following input files",
+        "  -c FILE, --mri-script FILE  Read MRI format linker script",
+        "  -d, -dc, -dp                Force common symbols to be defined",
+        "  --dependency-file FILE      Write dependency file",
+        "  --force-group-allocation    Force group members out of groups"
+      ]
     }
 }
 ```
@@ -71,6 +83,7 @@ Here is a basic example context file:
 - **mount_prefix**: Base folder to look for libraries from. If using Surfactant on an extracted filesystem please specify the equivalent of the `/` or `C:\` folders.
 - **arch_type**: ISA of the executable. By default, this is set to x86_64.
 - **os_type**: What type of Operating System does the executable run under? By default, this is set to Linux.
+- **timeout**: How long (in microseconds) should executables be given to run before timing out? By default, this is set to 150000 or 15/100th of a second. Sometimes executables need longer to load their libraries into memory and begin execution. If you are running into issues (i.e. Invalid memory fetches), this is a good field to play with.
 
 ### Enabling/Disabling
 
