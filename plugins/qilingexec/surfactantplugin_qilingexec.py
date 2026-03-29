@@ -20,6 +20,8 @@ try:
     from qiling import Qiling
     from qiling.const import QL_ARCH, QL_OS, QL_VERBOSE
     from qiling.extensions import pipe
+    #from qiling.exception import QlErrorNotImplemented, QlOutOfMemory, QlMemoryMappedError
+    from unicorn import UcError, UC_ERR_READ_UNMAPPED, UC_ERR_FETCH_UNMAPPED
 
     QILING_AVAILABLE = True
 except ImportError:
@@ -36,12 +38,12 @@ versionRegex = re.compile(r"[a-zA-Z0-9]+\.[a-zA-Z0-9]+")
 def grab_version(fd: io.BytesIO, regex: re.Pattern[str]) -> Optional[Tuple[str, str]]:
     """Returns a tuple of the word in the first line of fd that matches the given regex pattern and the entire first line"""
     output = fd.getvalue().decode()
-    lines = output.splitlines()
-    words = lines[0].split(" ")
-    for j in words:
-        if versionRegex.search(j):
-            return (j, lines[0])
-    return ("", lines[0])
+    stdout = output.splitlines()
+    words = stdout[0].split(" ")
+    for version in words:
+        if versionRegex.search(version):
+            return (version, stdout[0])
+    return ("", stdout[0])
 
 
 def env_mismatch(filetype: str, os: QL_OS) -> bool:
@@ -102,30 +104,52 @@ def extract_file_info(
     mountPoint = current_context.get_pconf(__name__, "mount_prefix", def_mount)
     arch = current_context.get_pconf(__name__, "arch_type", QL_ARCH.X8664)
     os = current_context.get_pconf(__name__, "os_type", QL_OS.LINUX)
-    args = [filename, "--version"]
+    args_version = [filename, "--version"]
+    args_help = [filename, "--help"]
 
     # Prevent running binaries when environment doesn't match
     if env_mismatch(filetype, os):
         logger.warning(f"Trying to run qilingexec on {filetype} when os is: {os}")
         return None
 
-    fd = pipe.SimpleStringBuffer()
-    ql = Qiling(
-        argv=args,
+    fd_version = pipe.SimpleStringBuffer()
+    ql_version = Qiling(
+        argv=args_version,
         rootfs=mountPoint,
         archtype=arch,
         ostype=os,
         verbose=QL_VERBOSE.OFF,
     )
-    ql.os.stdout = fd
+    ql_version.os.stdout = fd_version
     # Emulate executable
     try:
-        ql.run(timeout=100000)
+        ql_version.run(timeout=100000)
     except Exception as error:
-        logger.warning(f"qilingexec ran into a(n) {error} exception when trying to run {filename}")
+        logger.warning(f"qilingexec ran into a(n) {error} exception when trying to run {args_version}")
+        # This error occurs even during normal emulation
+        if error is not UC_ERR_FETCH_UNMAPPED:
+            return None
     file_details: Dict[str, Any] = {"qilingexec": {}}
-    (version, file_details["qilingexec"]["stdout"]) = grab_version(fd, versionRegex)
+    (version, file_details["qilingexec"]["stdout"]) = grab_version(fd_version, versionRegex)
     if version:
         software_field_hints.append(("version", version, 80))
         file_details["qilingexec"]["version"] = version
+
+    fd_help = pipe.SimpleStringBuffer()
+    ql_help = Qiling(
+        argv=args_help,
+        rootfs=mountPoint,
+        archtype=arch,
+        ostype=os,
+        verbose=QL_VERBOSE.OFF,
+    )
+    ql_help.os.stdout = fd_help
+    # Emulate executable
+    try:
+        ql_help.run(timeout=100000)
+    except Exception as error:
+        logger.warning(f"qilingexec ran into a(n) {error} exception when trying to run {args_help}")
+        if error is not UC_ERR_FETCH_UNMAPPED:
+            return file_details
+    file_details["qilingexec"]["help_stdout"] = fd_help.getvalue().decode()
     return file_details
