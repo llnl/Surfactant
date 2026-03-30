@@ -29,10 +29,10 @@ except ImportError:
     logger.warning("qiling not installed. QilingExec plugin will be disabled.")
 
 # Regex for version checking is currently looking
-# for 1+ alphanumeric character(s), followed by a
-# period, followed by 1+ alphanumeric character(s).
+# for 1+ numeric character(s), followed by a
+# period, followed by 1+ numeric character(s).
 # This is only being done on line 1 of stdout.
-versionRegex = re.compile(r"[a-zA-Z0-9]+\.[a-zA-Z0-9]+")
+versionRegex = re.compile(r"[0-9]+\.[0-9]+")
 
 
 def grab_version(fd: io.BytesIO, regex: re.Pattern[str]) -> Optional[Tuple[str, str]]:
@@ -115,9 +115,6 @@ def extract_file_info(  # pylint: disable=too-many-positional-arguments
     # Stop if Qiling is unavailable or the file type isn't some variety of executable
     if not QILING_AVAILABLE or not ("ELF" in filetype or "PE" in filetype):
         return None
-    # If there is no current context, create one so that the get_pconf function can be used
-    if not current_context:
-        current_context = ContextEntry()
     # Set up configuration
     (def_mount, def_os) = (
         (r"/", r"Linux") if platform.system() == "Linux" else (r"C:\\", r"Windows")
