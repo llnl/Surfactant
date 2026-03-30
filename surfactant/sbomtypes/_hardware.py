@@ -6,6 +6,7 @@ import uuid
 from dataclasses import dataclass, field
 from typing import List, Optional
 
+from ..utils.capture_time import validate_capture_time
 from ._file import File
 from ._provenance import HardwareProvenance
 
@@ -32,3 +33,7 @@ class Hardware:
     boardLocation: Optional[List[str]] = None
     provenance: Optional[List[HardwareProvenance]] = None
     recordedInstitution: Optional[str] = None
+
+    def __post_init__(self) -> None:
+        """Validate captureTime against the CyTRICS hardware schema requirement."""
+        self.captureTime = validate_capture_time(self.captureTime, nullable=True)

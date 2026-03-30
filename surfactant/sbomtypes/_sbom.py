@@ -26,6 +26,7 @@ from ._provenance import SoftwareProvenance
 from ._relationship import Relationship, StarRelationship
 from ._software import Software, SoftwareComponent
 from ._system import System
+from ..utils.capture_time import validate_capture_time
 
 INTERNAL_FIELDS = {"software_lookup_by_sha256"}
 
@@ -1136,6 +1137,8 @@ class SBOM:
         recordedInstitution: Optional[str] = None,
         components: Optional[List[SoftwareComponent]] = None,
     ) -> Software:
+        captureTime = validate_capture_time(captureTime, nullable=True)
+
         sw = Software(
             name=name,
             size=size,

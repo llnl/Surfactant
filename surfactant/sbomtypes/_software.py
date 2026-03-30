@@ -16,7 +16,7 @@ from dataclasses_json import dataclass_json
 
 from surfactant.fileinfo import calc_file_hashes, get_file_info
 
-from ..utils.capture_time import utc_now_rfc3339
+from ..utils.capture_time import utc_now_rfc3339, validate_capture_time
 from ._file import File
 from ._provenance import SoftwareComponentProvenance, SoftwareProvenance
 
@@ -36,6 +36,10 @@ class SoftwareComponent:
     supplementaryFiles: Optional[List[File]] = None
     provenance: Optional[List[SoftwareComponentProvenance]] = None
     recordedInstitution: Optional[str] = None
+
+    def __post_init__(self) -> None:
+        """Validate captureTime against the software component schema requirement."""
+        self.captureTime = validate_capture_time(self.captureTime, nullable=True)
 
 
 @dataclass_json
@@ -64,9 +68,18 @@ class Software:
     recordedInstitution: Optional[str] = None
     components: Optional[List[SoftwareComponent]] = None
 
+    def __post_init__(self) -> None:
+        """Validate captureTime against the software schema requirement."""
+        self.captureTime = validate_capture_time(self.captureTime, nullable=True)
+
     def _update_field(self, field_name: str, value: Any):
-        if value not in ["", " ", None]:
-            setattr(self, field_name, value)
+        if value in ["", " ", None]:
+            return
+
+        if field_name == "captureTime":
+            value = validate_capture_time(value, nullable=True, field_name=field_name)
+
+        setattr(self, field_name, value)
 
     @staticmethod
     def create_software_from_file(filepath) -> Software:

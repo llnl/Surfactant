@@ -5,6 +5,8 @@
 from dataclasses import dataclass
 from typing import List, Optional
 
+from ..utils.capture_time import validate_capture_time
+
 # pylint: disable=too-many-instance-attributes
 
 
@@ -16,6 +18,10 @@ class SystemProvenance:
     source: Optional[str] = None
     methodOfAcquisition: Optional[List[str]] = None
 
+    def __post_init__(self) -> None:
+        """Validate captureTime against the provenance schema requirement."""
+        self.captureTime = validate_capture_time(self.captureTime, nullable=True)
+
 
 @dataclass
 class HardwareProvenance:
@@ -24,6 +30,10 @@ class HardwareProvenance:
     captureTime: Optional[str] = None
     source: Optional[str] = None
     methodOfAcquisition: Optional[List[str]] = None
+
+    def __post_init__(self) -> None:
+        """Validate captureTime against the provenance schema requirement."""
+        self.captureTime = validate_capture_time(self.captureTime, nullable=True)
 
 
 @dataclass
@@ -34,6 +44,10 @@ class SoftwareComponentProvenance:
     source: Optional[str] = None
     methodOfAcquisition: Optional[List[str]] = None
 
+    def __post_init__(self) -> None:
+        """Validate captureTime against the provenance schema requirement."""
+        self.captureTime = validate_capture_time(self.captureTime, nullable=True)
+
 
 @dataclass
 class SoftwareProvenance:
@@ -42,6 +56,10 @@ class SoftwareProvenance:
     captureTime: Optional[str] = None
     source: Optional[str] = None
     methodOfAcquisition: Optional[List[str]] = None
+
+    def __post_init__(self) -> None:
+        """Validate captureTime against the provenance schema requirement."""
+        self.captureTime = validate_capture_time(self.captureTime, nullable=True)
 
 
 @dataclass
@@ -54,6 +72,10 @@ class AnalysisDataProvenance:
     source: Optional[str] = None
     methodOfAcquisition: Optional[List[str]] = None
 
+    def __post_init__(self) -> None:
+        """Validate captureTime against the provenance schema requirement."""
+        self.captureTime = validate_capture_time(self.captureTime, nullable=True)
+
 
 @dataclass
 class ObservationProvenance:
@@ -62,3 +84,7 @@ class ObservationProvenance:
     captureTime: Optional[str] = None
     source: Optional[str] = None
     methodOfAcquisition: Optional[List[str]] = None
+
+    def __post_init__(self) -> None:
+        """Validate captureTime against the provenance schema requirement."""
+        self.captureTime = validate_capture_time(self.captureTime, nullable=True)
