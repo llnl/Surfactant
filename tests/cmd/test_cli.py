@@ -55,7 +55,7 @@ bad_sbom = SBOM(
                 "fileName": ["helics.tar.gz"],
                 "installPath": [],
                 "containerPath": [],
-                "captureTime": 1689186121,
+                "captureTime": "2023-07-12T17:42:01Z",
                 "version": "",
                 "vendor": [],
                 "description": "",
@@ -147,7 +147,7 @@ def test_add_entry(test_sbom):
         "fileName": ["big_m68020.aout"],
         "installPath": [],
         "containerPath": [],
-        "captureTime": 1715726918,
+        "captureTime": "2024-05-14T12:48:38Z",
         "sha1": "fbf8688fbe1976b6f324b0028c4b97137ae9139d",
         "sha256": "9e125f97e5f180717096c57fa2fdf06e71cea3e48bc33392318643306b113da4",
         "md5": "e8d3808a4e311a4262563f3cb3a31c3e",
@@ -194,3 +194,32 @@ def test_cli_base_serialization(test_sbom):
 
     # compare by graph contents and other fields, ignore object identity
     assert _compare_sboms(test_sbom, deserialized)
+
+def test_add_entry_with_component_capturetime(test_sbom):
+    entry = {
+        "UUID": "...",
+        "captureTime": "2024-01-01T00:00:00Z",
+        "components": [
+            {
+                "name": "comp1",
+                "captureTime": "2024-01-01T01:00:00Z",
+            }
+        ],
+    }
+
+    out_bom = cli_add().execute(test_sbom, entry=entry)
+    assert out_bom.software[-1].components[0].captureTime == "2024-01-01T01:00:00Z"
+
+def test_add_entry_invalid_component_capturetime(test_sbom):
+    entry = {
+        "UUID": "...",
+        "components": [
+            {
+                "name": "comp1",
+                "captureTime": "invalid",
+            }
+        ],
+    }
+
+    with pytest.raises(ValueError):
+        cli_add().execute(test_sbom, entry=entry)

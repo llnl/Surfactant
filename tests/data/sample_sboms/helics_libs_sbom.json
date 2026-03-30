@@ -11,7 +11,7 @@
       ],
       "installPath": [],
       "containerPath": [],
-      "captureTime": 1689186146,
+      "captureTime": "2023-07-12T17:42:01Z",
       "version": "",
       "vendor": [],
       "description": "",
@@ -50,7 +50,7 @@
         "477da45b-bb38-450e-93f7-e525aaaa6862/libzmq.so",
         "477da45b-bb38-450e-93f7-e525aaaa6862/libzmq.so.5"
       ],
-      "captureTime": 1689186146,
+      "captureTime": "2023-07-12T17:42:01Z",
       "version": "",
       "vendor": [],
       "description": "",
@@ -138,7 +138,7 @@
         "477da45b-bb38-450e-93f7-e525aaaa6862/libhelics.so.3",
         "477da45b-bb38-450e-93f7-e525aaaa6862/libhelics.so.3.4.0"
       ],
-      "captureTime": 1689186146,
+      "captureTime": "2023-07-12T17:42:01Z",
       "version": "",
       "vendor": [],
       "description": "",
