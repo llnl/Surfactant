@@ -12,6 +12,8 @@ from surfactant.sbomtypes._relationship import Relationship
 from surfactant.sbomtypes._sbom import SBOM
 from surfactant.sbomtypes._software import Software
 
+from surfactant.utils.capture_time import validate_capture_time
+
 
 @click.argument("sbom", type=click.File("r"), required=True)
 @click.option(
@@ -204,15 +206,41 @@ class cli_add:
         self.sbom.software.append(Software.create_software_from_file(path))
 
     def add_entry(self, entry):
+        """Add a software entry, validating captureTime fields before deserialization."""
+        # Validate top-level software captureTime
+        if "captureTime" in entry:
+            entry["captureTime"] = validate_capture_time(entry["captureTime"], nullable=True)
+
+        # Validate nested software component captureTime values
+        components = entry.get("components")
+        if isinstance(components, list):
+            for component in components:
+                if isinstance(component, dict) and "captureTime" in component:
+                    component["captureTime"] = validate_capture_time(
+                        component["captureTime"],
+                        nullable=True,
+                        field_name="components[].captureTime",
+                    )
+
         self.sbom.software.append(Software.from_dict(entry))
 
     def add_installpath(self, prefixes: tuple):
+        """Add installPath values by rewriting matching containerPath prefixes."""
         cleaned_prefixes = (p.rstrip("/") for p in prefixes)
         containerPathPrefix, installPathPrefix = cleaned_prefixes
+
         for sw in self.sbom.software:
+            if not sw.containerPath:
+                continue
+
+            if sw.installPath is None:
+                sw.installPath = []
+
             for path in sw.containerPath:
                 if containerPathPrefix in path:
-                    sw.installPath.append(path.replace(containerPathPrefix, installPathPrefix))
+                    new_path = path.replace(containerPathPrefix, installPathPrefix)
+                    if new_path not in sw.installPath:
+                        sw.installPath.append(new_path)
 
 
 class cli_find:
