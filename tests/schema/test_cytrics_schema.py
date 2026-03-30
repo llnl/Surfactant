@@ -30,14 +30,14 @@ def load_schema() -> dict:
         return json.load(schema_file)
 
 
-@pytest.fixture(scope="module")
-def schema() -> dict:
+@pytest.fixture(scope="module", name="schema")
+def schema_fixture() -> dict:
     """Provide the full CyTRICS schema for validation tests."""
     return load_schema()
 
 
-@pytest.fixture(scope="module")
-def format_checker() -> FormatChecker:
+@pytest.fixture(scope="module", name="format_checker")
+def format_checker_fixture() -> FormatChecker:
     """Provide a JSON Schema format checker for RFC 3339 date-time validation."""
     return FormatChecker()
 
