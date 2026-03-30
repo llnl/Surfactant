@@ -195,6 +195,7 @@ def test_cli_base_serialization(test_sbom):
     # compare by graph contents and other fields, ignore object identity
     assert _compare_sboms(test_sbom, deserialized)
 
+
 def test_add_entry_with_component_capturetime(test_sbom):
     entry = {
         "UUID": "...",
@@ -209,6 +210,7 @@ def test_add_entry_with_component_capturetime(test_sbom):
 
     out_bom = cli_add().execute(test_sbom, entry=entry)
     assert out_bom.software[-1].components[0].captureTime == "2024-01-01T01:00:00Z"
+
 
 def test_add_entry_invalid_component_capturetime(test_sbom):
     entry = {
