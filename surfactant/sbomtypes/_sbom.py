@@ -18,6 +18,7 @@ from loguru import logger
 
 from surfactant.utils.paths import basename_posix, normalize_path
 
+from ..utils.capture_time import validate_capture_time
 from ._analysisdata import AnalysisData
 from ._file import File
 from ._hardware import Hardware
@@ -26,7 +27,6 @@ from ._provenance import SoftwareProvenance
 from ._relationship import Relationship, StarRelationship
 from ._software import Software, SoftwareComponent
 from ._system import System
-from ..utils.capture_time import validate_capture_time
 
 INTERNAL_FIELDS = {"software_lookup_by_sha256"}
 
