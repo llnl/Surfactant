@@ -19,14 +19,11 @@ from loguru import logger
 from surfactant.utils.paths import basename_posix, normalize_path
 
 from ..utils.capture_time import validate_capture_time
-from ._analysisdata import AnalysisData
 from ._file import File
 from ._hardware import Hardware
 from ._observation import Observation
-from ._provenance import SoftwareProvenance
 from ._relationship import Relationship, StarRelationship
 from ._software import Software, SoftwareComponent
-from ._system import System
 
 INTERNAL_FIELDS = {"software_lookup_by_sha256"}
 
@@ -49,7 +46,6 @@ def recover_serializers(cls):
 class SBOM:
     # pylint: disable=too-many-public-methods
     # pylint: disable=R0902
-    systems: List[System] = field(default_factory=list)
     hardware: List[Hardware] = field(default_factory=list)
     software: List[Software] = field(default_factory=list)
     # relationships: Set[Relationship] = field(default_factory=set)  # (removed relationships field. Graph is now the single source of truth)
@@ -59,7 +55,6 @@ class SBOM:
             metadata=config(field_name="relationships", exclude=lambda _: True),
         )
     )
-    analysisData: List[AnalysisData] = field(default_factory=list)
     observations: List[Observation] = field(default_factory=list)
     starRelationships: Set[StarRelationship] = field(default_factory=set)
     software_lookup_by_sha256: Dict = field(default_factory=dict)
@@ -93,32 +88,22 @@ class SBOM:
     )
 
     def __post_init__(self):
-        # If called like SBOM(raw_dict), raw_dict will be in .systems
-        if isinstance(self.systems, dict) and not self.hardware and not self.software:
-            raw = self.systems
+        if isinstance(self.hardware, dict) and not self.software:
+            raw = self.hardware
 
             # zero out every container
-            self.systems = []
             self.hardware = []
             self.software = []
-            self.analysisData = []
             self.observations = []
             self._loaded_relationships = []
             self.starRelationships = set()
 
             # prepare valid field-name sets
-            SYSTEM_FIELDS = {f.name for f in fields(System)}
             HARDWARE_FIELDS = {f.name for f in fields(Hardware)}
             SOFTWARE_FIELDS = {f.name for f in fields(Software)}
             REL_FIELDS = {f.name for f in fields(Relationship)}
-            AD_FIELDS = {f.name for f in fields(AnalysisData)}
             OBS_FIELDS = {f.name for f in fields(Observation)}
             STAR_FIELDS = {f.name for f in fields(StarRelationship)}
-
-            # rehydrate systems
-            for sys_data in raw.get("systems", []):
-                clean = {k: v for k, v in sys_data.items() if k in SYSTEM_FIELDS}
-                self.systems.append(System(**clean))
 
             # rehydrate hardware
             for hw_data in raw.get("hardware", []):
@@ -134,11 +119,6 @@ class SBOM:
             for rel_data in raw.get("relationships", []):
                 clean = {k: v for k, v in rel_data.items() if k in REL_FIELDS}
                 self._loaded_relationships.append(Relationship(**clean))
-
-            # rehydrate analysisData
-            for ad_data in raw.get("analysisData", []):
-                clean = {k: v for k, v in ad_data.items() if k in AD_FIELDS}
-                self.analysisData.append(AnalysisData(**clean))
 
             # rehydrate observations
             for obs_data in raw.get("observations", []):
@@ -156,7 +136,7 @@ class SBOM:
             k: v for k, v in self.__dataclass_fields__.items() if k not in INTERNAL_FIELDS
         }
 
-        # Build the Relationship graph from systems/software and loaded relationships
+        # Build the Relationship graph from software and loaded relationships
         self.build_rel_graph()
 
         # Initialize fs_tree
@@ -489,10 +469,8 @@ class SBOM:
         return sorted(results)
 
     def build_rel_graph(self) -> None:
-        """Rebuild the directed graph from systems, software, and any loaded relationships."""
+        """Rebuild the directed graph from software and any loaded relationships."""
         self.graph = nx.MultiDiGraph()
-        for sys in self.systems:
-            self.graph.add_node(sys.UUID, type="System")
         for sw in self.software:
             self.graph.add_node(sw.UUID, type="Software")
         # rehydrate edges from loaded JSON (if any)
@@ -1133,8 +1111,6 @@ class SBOM:
         comments: Optional[str] = None,
         metadata: Optional[List[object]] = None,
         supplementaryFiles: Optional[List[File]] = None,
-        provenance: Optional[List[SoftwareProvenance]] = None,
-        recordedInstitution: Optional[str] = None,
         components: Optional[List[SoftwareComponent]] = None,
     ) -> Software:
         captureTime = validate_capture_time(captureTime, nullable=True)
@@ -1156,8 +1132,6 @@ class SBOM:
             comments=comments,
             metadata=metadata,
             supplementaryFiles=supplementaryFiles,
-            provenance=provenance,
-            recordedInstitution=recordedInstitution,
             components=components,
         )
         self.software_lookup_by_sha256[sw.sha256] = sw
@@ -1168,39 +1142,7 @@ class SBOM:
         # merged/old to new UUID map
         uuid_updates: Dict[str, str] = {}
 
-        # 1) Merge systems
-        if sbom_m.systems:
-            for system in sbom_m.systems:
-                # check for duplicate UUID/name, merge with existing entry
-                if existing_system := self._find_systems_entry(uuid=system.UUID, name=system.name):
-                    # merge system entries
-                    u1, u2 = existing_system.merge(system)
-                    logger.info(f"MERGE_DUPLICATE_SYS: uuid1={u1}, uuid2={u2}")
-                    uuid_updates[u2] = u1
-
-                    # Redirect any existing edges from u2 -> u1 in self.graph
-                    if hasattr(self, "graph") and self.graph.has_node(u2):
-                        # for each predecessor of u2, add edge (pred -> u1)
-                        # Redirect incoming edges to the merged node u1
-                        for pred, _, key, attrs in self.graph.in_edges(u2, keys=True, data=True):
-                            self.graph.add_edge(pred, u1, key=key, **attrs)
-
-                        # For each successor of u2, add edge (u1 -> succ)
-                        # Redirect outgoing edges from u2 -> u1
-                        for _, succ, key, attrs in self.graph.out_edges(u2, keys=True, data=True):
-                            self.graph.add_edge(u1, succ, key=key, **attrs)
-
-                        # Then drop the old node
-                        self.graph.remove_node(u2)
-
-                else:
-                    self.systems.append(system)
-
-                    # Add the new system node into the graph
-                    if hasattr(self, "graph"):
-                        self.graph.add_node(system.UUID, type="System")
-
-        # 2) Merge software
+        # 1) Merge software
         if sbom_m.software:
             for sw in sbom_m.software:
                 # NOTE: Do we want to pass in teh UUID here? What if we have two different UUIDs for the same file? Should hashes be required?
@@ -1230,7 +1172,7 @@ class SBOM:
                     if hasattr(self, "graph"):
                         self.graph.add_node(sw.UUID, type="Software")
 
-        # 3) Merge relationships from the incoming SBOM's MultiDiGraph
+        # 2) Merge relationships from the incoming SBOM's MultiDiGraph
         for src, dst, rel_type in sbom_m.graph.edges(keys=True):
             # Skip path/symlink edges during merge as well
             if str(rel_type).lower() == "symlink":
@@ -1240,7 +1182,7 @@ class SBOM:
             if sbom_m.graph.nodes.get(dst, {}).get("type") == "path":
                 continue
 
-            # apply any UUID remaps from merged systems/software
+            # apply any UUID remaps from merged software
             xUUID = uuid_updates.get(src, src)
             yUUID = uuid_updates.get(dst, dst)
 
@@ -1266,9 +1208,7 @@ class SBOM:
 
         logger.info(f"UUID UPDATES: {uuid_updates}")
 
-        # 5) Merge analysisData, observations, starRelationships
-        for ad in sbom_m.analysisData:
-            self.analysisData.append(ad)
+        # 5) Merge observations andstarRelationships
         for obs in sbom_m.observations:
             self.observations.append(obs)
         for star_rel in sbom_m.starRelationships:
@@ -1285,29 +1225,6 @@ class SBOM:
                 logger.info(f"DUPLICATE STAR RELATIONSHIP: {existing_star_rel}")
             else:
                 self.starRelationships.add(star_rel)
-
-    def _find_systems_entry(
-        self, uuid: Optional[str] = None, name: Optional[str] = None
-    ) -> Optional[System]:
-        """Merge helper function to find and return
-        the matching system entry in the provided sbom.
-
-        Args:
-            uuid (Optional[str]): The uuid of the desired system entry.
-            name (Optional[str]): The name of the desired system entry.
-
-        Returns:
-            Optional[System]: The system found that matches the given criteria, otherwise None.
-        """
-        for system in self.systems:
-            if uuid:
-                if system.UUID != uuid:
-                    continue
-            if name:
-                if system.name != name:
-                    continue
-            return system
-        return None
 
     def _find_software_entry(
         self,

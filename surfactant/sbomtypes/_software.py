@@ -18,7 +18,6 @@ from surfactant.fileinfo import calc_file_hashes, get_file_info
 
 from ..utils.capture_time import utc_now_rfc3339, validate_capture_time
 from ._file import File
-from ._provenance import SoftwareComponentProvenance, SoftwareProvenance
 
 # pylint: disable=too-many-instance-attributes
 
@@ -34,8 +33,6 @@ class SoftwareComponent:
     comments: Optional[str] = None
     metadata: Optional[List[object]] = None
     supplementaryFiles: Optional[List[File]] = None
-    provenance: Optional[List[SoftwareComponentProvenance]] = None
-    recordedInstitution: Optional[str] = None
 
     def __post_init__(self) -> None:
         """Validate captureTime against the software component schema requirement."""
@@ -64,8 +61,6 @@ class Software:
     comments: Optional[str] = None
     metadata: Optional[List[object]] = None
     supplementaryFiles: Optional[List[File]] = None
-    provenance: Optional[List[SoftwareProvenance]] = None
-    recordedInstitution: Optional[str] = None
     components: Optional[List[SoftwareComponent]] = None
 
     def __post_init__(self) -> None:
@@ -112,7 +107,6 @@ class Software:
             comments="",
             metadata=[collection_info],
             supplementaryFiles=[],
-            provenance=None,
             components=[],
         )
         return sw
@@ -129,14 +123,12 @@ class Software:
                 "version",
                 "description",
                 "relationshipAssertion",
-                "recordedInstitution",
             ]
             array_fields = [
                 "containerPath",
                 "fileName",
                 "installPath",
                 "vendor",
-                "provenance",
                 "metadata",
                 "supplementaryFiles",
                 "components",

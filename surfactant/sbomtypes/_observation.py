@@ -7,7 +7,6 @@ from dataclasses import dataclass, field
 from typing import List, Optional
 
 from ._file import File
-from ._provenance import ObservationProvenance
 
 # pylint: disable=too-many-instance-attributes
 
@@ -27,4 +26,3 @@ class Observation:
     toRecreate: Optional[str] = None
     mitigationSuggestions: Optional[str] = None
     confidenceLevel: Optional[str] = None  # enum: none, low, medium, high, critical
-    provenance: Optional[List[ObservationProvenance]] = None

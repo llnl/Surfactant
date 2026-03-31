@@ -8,7 +8,6 @@ from typing import List, Optional
 
 from ..utils.capture_time import validate_capture_time
 from ._file import File
-from ._provenance import HardwareProvenance
 
 # pylint: disable=too-many-instance-attributes
 
@@ -31,7 +30,6 @@ class Hardware:
     supplementaryFiles: Optional[List[File]] = None
     packageType: Optional[str] = None
     boardLocation: Optional[List[str]] = None
-    provenance: Optional[List[HardwareProvenance]] = None
     recordedInstitution: Optional[str] = None
 
     def __post_init__(self) -> None:
