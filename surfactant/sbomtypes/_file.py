@@ -38,9 +38,7 @@ class File:
         if not isinstance(self.captureTime, str):
             raise TypeError("captureTime must be a string")
 
-        self.captureTime = validate_capture_time(
-            self.captureTime, nullable=False
-        )
+        self.captureTime = validate_capture_time(self.captureTime, nullable=False)
 
         if self.methodOfAcquisition is not None:
             if not isinstance(self.methodOfAcquisition, list):

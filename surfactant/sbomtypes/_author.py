@@ -4,6 +4,7 @@
 # SPDX-License-Identifier: MIT
 from dataclasses import dataclass
 
+
 @dataclass
 class Author:
     authorType: str = ""

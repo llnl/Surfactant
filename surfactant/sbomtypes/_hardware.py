@@ -4,11 +4,11 @@
 # SPDX-License-Identifier: MIT
 import uuid
 from dataclasses import dataclass, field
-from typing import List, Optional, Dict, Any
+from typing import Any, Dict, List, Optional
 
 from ..utils.capture_time import validate_capture_time
-from ._file import File
 from ._comment import CommentEntry
+from ._file import File
 from ._name import NameEntry
 
 # pylint: disable=too-many-instance-attributes
@@ -42,7 +42,7 @@ class Hardware:
             raise ValueError(f"UUID must be a valid UUID string; got {self.UUID!r}")
 
         self.captureTime = validate_capture_time(self.captureTime, nullable=True)
-    
+
         if self.name is not None:
             if not isinstance(self.name, list):
                 raise TypeError("name must be a list or None")
@@ -54,7 +54,7 @@ class Hardware:
             raise ValueError(
                 "countryOfOrigin and countryOfOriginSource must both be set or both be None"
             )
-    
+
         if self.quantity is not None and not isinstance(self.quantity, int):
             raise TypeError("quantity must be a number or None")
 
@@ -87,7 +87,7 @@ class Hardware:
                 for item in value:
                     if not isinstance(item, str):
                         raise TypeError(f"All items in {field_name} must be strings")
-                    
+
         if self.comments is not None:
             if not isinstance(self.comments, list):
                 raise TypeError("comments must be a list or None")
@@ -101,7 +101,7 @@ class Hardware:
             for item in self.supplementaryFiles:
                 if not isinstance(item, File):
                     raise TypeError("All items in supplementaryFiles must be File objects")
-                
+
         if not isinstance(self.metadata, list):
             raise TypeError("metadata must be a list")
 

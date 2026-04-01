@@ -8,27 +8,28 @@ from __future__ import annotations
 import pathlib
 import platform
 import uuid
-from collections.abc import Iterable
 from dataclasses import dataclass, field, fields
-from typing import Any, List, Optional, Dict
 from enum import Enum
+from typing import Any, Dict, List, Optional
 
 from dataclasses_json import dataclass_json
 
 from surfactant.fileinfo import calc_file_hashes, get_file_info
 
+from ..utils.capture_time import utc_now_rfc3339, validate_capture_time
 from ._comment import CommentEntry
 from ._file import File
 from ._name import NameEntry
-from ..utils.capture_time import utc_now_rfc3339, validate_capture_time
 
 # pylint: disable=too-many-instance-attributes
+
 
 class RelationshipAssertion(str, Enum):
     UNKNOWN = "Unknown"
     ROOT = "Root"
     PARTIAL = "Partial"
     KNOWN = "Known"
+
 
 @dataclass_json
 @dataclass
@@ -97,9 +98,7 @@ class Software:
         # If notHashable is false or None, at least one hash must be present
         if not self.notHashable:
             if not any(isinstance(v, str) for v in (self.sha1, self.sha256, self.md5)):
-                raise ValueError(
-                    "At least one hash must be a string unless notHashable is True"
-                )
+                raise ValueError("At least one hash must be a string unless notHashable is True")
 
         # Validate list fields containing only strings (schema: array|null of strings)
         list_string_fields = [

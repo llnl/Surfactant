@@ -8,6 +8,7 @@ from typing import List, Optional
 
 from ._comment import CommentEntry
 
+
 def validate_uuid(value: str) -> str:
     try:
         uuid.UUID(value)
