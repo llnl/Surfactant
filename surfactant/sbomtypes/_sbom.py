@@ -19,11 +19,14 @@ from loguru import logger
 from surfactant.utils.paths import basename_posix, normalize_path
 
 from ..utils.capture_time import validate_capture_time
-from ._file import File
+from ._tool import Tool
+from ._author import Author
 from ._hardware import Hardware
-from ._observation import Observation
-from ._relationship import Relationship, StarRelationship
-from ._software import Software, SoftwareComponent
+from ._software import Software
+from ._relationship import Relationship
+from ._comment import CommentEntry
+from ._file import File
+
 
 INTERNAL_FIELDS = {"software_lookup_by_sha256"}
 
@@ -55,8 +58,6 @@ class SBOM:
             metadata=config(field_name="relationships", exclude=lambda _: True),
         )
     )
-    observations: List[Observation] = field(default_factory=list)
-    starRelationships: Set[StarRelationship] = field(default_factory=set)
     software_lookup_by_sha256: Dict = field(default_factory=dict)
     fs_tree: nx.DiGraph = field(
         init=False,
@@ -94,16 +95,12 @@ class SBOM:
             # zero out every container
             self.hardware = []
             self.software = []
-            self.observations = []
             self._loaded_relationships = []
-            self.starRelationships = set()
 
             # prepare valid field-name sets
             HARDWARE_FIELDS = {f.name for f in fields(Hardware)}
             SOFTWARE_FIELDS = {f.name for f in fields(Software)}
             REL_FIELDS = {f.name for f in fields(Relationship)}
-            OBS_FIELDS = {f.name for f in fields(Observation)}
-            STAR_FIELDS = {f.name for f in fields(StarRelationship)}
 
             # rehydrate hardware
             for hw_data in raw.get("hardware", []):
@@ -119,16 +116,6 @@ class SBOM:
             for rel_data in raw.get("relationships", []):
                 clean = {k: v for k, v in rel_data.items() if k in REL_FIELDS}
                 self._loaded_relationships.append(Relationship(**clean))
-
-            # rehydrate observations
-            for obs_data in raw.get("observations", []):
-                clean = {k: v for k, v in obs_data.items() if k in OBS_FIELDS}
-                self.observations.append(Observation(**clean))
-
-            # rehydrate starRelationships
-            for sr_data in raw.get("starRelationships", []):
-                clean = {k: v for k, v in sr_data.items() if k in STAR_FIELDS}
-                self.starRelationships.add(StarRelationship(**clean))
 
         # Strip out internal-only fields so dataclass logic and JSON serializers ignore them
         # pylint: disable=access-member-before-definition
@@ -1111,7 +1098,6 @@ class SBOM:
         comments: Optional[str] = None,
         metadata: Optional[List[object]] = None,
         supplementaryFiles: Optional[List[File]] = None,
-        components: Optional[List[SoftwareComponent]] = None,
     ) -> Software:
         captureTime = validate_capture_time(captureTime, nullable=True)
 
@@ -1132,7 +1118,6 @@ class SBOM:
             comments=comments,
             metadata=metadata,
             supplementaryFiles=supplementaryFiles,
-            components=components,
         )
         self.software_lookup_by_sha256[sw.sha256] = sw
         self.software.append(sw)
@@ -1208,24 +1193,6 @@ class SBOM:
 
         logger.info(f"UUID UPDATES: {uuid_updates}")
 
-        # 5) Merge observations andstarRelationships
-        for obs in sbom_m.observations:
-            self.observations.append(obs)
-        for star_rel in sbom_m.starRelationships:
-            # rewrite UUIDs before doing the search
-            if star_rel.xUUID in uuid_updates:
-                star_rel.xUUID = uuid_updates[star_rel.xUUID]
-            if star_rel.yUUID in uuid_updates:
-                star_rel.yUUID = uuid_updates[star_rel.yUUID]
-            if existing_star_rel := self._find_star_relationship_entry(
-                xUUID=star_rel.xUUID,
-                yUUID=star_rel.yUUID,
-                relationship=star_rel.relationship,
-            ):
-                logger.info(f"DUPLICATE STAR RELATIONSHIP: {existing_star_rel}")
-            else:
-                self.starRelationships.add(star_rel)
-
     def _find_software_entry(
         self,
         uuid: Optional[str] = None,
@@ -1296,36 +1263,6 @@ class SBOM:
                 continue
             # reconstruct the Relationship object for merge-logic
             return Relationship(xUUID=u, yUUID=v, relationship=key)
-        return None
-
-    def _find_star_relationship_entry(
-        self,
-        xUUID: Optional[str] = None,
-        yUUID: Optional[str] = None,
-        relationship: Optional[str] = None,
-    ) -> Optional[StarRelationship]:
-        """Merge helper function to find and return
-        the matching star relationship entry in the provided sbom.
-
-        Args:
-            xUUID (Optional[str]): The xUUID of the desired relationship entry.
-            yUUID (Optional[str]): The yUUID of the desired relationship entry.
-            relationship (Optional[str]): The relationship type of the desired relationship entry.
-
-        Returns:
-            Optional[StarRelationship]: The star relationship found that matches the given criteria, otherwise None.
-        """
-        for rel in self.starRelationships:
-            if xUUID:
-                if rel.xUUID != xUUID:
-                    continue
-            if yUUID:
-                if rel.yUUID != yUUID:
-                    continue
-            if relationship:
-                if rel.relationship != relationship:
-                    continue
-            return rel
         return None
 
     def is_valid_uuid4(self, u: str) -> bool:
