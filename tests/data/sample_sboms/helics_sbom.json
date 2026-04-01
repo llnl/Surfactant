@@ -19,7 +19,7 @@
       ],
       "installPath": [],
       "containerPath": [],
-      "captureTime": 1689186121,
+      "captureTime": "2023-07-12T17:42:01Z",
       "version": "",
       "vendor": [],
       "description": "",
@@ -54,7 +54,7 @@
       "containerPath": [
         "477da45b-bb38-450e-93f7-e525aaaa6862/helics_player"
       ],
-      "captureTime": 1689186121,
+      "captureTime": "2023-07-12T17:42:01Z",
       "version": "",
       "vendor": [],
       "description": "",
@@ -146,7 +146,7 @@
       "containerPath": [
         "477da45b-bb38-450e-93f7-e525aaaa6862/helics_app"
       ],
-      "captureTime": 1689186121,
+      "captureTime": "2023-07-12T17:42:01Z",
       "version": "",
       "vendor": [],
       "description": "",
@@ -238,7 +238,7 @@
       "containerPath": [
         "477da45b-bb38-450e-93f7-e525aaaa6862/helics_broker_server"
       ],
-      "captureTime": 1689186121,
+      "captureTime": "2023-07-12T17:42:01Z",
       "version": "",
       "vendor": [],
       "description": "",
@@ -330,7 +330,7 @@
       "containerPath": [
         "477da45b-bb38-450e-93f7-e525aaaa6862/helics_broker"
       ],
-      "captureTime": 1689186121,
+      "captureTime": "2023-07-12T17:42:01Z",
       "version": "",
       "vendor": [],
       "description": "",
@@ -422,7 +422,7 @@
       "containerPath": [
         "477da45b-bb38-450e-93f7-e525aaaa6862/helics_recorder"
       ],
-      "captureTime": 1689186122,
+      "captureTime": "2023-07-12T17:42:01Z",
       "version": "",
       "vendor": [],
       "description": "",
@@ -518,7 +518,7 @@
         "477da45b-bb38-450e-93f7-e525aaaa6862/libzmq.so.5.2.4",
         "477da45b-bb38-450e-93f7-e525aaaa6862/libzmq.so.5"
       ],
-      "captureTime": 1689186146,
+      "captureTime": "2023-07-12T17:42:01Z",
       "version": "",
       "vendor": [],
       "description": "",
@@ -606,7 +606,7 @@
         "477da45b-bb38-450e-93f7-e525aaaa6862/libhelics.so",
         "477da45b-bb38-450e-93f7-e525aaaa6862/libhelics.so.3"
       ],
-      "captureTime": 1689186146,
+      "captureTime": "2023-07-12T17:42:01Z",
       "version": "",
       "vendor": [],
       "description": "",
