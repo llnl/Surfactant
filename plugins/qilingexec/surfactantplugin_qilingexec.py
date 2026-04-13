@@ -67,8 +67,8 @@ def env_mismatch(filetype: str, os: QL_OS) -> bool:
     return False
 
 
-def get_os_arch(context: ContextEntry) -> Optional[Tuple[QL_OS, QL_ARCH]]:
-    """Returns a tuple of the OS and architecture to use for the binary associated with the"""
+def get_os_arch(context: ContextEntry, filetype: str) -> Optional[Tuple[QL_OS, QL_ARCH]]:
+    """Returns a tuple of the OS and architecture to use for the binary associated with the current ContextEntry and checks that the current filetype matches the OS being used."""
     os = context.get_pconf(__name__, "os_type", "linux")
     arch = context.get_pconf(__name__, "arch_type", "x64")
 
@@ -98,10 +98,14 @@ def get_os_arch(context: ContextEntry) -> Optional[Tuple[QL_OS, QL_ARCH]]:
         "riscv64": QL_ARCH.RISCV64,
         "ppc": QL_ARCH.PPC,
     }
-    if os in os_conversion and arch in arch_conversion:
-        return (os_conversion[os], arch_conversion[arch])
-    else:
+    if not (os in os_conversion and arch in arch_conversion):
+        logger.error("QilingExec: OS or Arch not in expected values")
         return None
+    # Prevent running binaries when environment doesn't match
+    if env_mismatch(filetype, os_conversion[os]):
+        logger.warning(f"Trying to run qilingexec on {filetype} when os is: {os}")
+        return None
+    return (os_conversion[os], arch_conversion[arch])
 
 
 @surfactant.plugin.hookimpl
@@ -151,11 +155,10 @@ def extract_file_info(  # pylint: disable=too-many-positional-arguments
         (r"/", r"Linux") if platform.system() == "Linux" else (r"C:\\", r"Windows")
     )
     mountPoint = current_context.get_pconf(__name__, "mount_prefix", def_mount)
-    os_arch_ret = get_os_arch(current_context)
+    os_arch_ret = get_os_arch(current_context, filetype)
     if os_arch_ret:
         (os, arch) = os_arch_ret
     else:
-        logger.error("QilingExec: OS or Arch not in expected values")
         return None
     timeout = current_context.get_pconf(__name__, "timeout", 150000)
     args_version = [filename, "--version"]
@@ -163,11 +166,6 @@ def extract_file_info(  # pylint: disable=too-many-positional-arguments
     reg_string = current_context.get_pconf(__name__, "regex", r"[0-9]+\.[0-9]+")
 
     regex = re.compile(reg_string)
-
-    # Prevent running binaries when environment doesn't match
-    if env_mismatch(filetype, os):
-        logger.warning(f"Trying to run qilingexec on {filetype} when os is: {os}")
-        return None
 
     fd_version = pipe.SimpleStringBuffer()
     ql_version = Qiling(
