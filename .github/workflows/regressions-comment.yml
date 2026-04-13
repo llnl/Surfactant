@@ -27,7 +27,7 @@ jobs:
           run-id: ${{ github.event.workflow_run.id }}
 
       - name: Create/Update Comment
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         with:
           script: |
             const fs = require('fs');

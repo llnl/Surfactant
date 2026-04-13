@@ -71,7 +71,7 @@ jobs:
 
       - name: Fetch previous artifact
         id: fetch
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         env:
           BASE_SHA: ${{ steps.base.outputs.sha }}
           ARTIFACT_NAME: diff-output
