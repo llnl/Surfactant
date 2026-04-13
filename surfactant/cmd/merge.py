@@ -91,14 +91,18 @@ def merge(
     system_relationship="Contains",
     add_system=False,
 ):
-    """Merge two or more SBOMs, then optionally wrap in a top‐level system."""
+    """Merge two or more SBOMs, then optionally wrap in a top-level system."""
     # Merge all input SBOMs into the first one
     merged_sbom = input_sboms[0]
     for sbom_m in input_sboms[1:]:
         merged_sbom.merge(sbom_m)
 
     # Find root nodes: those with zero incoming edges
-    roots = [n for n, deg in merged_sbom.graph.in_degree() if deg == 0]
+    roots = [
+        n
+        for n, deg in merged_sbom.graph.in_degree()
+        if deg == 0 and merged_sbom.graph.nodes.get(n, {}).get("type") != "Path"
+    ]
     logger.info(f"ROOT NODES: {roots}")
 
     # Detect any directed cycles
@@ -108,7 +112,7 @@ def merge(
     else:
         logger.info("No cycles detected in SBOM graph")
 
-    # Prepare (or suppress) the top‐level system entry
+    # Prepare (or suppress) the top-level system entry
     if config and "system" in config and "UUID" in config["system"]:
         if any(s.UUID == config["system"]["UUID"] for s in merged_sbom.systems):
             add_system = False
@@ -117,15 +121,17 @@ def merge(
     if add_system:
         merged_sbom.systems.append(system_obj)
 
-    # Attach a system‐to‐root relationship for each root
+    # Attach a system-to-root relationship for each root
     if not using_random or add_system:
         if config and "systemRelationship" in config:
             system_relationship = config["systemRelationship"]
         for root_uuid in roots:
+            if merged_sbom.graph.nodes.get(root_uuid, {}).get("type") == "Path":
+                continue
             merged_sbom.create_relationship(system_obj.UUID, root_uuid, system_relationship)
     else:
         logger.warning(
-            "No top‐level system relationships added; "
+            "No top-level system relationships added; "
             "either specify --add_system or provide a system UUID."
         )
 

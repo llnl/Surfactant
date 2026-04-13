@@ -49,7 +49,7 @@ dependencies = [
     "defusedxml==0.7.*",
     "spdx-tools==0.8.*",
     # Pinned to specific version for potential breaking changes
-    "cyclonedx-python-lib==11.6.0",
+    "cyclonedx-python-lib==11.7.0",
     "pluggy==1.*",
     "click==8.*",
     "loguru==0.7.*",
@@ -72,7 +72,7 @@ dev = ["build", "pre-commit"]
 docs = ["sphinx", "myst-parser", "furo>=2025.9.25", "sphinx-copybutton>=0.5.2"]
 
 [project.optional-dependencies]
-macho = ["lief==0.17.5"]
+macho = ["lief==0.17.6"]
 java = ["javatools>=1.6,==1.*"]
 test = ["pytest", "pytest-asyncio"]
 dev = ["build", "pre-commit"]
