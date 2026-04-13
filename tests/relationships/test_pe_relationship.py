@@ -6,13 +6,26 @@ import pytest
 from surfactant.relationships import pe_relationship
 from surfactant.sbomtypes import SBOM, Relationship, Software
 
+DLL_UUID = "11111111-1111-4111-8111-111111111111"
+BIN_UUID = "22222222-2222-4222-8222-222222222222"
+DLL2_UUID = "33333333-3333-4333-8333-333333333333"
+BIN2_UUID = "44444444-4444-4444-8444-444444444444"
+DLL3_UUID = "55555555-5555-4555-8555-555555555555"
+BIN3_UUID = "66666666-6666-4666-8666-666666666666"
+DLL4_UUID = "77777777-7777-4777-8777-777777777777"
+BIN4_UUID = "88888888-8888-4888-8888-888888888888"
+DLL5_UUID = "99999999-9999-4999-8999-999999999999"
+BIN5_UUID = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
+DLL6_UUID = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"
+BIN6_UUID = "cccccccc-cccc-4ccc-8ccc-cccccccccccc"
+
 
 @pytest.fixture
 def basic_pe_sbom():
     """
     Create a minimal SBOM with:
-      - One binary (UUID: uuid-bin) located in C:/bin
-      - One DLL (UUID: uuid-dll) located in C:/bin
+      - One binary located in C:/bin
+      - One DLL located in C:/bin
       - The binary declares a direct PE import of 'foo.dll'
 
     Returns:
@@ -21,13 +34,15 @@ def basic_pe_sbom():
     sbom = SBOM()
 
     dll = Software(
-        UUID="uuid-dll",
+        UUID=DLL_UUID,
+        notHashable=True,
         fileName=["foo.dll"],
         installPath=["C:/bin/foo.dll"],
     )
 
     binary = Software(
-        UUID="uuid-bin",
+        UUID=BIN_UUID,
+        notHashable=True,
         installPath=["C:/bin/app.exe"],
         metadata=[{"peImport": ["foo.dll"]}],
     )
@@ -62,13 +77,15 @@ def test_pe_import_legacy_fallback(monkeypatch):
     sbom = SBOM()
 
     dll = Software(
-        UUID="uuid-dll",
+        UUID=DLL2_UUID,
+        notHashable=True,
         fileName=["bar.dll"],
         installPath=["D:/tools/bar.dll"],
     )
 
     binary = Software(
-        UUID="uuid-bin",
+        UUID=BIN2_UUID,
+        notHashable=True,
         installPath=["D:/tools/app.exe"],
         metadata=[{"peBoundImport": ["bar.dll"]}],
     )
@@ -81,7 +98,7 @@ def test_pe_import_legacy_fallback(monkeypatch):
 
     results = pe_relationship.establish_relationships(sbom, binary, binary.metadata[0])
 
-    assert results == [Relationship("uuid-bin", "uuid-dll", "Uses")]
+    assert results == [Relationship(BIN2_UUID, DLL2_UUID, "Uses")]
 
 
 def test_pe_same_directory_match():
@@ -96,13 +113,15 @@ def test_pe_same_directory_match():
     sbom = SBOM()
 
     dll = Software(
-        UUID="uuid-dll",
+        UUID=DLL3_UUID,
+        notHashable=True,
         fileName=["common.dll"],
         installPath=["E:/bin/common.dll"],
     )
 
     binary = Software(
-        UUID="uuid-bin",
+        UUID=BIN3_UUID,
+        notHashable=True,
         fileName=["app"],
         installPath=["E:/bin/app.exe"],
         metadata=[{"peDelayImport": ["common.dll"]}],
@@ -116,7 +135,7 @@ def test_pe_same_directory_match():
     # extra sanity check on normalized parent dir
     assert pathlib.PurePosixPath("E:/bin/common.dll").parent.as_posix() == "E:/bin"
     assert results is not None
-    assert results == [Relationship("uuid-bin", "uuid-dll", "Uses")]
+    assert results == [Relationship(BIN3_UUID, DLL3_UUID, "Uses")]
 
 
 def test_pe_no_match():
@@ -127,13 +146,15 @@ def test_pe_no_match():
     sbom = SBOM()
 
     dll = Software(
-        UUID="uuid-dll",
+        UUID=DLL4_UUID,
+        notHashable=True,
         fileName=["missing.dll"],
         installPath=["Z:/opt/ghost.dll"],
     )
 
     binary = Software(
-        UUID="uuid-bin",
+        UUID=BIN4_UUID,
+        notHashable=True,
         installPath=["Z:/opt/app.exe"],
         metadata=[{"peImport": ["doesnotexist.dll"]}],
     )
@@ -167,7 +188,8 @@ def test_pe_no_false_positive_mismatched_basename():
 
     # Software entry claims multiple DLL names
     dll = Software(
-        UUID="uuid-dll",
+        UUID=DLL5_UUID,
+        notHashable=True,
         fileName=["afile.dll", "bfile.dll"],
         installPath=[
             "C:/somedir/afile.dll",  # in probedir, but wrong basename
@@ -176,7 +198,8 @@ def test_pe_no_false_positive_mismatched_basename():
     )
 
     binary = Software(
-        UUID="uuid-bin",
+        UUID=BIN5_UUID,
+        notHashable=True,
         installPath=["C:/somedir/app.exe"],
         metadata=[{"peImport": ["bfile.dll"]}],
     )
@@ -201,13 +224,15 @@ def test_pe_case_insensitive_matching():
     sbom = SBOM()
 
     dll = Software(
-        UUID="uuid-dll",
+        UUID=DLL6_UUID,
+        notHashable=True,
         fileName=["Foo.DLL"],  # DLL declared with uppercase letters
         installPath=["C:/bin/Foo.DLL"],  # actual installed path (Windows-style)
     )
 
     binary = Software(
-        UUID="uuid-bin",
+        UUID=BIN6_UUID,
+        notHashable=True,
         installPath=["C:/bin/app.exe"],
         metadata=[{"peImport": ["foo.dll"]}],  # import uses lowercase
     )
@@ -220,7 +245,7 @@ def test_pe_case_insensitive_matching():
     results = pe_relationship.establish_relationships(sbom, binary, binary.metadata[0])
 
     # The resolver should treat basenames case-insensitively and produce a match
-    assert results == [Relationship("uuid-bin", "uuid-dll", "Uses")]
+    assert results == [Relationship(BIN6_UUID, DLL6_UUID, "Uses")]
 
 
 def test_pe_legacy_fallback_directory_case_mismatch():
@@ -237,12 +262,14 @@ def test_pe_legacy_fallback_directory_case_mismatch():
     sbom = SBOM()
 
     dll = Software(
-        UUID="uuid-dll",
+        UUID=DLL_UUID,
+        notHashable=True,
         installPath=["C:/bin/foo.dll"],
     )
 
     binary = Software(
-        UUID="uuid-bin",
+        UUID=BIN_UUID,
+        notHashable=True,
         installPath=["c:/BIN/app.exe"],  # directory casing differs
         metadata=[{"peImport": ["foo.dll"]}],
     )
@@ -252,4 +279,4 @@ def test_pe_legacy_fallback_directory_case_mismatch():
 
     results = pe_relationship.establish_relationships(sbom, binary, binary.metadata[0])
 
-    assert results == [Relationship("uuid-bin", "uuid-dll", "Uses")]
+    assert results == [Relationship(BIN_UUID, DLL_UUID, "Uses")]

@@ -6,10 +6,14 @@
 from surfactant.plugin.manager import get_plugin_manager
 from surfactant.sbomtypes import SBOM, Relationship, Software
 
+APPLICATION_UUID = "11111111-1111-4111-8111-111111111111"
+LIBRARY_UUID = "22222222-2222-4222-8222-222222222222"
+
 sbom = SBOM(
     software=[
         Software(
-            UUID="application",
+            UUID=APPLICATION_UUID,
+            notHashable=True,
             fileName=["application.exe"],
             installPath=["C:\\application.exe"],
             metadata=[
@@ -19,7 +23,11 @@ sbom = SBOM(
             ],
         ),
         Software(
-            UUID="library", fileName=["library.dll"], installPath=["C:\\library.dll"], metadata=[{}]
+            UUID=LIBRARY_UUID,
+            notHashable=True,
+            fileName=["library.dll"],
+            installPath=["C:\\library.dll"],
+            metadata=[{}],
         ),
     ],
 )
@@ -30,5 +38,5 @@ def test_same_directory():
     app = sbom.software[0]
     md = app.metadata[0]
     assert plugin.establish_relationships(sbom, app, md) == [
-        Relationship("application", "library", "Uses")
+        Relationship(APPLICATION_UUID, LIBRARY_UUID, "Uses")
     ]
