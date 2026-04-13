@@ -66,37 +66,37 @@ def env_mismatch(filetype: str, os: QL_OS) -> bool:
         return True
     return False
 
-def get_os_arch(context: ContextEntry) -> Optional[Tuple[QL_OS,QL_ARCH]]:
-    """Returns a tuple of the OS and architecture to use for the binary associated with the 
-    """
+
+def get_os_arch(context: ContextEntry) -> Optional[Tuple[QL_OS, QL_ARCH]]:
+    """Returns a tuple of the OS and architecture to use for the binary associated with the"""
     os = context.get_pconf(__name__, "os_type", "linux")
     arch = context.get_pconf(__name__, "arch_type", "x64")
 
     os_conversion = {
-        "linux" : QL_OS.LINUX,
-        "freebsd" : QL_OS.FREEBSD,
-        "macos" : QL_OS.MACOS,
-        "windows" : QL_OS.WINDOWS,
-        "uefi" : QL_OS.UEFI,
-        "dos" : QL_OS.DOS,
-        "evm" : QL_OS.EVM,
-        "qnx" : QL_OS.QNX,
-        "mcu" : QL_OS.MCU,
-        "blob" : QL_OS.BLOB
+        "linux": QL_OS.LINUX,
+        "freebsd": QL_OS.FREEBSD,
+        "macos": QL_OS.MACOS,
+        "windows": QL_OS.WINDOWS,
+        "uefi": QL_OS.UEFI,
+        "dos": QL_OS.DOS,
+        "evm": QL_OS.EVM,
+        "qnx": QL_OS.QNX,
+        "mcu": QL_OS.MCU,
+        "blob": QL_OS.BLOB,
     }
 
     arch_conversion = {
-        "x64" : QL_ARCH.X8664,
-        "x86" : QL_ARCH.X86,
-        "a8086" : QL_ARCH.A8086,
-        "arm32" : QL_ARCH.ARM,
-        "cortex_m" : QL_ARCH.CORTEX_M,
-        "aarch64" : QL_ARCH.ARM64,
-        "mips" : QL_ARCH.MIPS,
-        "evm" : QL_ARCH.EVM,
-        "riscv" : QL_ARCH.RISCV,
-        "riscv64" : QL_ARCH.RISCV64,
-        "ppc" : QL_ARCH.PPC,
+        "x64": QL_ARCH.X8664,
+        "x86": QL_ARCH.X86,
+        "a8086": QL_ARCH.A8086,
+        "arm32": QL_ARCH.ARM,
+        "cortex_m": QL_ARCH.CORTEX_M,
+        "aarch64": QL_ARCH.ARM64,
+        "mips": QL_ARCH.MIPS,
+        "evm": QL_ARCH.EVM,
+        "riscv": QL_ARCH.RISCV,
+        "riscv64": QL_ARCH.RISCV64,
+        "ppc": QL_ARCH.PPC,
     }
     if os in os_conversion and arch in arch_conversion:
         return (os_conversion[os], arch_conversion[arch])
@@ -153,7 +153,7 @@ def extract_file_info(  # pylint: disable=too-many-positional-arguments
     mountPoint = current_context.get_pconf(__name__, "mount_prefix", def_mount)
     os_arch_ret = get_os_arch(current_context)
     if os_arch_ret:
-        (os,arch) = os_arch_ret
+        (os, arch) = os_arch_ret
     else:
         logger.error("QilingExec: OS or Arch not in expected values")
         return None
