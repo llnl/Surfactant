@@ -28,12 +28,6 @@ except ImportError:
     QILING_AVAILABLE = False
     logger.warning("qiling not installed. QilingExec plugin will be disabled.")
 
-# Regex for version checking is currently looking
-# for 1+ numeric character(s), followed by a
-# period, followed by 1+ numeric character(s).
-# This is only being done on line 1 of stdout.
-versionRegex = re.compile(r"[0-9]+\.[0-9]+")
-
 
 def grab_version(fd: io.BytesIO, regex: re.Pattern[str]) -> Optional[Tuple[str, str]]:
     """Returns a tuple of the word in the first line of fd that matches the given regex pattern and the entire first line
@@ -125,6 +119,9 @@ def extract_file_info(  # pylint: disable=too-many-positional-arguments
     timeout = current_context.get_pconf(__name__, "timeout", 150000)
     args_version = [filename, "--version"]
     args_help = [filename, "--help"]
+    reg_string = current_context.get_pconf(__name__, "regex", r"[0-9]+\.[0-9]+")
+
+    regex = re.compile(reg_string)
 
     # Prevent running binaries when environment doesn't match
     if env_mismatch(filetype, os):
@@ -155,7 +152,7 @@ def extract_file_info(  # pylint: disable=too-many-positional-arguments
         )
         return None
     file_details: Dict[str, Any] = {"qilingexec": {}}
-    (version, file_details["qilingexec"]["stdout"]) = grab_version(fd_version, versionRegex)
+    (version, file_details["qilingexec"]["stdout"]) = grab_version(fd_version, regex)
     if version:
         software_field_hints.append(("version", version, 80))
         file_details["qilingexec"]["version"] = version
