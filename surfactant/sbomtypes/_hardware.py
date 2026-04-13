@@ -38,8 +38,8 @@ class Hardware:
         # Validate UUID format
         try:
             uuid.UUID(self.UUID)
-        except (ValueError, TypeError):
-            raise ValueError(f"UUID must be a valid UUID string; got {self.UUID!r}")
+        except (ValueError, TypeError) as err:
+            raise ValueError(f"UUID must be a valid UUID string; got {self.UUID!r}") from err
 
         self.captureTime = validate_capture_time(self.captureTime, nullable=True)
 

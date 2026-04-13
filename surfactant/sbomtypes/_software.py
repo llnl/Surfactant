@@ -63,8 +63,8 @@ class Software:
         # Validate UUID format (schema: string with format "uuid")
         try:
             uuid.UUID(self.UUID)
-        except (ValueError, AttributeError, TypeError):
-            raise ValueError(f"UUID must be a valid UUID string; got {self.UUID!r}")
+        except (ValueError, AttributeError, TypeError) as err:
+            raise ValueError(f"UUID must be a valid UUID string; got {self.UUID!r}") from err
 
         # Validate scalar fields (schema: boolean|null and string|null)
         if self.notHashable is not None and not isinstance(self.notHashable, bool):

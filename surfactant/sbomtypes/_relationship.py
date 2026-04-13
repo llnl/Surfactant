@@ -12,8 +12,8 @@ from ._comment import CommentEntry
 def validate_uuid(value: str) -> str:
     try:
         uuid.UUID(value)
-    except (ValueError, TypeError):
-        raise ValueError(f"Invalid UUID: {value!r}")
+    except (ValueError, TypeError) as err:
+        raise ValueError(f"Invalid UUID: {value!r}") from err
 
     return value
 
