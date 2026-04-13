@@ -205,21 +205,9 @@ class cli_add:
         self.sbom.software.append(Software.create_software_from_file(path))
 
     def add_entry(self, entry):
-        """Add a software entry, validating captureTime fields before deserialization."""
-        # Validate top-level software captureTime
+        """Add a software entry, validating captureTime before deserialization."""
         if "captureTime" in entry:
             entry["captureTime"] = validate_capture_time(entry["captureTime"], nullable=True)
-
-        # Validate nested software component captureTime values
-        components = entry.get("components")
-        if isinstance(components, list):
-            for component in components:
-                if isinstance(component, dict) and "captureTime" in component:
-                    component["captureTime"] = validate_capture_time(
-                        component["captureTime"],
-                        nullable=True,
-                        field_name="components[].captureTime",
-                    )
 
         self.sbom.software.append(Software.from_dict(entry))
 
