@@ -213,6 +213,4 @@ def test_symlink_heuristic_guard():
     results = establish_relationships(sbom, binary, metadata)
 
     assert results is not None
-    assert all(rel.yUUID != FALSEMATCH_UUID for rel in results), (
-        "Heuristic should not have matched"
-    )
+    assert all(rel.yUUID != FALSEMATCH_UUID for rel in results), "Heuristic should not have matched"
