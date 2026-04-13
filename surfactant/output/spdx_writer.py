@@ -25,7 +25,7 @@ from spdx_tools.spdx.spdx_element_utils import calculate_package_verification_co
 
 import surfactant.plugin
 from surfactant import __version__ as surfactant_version
-from surfactant.sbomtypes import SBOM, Software, System
+from surfactant.sbomtypes import SBOM, Software
 
 
 @surfactant.plugin.hookimpl
@@ -47,12 +47,6 @@ def write_sbom(sbom: SBOM, outfile) -> None:
 
     # Build UUID → SPDX ID map
     uuid_to_spdxid: Dict[str, List[str]] = {}
-
-    # Add system packages
-    for system in sbom.systems:
-        system_uuid, pkg = convert_system_to_spdx_package(system)
-        spdx_doc.packages.append(pkg)
-        uuid_to_spdxid.setdefault(system_uuid, []).append(pkg.spdx_id)
 
     # Track container paths for files
     container_path_relationships: Dict[str, str] = {}
@@ -158,33 +152,6 @@ def write_sbom(sbom: SBOM, outfile) -> None:
 @surfactant.plugin.hookimpl
 def short_name() -> Optional[str]:
     return "spdx"
-
-
-def convert_system_to_spdx_package(system: System) -> Tuple[str, Package]:
-    """Converts a system entry in the SBOM to a SPDX Package.
-
-    If a system entry has multiple vendors, only the first one is chosen as the
-    supplier for the SPDX Package (due to limitations of the SPDX format).
-
-    Args:
-        system (System): The SBOM system to convert to a SPDX Package.
-
-    Returns:
-        Tuple[str, Package]: A tuple containing the UUID of the system that was
-        converted into a Package, and the SPDX Package object that was created.
-    """
-    # Pick the best name for the package
-    name = system.officialName
-    if not name and system.name:
-        name = system.name
-
-    # Pick a vendor to use as the supplier
-    supplier = None
-    if system.vendor:
-        # assume Organization, not enough info to distinguish People
-        supplier = Actor(name=system.vendor[0], actor_type=ActorType.ORGANIZATION)
-
-    return system.UUID, create_spdx_package(name, system.description, supplier)
 
 
 def convert_software_to_spdx_packages(software: Software) -> Tuple[str, List[Package]]:

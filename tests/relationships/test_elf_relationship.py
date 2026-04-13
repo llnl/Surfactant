@@ -133,7 +133,7 @@ def test_no_match_edge_case():
         installPath=["/unrelated/path/libsomethingelse.so"],
     )
 
-    sbom = SBOM(systems=[], hardware=[], software=[binary, unrelated])
+    sbom = SBOM(hardware=[], software=[binary, unrelated])
 
     metadata = binary.metadata[0]
     results = establish_relationships(sbom, binary, metadata)
@@ -159,7 +159,7 @@ def test_symlink_heuristic_guard():
         UUID="falsematch-uuid", fileName=["libalias.so"], installPath=["/different/dir/libalias.so"]
     )
 
-    sbom = SBOM(systems=[], hardware=[], software=[binary, candidate])
+    sbom = SBOM(hardware=[], software=[binary, candidate])
 
     metadata = binary.metadata[0]
     results = establish_relationships(sbom, binary, metadata)
