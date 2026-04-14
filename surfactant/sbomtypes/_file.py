@@ -12,8 +12,8 @@ from ..utils.capture_time import validate_capture_time
 
 @dataclass
 class File:
-    filePath: str
-    captureTime: str
+    filePath: Optional[str] = None
+    captureTime: Optional[str] = None
     description: str = ""
     category: str = ""
     capturedBy: str = ""
@@ -23,11 +23,12 @@ class File:
     def __post_init__(self) -> None:
         """Validate against the CyTRICS file schema requirements."""
 
-        if not isinstance(self.filePath, str):
-            raise TypeError("filePath must be a string")
+        if self.filePath is not None:
+            if not isinstance(self.filePath, str):
+                raise TypeError("filePath must be a string or None")
 
-        if len(self.filePath) < 5:
-            raise ValueError("filePath must be at least 5 characters long")
+            if len(self.filePath) < 5:
+                raise ValueError("filePath must be at least 5 characters long when provided")
 
         string_fields = ["description", "category", "capturedBy", "source"]
         for field_name in string_fields:
@@ -35,10 +36,11 @@ class File:
             if not isinstance(value, str):
                 raise TypeError(f"{field_name} must be a string")
 
-        if not isinstance(self.captureTime, str):
-            raise TypeError("captureTime must be a string")
-
-        self.captureTime = validate_capture_time(self.captureTime, nullable=False)
+        self.captureTime = validate_capture_time(
+            self.captureTime,
+            nullable=True,
+            field_name="captureTime",
+        )
 
         if self.methodOfAcquisition is not None:
             if not isinstance(self.methodOfAcquisition, list):

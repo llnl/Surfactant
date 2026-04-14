@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import json
+import re
 import uuid as uuid_module
 from collections import deque
 from dataclasses import asdict, dataclass, field, fields
@@ -19,12 +20,17 @@ from loguru import logger
 from surfactant.utils.paths import basename_posix, normalize_path
 
 from ..utils.capture_time import validate_capture_time
+from ._author import Author
+from ._comment import CommentEntry
 from ._file import File
 from ._hardware import Hardware
+from ._name import NameEntry
 from ._relationship import Relationship
 from ._software import Software
+from ._tool import Tool
 
 INTERNAL_FIELDS = {"software_lookup_by_sha256"}
+_SPEC_VERSION_RE = re.compile(r"^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$")
 
 
 def recover_serializers(cls):
@@ -39,12 +45,54 @@ def recover_serializers(cls):
     return cls
 
 
+def _serialize_for_schema(value):
+    """
+    Recursively serialize nested values into schema-friendly JSON data.
+
+    Some schema properties are optional but do not allow null. For those
+    fields, omit absent values rather than emitting JSON null.
+    """
+    if hasattr(value, "__dataclass_fields__"):
+        omit_none_fields = set()
+        if isinstance(value, File):
+            omit_none_fields = {"filePath", "captureTime"}
+        elif isinstance(value, Hardware):
+            omit_none_fields = {"boardLocation"}
+        elif isinstance(value, NameEntry):
+            omit_none_fields = {"nameValue", "nameType"}
+
+        data = {}
+        for fld in fields(value):
+            item = getattr(value, fld.name)
+            if fld.name in omit_none_fields and item is None:
+                continue
+            data[fld.name] = _serialize_for_schema(item)
+        return data
+
+    if isinstance(value, list):
+        return [_serialize_for_schema(item) for item in value]
+
+    if isinstance(value, set):
+        return [_serialize_for_schema(item) for item in value]
+
+    if isinstance(value, dict):
+        return {k: _serialize_for_schema(v) for k, v in value.items()}
+
+    return value
+
+
 @recover_serializers
 @dataclass_json
 @dataclass
 class SBOM:
     # pylint: disable=too-many-public-methods
     # pylint: disable=R0902
+    bomUUID: str = field(default_factory=lambda: str(uuid_module.uuid4()))
+    bomFormat: str = "cytrics"
+    bomDescription: str = ""
+    specVersion: str = "1.0.1"
+    tools: Optional[List[Tool]] = None
+    authors: Optional[List[Author]] = None
     hardware: List[Hardware] = field(default_factory=list)
     software: List[Software] = field(default_factory=list)
     # relationships: Set[Relationship] = field(default_factory=set)  # (removed relationships field. Graph is now the single source of truth)
@@ -88,15 +136,39 @@ class SBOM:
         if isinstance(self.hardware, dict) and not self.software:
             raw = self.hardware
 
+            self.bomUUID = raw.get("bomUUID", self.bomUUID)
+            self.bomFormat = raw.get("bomFormat", self.bomFormat)
+            self.bomDescription = raw.get("bomDescription", self.bomDescription)
+            self.specVersion = raw.get("specVersion", self.specVersion)
+
+            raw_tools = raw.get("tools")
+            raw_authors = raw.get("authors")
+
             # zero out every container
+            self.tools = None if raw_tools is None else []
+            self.authors = None if raw_authors is None else []
             self.hardware = []
             self.software = []
             self._loaded_relationships = []
 
             # prepare valid field-name sets
+            TOOL_FIELDS = {f.name for f in fields(Tool)}
+            AUTHOR_FIELDS = {f.name for f in fields(Author)}
             HARDWARE_FIELDS = {f.name for f in fields(Hardware)}
             SOFTWARE_FIELDS = {f.name for f in fields(Software)}
             REL_FIELDS = {f.name for f in fields(Relationship)}
+
+            # rehydrate tools
+            if raw_tools is not None:
+                for tool_data in raw_tools:
+                    clean = {k: v for k, v in tool_data.items() if k in TOOL_FIELDS}
+                    self.tools.append(Tool(**clean))
+
+            # rehydrate authors
+            if raw_authors is not None:
+                for author_data in raw_authors:
+                    clean = {k: v for k, v in author_data.items() if k in AUTHOR_FIELDS}
+                    self.authors.append(Author(**clean))
 
             # rehydrate hardware
             for hw_data in raw.get("hardware", []):
@@ -112,6 +184,57 @@ class SBOM:
             for rel_data in raw.get("relationships", []):
                 clean = {k: v for k, v in rel_data.items() if k in REL_FIELDS}
                 self._loaded_relationships.append(Relationship(**clean))
+
+        if not isinstance(self.bomUUID, str):
+            raise TypeError("bomUUID must be a string")
+        try:
+            parsed_bom_uuid = uuid_module.UUID(self.bomUUID)
+        except (ValueError, AttributeError, TypeError) as err:
+            raise ValueError(f"bomUUID must be a valid UUID string; got {self.bomUUID!r}") from err
+        if parsed_bom_uuid.version != 4:
+            raise ValueError(
+                f"bomUUID must be a valid RFC 4122 version 4 UUID string; got {self.bomUUID!r}"
+            )
+
+        if not isinstance(self.bomFormat, str):
+            raise TypeError("bomFormat must be a string")
+        if self.bomFormat != "cytrics":
+            raise ValueError(f"bomFormat must be 'cytrics'; got {self.bomFormat!r}")
+
+        if not isinstance(self.bomDescription, str):
+            raise TypeError("bomDescription must be a string")
+
+        if not isinstance(self.specVersion, str):
+            raise TypeError("specVersion must be a string")
+        if not _SPEC_VERSION_RE.fullmatch(self.specVersion):
+            raise ValueError(
+                "specVersion must be a semantic version like '1.0.1'; "
+                f"got {self.specVersion!r}"
+            )
+
+        if self.tools is not None:
+            if not isinstance(self.tools, list):
+                raise TypeError("tools must be a list or None")
+            normalized_tools = []
+            for item in self.tools:
+                if isinstance(item, dict):
+                    item = Tool(**item)
+                if not isinstance(item, Tool):
+                    raise TypeError("All items in tools must be Tool objects")
+                normalized_tools.append(item)
+            self.tools = normalized_tools
+
+        if self.authors is not None:
+            if not isinstance(self.authors, list):
+                raise TypeError("authors must be a list or None")
+            normalized_authors = []
+            for item in self.authors:
+                if isinstance(item, dict):
+                    item = Author(**item)
+                if not isinstance(item, Author):
+                    raise TypeError("All items in authors must be Author objects")
+                normalized_authors.append(item)
+            self.authors = normalized_authors
 
         # Strip out internal-only fields so dataclass logic and JSON serializers ignore them
         # pylint: disable=access-member-before-definition
@@ -458,7 +581,12 @@ class SBOM:
             self.graph.add_node(sw.UUID, type="Software")
         # rehydrate edges from loaded JSON (if any)
         for rel in self._loaded_relationships:
-            self.graph.add_edge(rel.xUUID, rel.yUUID, key=rel.relationship)
+            self.graph.add_edge(
+                rel.xUUID,
+                rel.yUUID,
+                key=rel.relationship,
+                comments=rel.comments,
+            )
 
     def add_relationship(self, rel: Relationship) -> None:
         # The Relationship object get wired into the graph key=...
@@ -468,20 +596,44 @@ class SBOM:
             self.graph.add_node(rel.yUUID, type="Unknown")
 
         # the edge key is the relationship type
-        self.graph.add_edge(rel.xUUID, rel.yUUID, key=rel.relationship)
+        self.graph.add_edge(
+            rel.xUUID,
+            rel.yUUID,
+            key=rel.relationship,
+            comments=rel.comments,
+        )
 
-    def create_relationship(self, xUUID: str, yUUID: str, relationship: str) -> Relationship:
+    def create_relationship(
+        self,
+        xUUID: str,
+        yUUID: str,
+        relationship: str,
+        comments: Optional[List[CommentEntry]] = None,
+    ) -> Relationship:
+        # Validate first so invalid data never reaches the graph
+        rel = Relationship(
+            xUUID=xUUID,
+            yUUID=yUUID,
+            relationship=relationship,
+            comments=comments,
+        )
+
         # ensure nodes exist
-        if not self.graph.has_node(xUUID):
-            self.graph.add_node(xUUID, type="Unknown")
-        if not self.graph.has_node(yUUID):
-            self.graph.add_node(yUUID, type="Unknown")
+        if not self.graph.has_node(rel.xUUID):
+            self.graph.add_node(rel.xUUID, type="Unknown")
+        if not self.graph.has_node(rel.yUUID):
+            self.graph.add_node(rel.yUUID, type="Unknown")
 
         # record the edge, keyed by the relationship
-        self.graph.add_edge(xUUID, yUUID, key=relationship)
+        self.graph.add_edge(
+            rel.xUUID,
+            rel.yUUID,
+            key=rel.relationship,
+            comments=rel.comments,
+        )
 
-        # return a Relationship object for backwards-compat
-        return Relationship(xUUID, yUUID, relationship)
+        # return the validated Relationship object for backwards-compat
+        return rel
 
     def find_relationship_object(self, r: Relationship) -> bool:
         """
@@ -1078,11 +1230,13 @@ class SBOM:
     def create_software(
         self,
         *,  # all arguments are keyword-only
-        name: Optional[str] = None,
+        softwareType: Optional[List[str]] = None,
+        name: Optional[List[NameEntry]] = None,
         size: Optional[int] = None,
         sha1: Optional[str] = None,
         sha256: Optional[str] = None,
         md5: Optional[str] = None,
+        notHashable: Optional[bool] = None,
         fileName: Optional[List[str]] = None,
         installPath: Optional[List[str]] = None,
         containerPath: Optional[List[str]] = None,
@@ -1091,18 +1245,20 @@ class SBOM:
         vendor: Optional[List[str]] = None,
         description: Optional[str] = None,
         relationshipAssertion: Optional[str] = None,
-        comments: Optional[str] = None,
-        metadata: Optional[List[object]] = None,
+        comments: Optional[List[CommentEntry]] = None,
+        metadata: Optional[List[Dict[str, object]]] = None,
         supplementaryFiles: Optional[List[File]] = None,
     ) -> Software:
         captureTime = validate_capture_time(captureTime, nullable=True)
 
         sw = Software(
+            softwareType=softwareType,
             name=name,
             size=size,
             sha1=sha1,
             sha256=sha256,
             md5=md5,
+            notHashable=notHashable,
             fileName=fileName,
             installPath=installPath,
             containerPath=containerPath,
@@ -1112,11 +1268,10 @@ class SBOM:
             description=description,
             relationshipAssertion=relationshipAssertion,
             comments=comments,
-            metadata=metadata,
+            metadata=metadata if metadata is not None else [],
             supplementaryFiles=supplementaryFiles,
         )
-        self.software_lookup_by_sha256[sw.sha256] = sw
-        self.software.append(sw)
+        self.add_software(sw)
         return sw
 
     def merge(self, sbom_m: SBOM):
@@ -1154,7 +1309,7 @@ class SBOM:
                         self.graph.add_node(sw.UUID, type="Software")
 
         # 2) Merge relationships from the incoming SBOM's MultiDiGraph
-        for src, dst, rel_type in sbom_m.graph.edges(keys=True):
+        for src, dst, rel_type, attrs in sbom_m.graph.edges(keys=True, data=True):
             # Skip path/symlink edges during merge as well
             if str(rel_type).lower() == "symlink":
                 continue
@@ -1166,13 +1321,42 @@ class SBOM:
             # apply any UUID remaps from merged software
             xUUID = uuid_updates.get(src, src)
             yUUID = uuid_updates.get(dst, dst)
+            incoming_comments = attrs.get("comments")
 
-            # skip exact duplicates
+            # skip exact duplicates, but merge relationship comments when present
             if self.graph.has_edge(xUUID, yUUID, key=rel_type):
-                logger.info(f"DUPLICATE RELATIONSHIP: {xUUID} -> {yUUID} [{rel_type}]")
+                existing_attrs = self.graph.get_edge_data(xUUID, yUUID, key=rel_type) or {}
+                existing_comments = existing_attrs.get("comments") or []
+                incoming_comments = incoming_comments or []
+
+                merged_comments = []
+                seen_comments = set()
+
+                for comment in [*existing_comments, *incoming_comments]:
+                    comment_key = json.dumps(
+                        asdict(comment) if hasattr(comment, "__dataclass_fields__") else comment,
+                        sort_keys=True,
+                    )
+                    if comment_key not in seen_comments:
+                        seen_comments.add(comment_key)
+                        merged_comments.append(comment)
+
+                self.graph[xUUID][yUUID][rel_type]["comments"] = merged_comments or None
+
+                if merged_comments:
+                    logger.info(
+                        f"MERGED RELATIONSHIP COMMENTS: {xUUID} -> {yUUID} [{rel_type}]"
+                    )
+                else:
+                    logger.info(f"DUPLICATE RELATIONSHIP: {xUUID} -> {yUUID} [{rel_type}]")
             else:
                 # add a new edge, keyed by the relationship
-                self.graph.add_edge(xUUID, yUUID, key=rel_type)
+                self.graph.add_edge(
+                    xUUID,
+                    yUUID,
+                    key=rel_type,
+                    comments=incoming_comments,
+                )
 
         # 4) Rewrite any containerPath UUIDs
         for sw in self.software:
@@ -1250,7 +1434,7 @@ class SBOM:
         Returns:
             Optional[Relationship]: The relationship entry found that matches the given criteria, otherwise None.
         """
-        for u, v, key in self.graph.edges(keys=True):
+        for u, v, key, attrs in self.graph.edges(keys=True, data=True):
             if xUUID and u != xUUID:
                 continue
             if yUUID and v != yUUID:
@@ -1258,7 +1442,12 @@ class SBOM:
             if relationship and key.upper() != relationship.upper():
                 continue
             # reconstruct the Relationship object for merge-logic
-            return Relationship(xUUID=u, yUUID=v, relationship=key)
+            return Relationship(
+                xUUID=u,
+                yUUID=v,
+                relationship=key,
+                comments=attrs.get("comments"),
+            )
         return None
 
     def is_valid_uuid4(self, u: str) -> bool:
@@ -1334,34 +1523,19 @@ class SBOM:
             "software_lookup_by_sha256",
         }
 
-        # Build data dict by iterating over fields, skipping internals
-        # This avoids deep-copying large NetworkX graphs via asdict()
+        # Build data dict by iterating over fields, skipping internals.
+        # This avoids deep-copying large NetworkX graphs via asdict() and
+        # lets us omit absent optional File fields instead of emitting null.
         data = {}
         for fld in fields(self):
             if fld.name in EXCLUDE_FIELDS:
                 continue
             value = getattr(self, fld.name)
-
-            # Convert dataclass instances to dicts
-            if isinstance(value, list):
-                data[fld.name] = [
-                    asdict(item) if hasattr(item, "__dataclass_fields__") else item
-                    for item in value
-                ]
-            elif isinstance(value, set):
-                # Convert sets to sorted lists for JSON compatibility
-                data[fld.name] = [
-                    asdict(item) if hasattr(item, "__dataclass_fields__") else item
-                    for item in value
-                ]
-            elif hasattr(value, "__dataclass_fields__"):
-                data[fld.name] = asdict(value)
-            else:
-                data[fld.name] = value
+            data[fld.name] = _serialize_for_schema(value)
 
         # Only emit logical relationships (exclude filesystem/path symlinks)
         rels = []
-        for u, v, key in self.graph.edges(keys=True):
+        for u, v, key, attrs in self.graph.edges(keys=True, data=True):
             # Skip symlink edges
             if str(key).lower() == "symlink":
                 continue
@@ -1370,7 +1544,16 @@ class SBOM:
             vtype = self.graph.nodes.get(v, {}).get("type")
             if utype == "path" or vtype == "path":
                 continue
-            rels.append({"xUUID": u, "yUUID": v, "relationship": key})
+
+            rel_data = {"xUUID": u, "yUUID": v, "relationship": key}
+            comments = attrs.get("comments")
+            if comments is not None:
+                rel_data["comments"] = [
+                    asdict(item) if hasattr(item, "__dataclass_fields__") else item
+                    for item in comments
+                ]
+
+            rels.append(rel_data)
 
         data["relationships"] = rels
 

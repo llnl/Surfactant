@@ -60,11 +60,16 @@ class Software:
         # Validate RFC 3339 captureTime (string|null with date-time format)
         self.captureTime = validate_capture_time(self.captureTime, nullable=True)
 
-        # Validate UUID format (schema: string with format "uuid")
+        # Validate UUID format and enforce RFC 4122 version 4 UUIDs
         try:
-            uuid.UUID(self.UUID)
+            parsed_uuid = uuid.UUID(self.UUID)
         except (ValueError, AttributeError, TypeError) as err:
             raise ValueError(f"UUID must be a valid UUID string; got {self.UUID!r}") from err
+
+        if parsed_uuid.version != 4:
+            raise ValueError(
+                f"UUID must be a valid RFC 4122 version 4 UUID string; got {self.UUID!r}"
+            )
 
         # Validate scalar fields (schema: boolean|null and string|null)
         if self.notHashable is not None and not isinstance(self.notHashable, bool):
