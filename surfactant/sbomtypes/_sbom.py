@@ -208,8 +208,7 @@ class SBOM:
             raise TypeError("specVersion must be a string")
         if not _SPEC_VERSION_RE.fullmatch(self.specVersion):
             raise ValueError(
-                "specVersion must be a semantic version like '1.0.1'; "
-                f"got {self.specVersion!r}"
+                f"specVersion must be a semantic version like '1.0.1'; got {self.specVersion!r}"
             )
 
         if self.tools is not None:
@@ -1344,9 +1343,7 @@ class SBOM:
                 self.graph[xUUID][yUUID][rel_type]["comments"] = merged_comments or None
 
                 if merged_comments:
-                    logger.info(
-                        f"MERGED RELATIONSHIP COMMENTS: {xUUID} -> {yUUID} [{rel_type}]"
-                    )
+                    logger.info(f"MERGED RELATIONSHIP COMMENTS: {xUUID} -> {yUUID} [{rel_type}]")
                 else:
                     logger.info(f"DUPLICATE RELATIONSHIP: {xUUID} -> {yUUID} [{rel_type}]")
             else:
