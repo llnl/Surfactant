@@ -112,8 +112,7 @@ def _normalize_vendor_hints(value: Any, *, filepath: str) -> List[str]:
 
         if not isinstance(item, str):
             raise TypeError(
-                f"Invalid vendor field hint for {filepath}: "
-                f"expected str, got {type(item).__name__}"
+                f"Invalid vendor field hint for {filepath}: expected str, got {type(item).__name__}"
             )
 
         if item not in normalized:
@@ -225,9 +224,7 @@ def get_software_entry(
                         merged_vendors.append(vendor)
                 sw_entry._update_field("vendor", merged_vendors)
         elif field == "description" and not sw_entry.description:
-            normalized_description = _normalize_string_hint(
-                "description", value, filepath=filepath
-            )
+            normalized_description = _normalize_string_hint("description", value, filepath=filepath)
             sw_entry._update_field("description", normalized_description)
         elif field == "comments" and not sw_entry.comments:
             normalized_comments = _normalize_comment_hints(value, filepath=filepath)

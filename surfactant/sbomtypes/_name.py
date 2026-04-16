@@ -35,8 +35,6 @@ class NameEntry:
                     nameType=value.get("nameType"),
                 )
 
-            raise TypeError(
-                "name hint mappings must contain 'nameValue' or legacy 'name'"
-            )
+            raise TypeError("name hint mappings must contain 'nameValue' or legacy 'name'")
 
         raise TypeError("name hints must be NameEntry, mapping, or string")

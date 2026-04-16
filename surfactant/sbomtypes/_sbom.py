@@ -99,9 +99,7 @@ def _normalize_structured_list(
             item = entry_type(**item)
 
         if not isinstance(item, entry_type):
-            raise TypeError(
-                f"All items in {field_name} must be {entry_type.__name__} objects"
-            )
+            raise TypeError(f"All items in {field_name} must be {entry_type.__name__} objects")
 
         normalized.append(item)
 
