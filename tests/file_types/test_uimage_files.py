@@ -9,7 +9,7 @@ from surfactant.filetypeid.id_magic import identify_file_type
 from surfactant.infoextractors.uimage_file import extract_file_info
 from surfactant.sbomtypes import SBOM, Software
 
-# Files are relative to tests/data/a_out_files
+# Files are relative to tests/data/uimage_files
 _uimage_files = {
     "hello_world.img": {
         "header_crc": "0x92c6061b",

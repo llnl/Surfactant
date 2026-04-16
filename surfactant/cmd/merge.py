@@ -39,7 +39,10 @@ def merge_command(
     for sbom in input_sboms:
         sboms.append(input_reader.read_sbom(sbom))
 
-    merge(sboms, sbom_outfile, output_writer)
+    try:
+        merge(sboms, sbom_outfile, output_writer)
+    except ValueError as err:
+        raise click.ClickException(str(err)) from err
 
 
 def merge(

@@ -2,8 +2,9 @@
 # See the top-level LICENSE file for details.
 #
 # SPDX-License-Identifier: MIT
+from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Optional
+from typing import Any, Optional
 
 from ..utils.capture_time import validate_capture_time
 
@@ -31,3 +32,18 @@ class CommentEntry:
                 raise TypeError("timestamp must be a string or None")
 
             self.timestamp = validate_capture_time(self.timestamp, nullable=True)
+
+    @classmethod
+    def from_hint(cls, value: Any) -> "CommentEntry":
+        if isinstance(value, cls):
+            return value
+
+        if isinstance(value, str):
+            return cls(comment=value)
+
+        if isinstance(value, Mapping):
+            if "comment" not in value:
+                raise TypeError("comment hint mappings must contain 'comment'")
+            return cls(**dict(value))
+
+        raise TypeError("comment hints must be CommentEntry, mapping, or string")

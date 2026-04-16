@@ -9,7 +9,7 @@ import pytest
 
 from surfactant.cmd.cli import cli_add, cli_find
 from surfactant.cmd.cli_commands import Cli
-from surfactant.sbomtypes import SBOM
+from surfactant.sbomtypes import SBOM, Software
 
 
 @pytest.fixture(name="test_sbom")
@@ -42,31 +42,27 @@ def _compare_sboms(one: SBOM, two: SBOM) -> bool:
     return d1 == d2
 
 
-bad_sbom = SBOM(
-    {
-        "software": [
-            {
-                "UUID": "477da45b-bb38-450e-93f7-e525aaaa6862",
-                "name": None,
-                "size": 16367492,
-                "fileName": ["helics.tar.gz"],
-                "installPath": [],
-                "containerPath": [],
-                "captureTime": "2023-07-12T17:42:01Z",
-                "version": "",
-                "vendor": [],
-                "description": "",
-                "sha1": "0d21026ee953eeaa31cafef5118be56f46867267",
-                "sha256": "f41ca6f7c447225df3a7eef754d303d22cf877586735fb2d56d1eb15bf1daed9",
-                "md5": "5fbf80df5004db2f0ce1f78b524024fe",
-                "relationshipAssertion": "Unknown",
-                "comments": [],
-                "supplementaryFiles": [],
-                "bad_key": 1.24553,
-            }
-        ]
-    }
+bad_software = Software(
+    UUID="477da45b-bb38-450e-93f7-e525aaaa6862",
+    name=None,
+    size=16367492,
+    fileName=["helics.tar.gz"],
+    installPath=[],
+    containerPath=[],
+    captureTime="2023-07-12T17:42:01Z",
+    version="",
+    vendor=[],
+    description="",
+    sha1="0d21026ee953eeaa31cafef5118be56f46867267",
+    sha256="f41ca6f7c447225df3a7eef754d303d22cf877586735fb2d56d1eb15bf1daed9",
+    md5="5fbf80df5004db2f0ce1f78b524024fe",
+    relationshipAssertion="Unknown",
+    comments=[],
+    supplementaryFiles=[],
 )
+bad_software.bad_key = 1.24553
+
+bad_sbom = SBOM(software=[bad_software])
 
 
 def test_find_by_sha256(test_sbom):

@@ -275,3 +275,34 @@ def test_fs_tree_reconstruction_from_metadata():
     assert sbom_restored.fs_tree.has_node("/usr/lib64/libzmq.so.5")
     assert sbom_restored.fs_tree.has_edge("/usr/lib64/libzmq.so", "/usr/lib64/libzmq.so.5.2.6")
     assert sbom_restored.fs_tree.has_edge("/usr/lib64/libzmq.so.5", "/usr/lib64/libzmq.so.5.2.6")
+
+
+def test_inject_symlink_metadata_initializes_missing_file_name():
+    """
+    Verify inject_symlink_metadata() handles Software entries whose fileName is None.
+
+    Scenario:
+        1. Create a Software entry with installPath but no fileName
+        2. Record a file symlink alias to that installPath
+        3. Inject legacy symlink metadata
+
+    Expected:
+        - No exception is raised
+        - fileName is initialized to a list
+        - The alias basename is added to fileName
+        - Legacy symlink metadata is recorded
+    """
+    sbom = SBOM()
+    sw = Software(
+        UUID="11111111-1111-4111-8111-111111111111",
+        installPath=["/usr/bin/tool"],
+        sha256="abc123def456",
+    )
+    sbom.add_software(sw)
+
+    sbom.record_symlink("/bin/tool", "/usr/bin/tool", subtype="file")
+    sbom.inject_symlink_metadata()
+
+    assert sw.fileName == ["tool"]
+    assert {"fileNameSymlinks": ["tool"]} in sw.metadata
+    assert {"installPathSymlinks": ["/bin/tool"]} in sw.metadata

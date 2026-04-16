@@ -11,7 +11,7 @@ import uuid as uuid_module
 from collections import deque
 from dataclasses import asdict, dataclass, field, fields
 from pathlib import PurePosixPath
-from typing import Dict, List, Optional, Set, Tuple
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 import networkx as nx
 from dataclasses_json import config, dataclass_json
@@ -79,6 +79,87 @@ def _serialize_for_schema(value):
         return {k: _serialize_for_schema(v) for k, v in value.items()}
 
     return value
+
+
+def _normalize_structured_list(
+    value: Optional[List[Any]],
+    entry_type: type,
+    *,
+    field_name: str,
+) -> Optional[List[Any]]:
+    if value is None:
+        return None
+
+    if not isinstance(value, list):
+        raise TypeError(f"{field_name} must be a list or None")
+
+    normalized = []
+    for item in value:
+        if isinstance(item, dict):
+            item = entry_type(**item)
+
+        if not isinstance(item, entry_type):
+            raise TypeError(
+                f"All items in {field_name} must be {entry_type.__name__} objects"
+            )
+
+        normalized.append(item)
+
+    return normalized
+
+
+def _normalize_hardware_item(item: Any) -> Hardware:
+    if isinstance(item, Hardware):
+        return item
+
+    if not isinstance(item, dict):
+        raise TypeError("All items in hardware must be Hardware objects")
+
+    clean = dict(item)
+    clean["name"] = _normalize_structured_list(
+        clean.get("name"),
+        NameEntry,
+        field_name="hardware.name",
+    )
+    clean["comments"] = _normalize_structured_list(
+        clean.get("comments"),
+        CommentEntry,
+        field_name="hardware.comments",
+    )
+    clean["supplementaryFiles"] = _normalize_structured_list(
+        clean.get("supplementaryFiles"),
+        File,
+        field_name="hardware.supplementaryFiles",
+    )
+
+    return Hardware(**clean)
+
+
+def _normalize_software_item(item: Any) -> Software:
+    if isinstance(item, Software):
+        return item
+
+    if not isinstance(item, dict):
+        raise TypeError("All items in software must be Software objects")
+
+    clean = dict(item)
+    clean["name"] = _normalize_structured_list(
+        clean.get("name"),
+        NameEntry,
+        field_name="software.name",
+    )
+    clean["comments"] = _normalize_structured_list(
+        clean.get("comments"),
+        CommentEntry,
+        field_name="software.comments",
+    )
+    clean["supplementaryFiles"] = _normalize_structured_list(
+        clean.get("supplementaryFiles"),
+        File,
+        field_name="software.supplementaryFiles",
+    )
+
+    return Software(**clean)
 
 
 @recover_serializers
@@ -173,12 +254,12 @@ class SBOM:
             # rehydrate hardware
             for hw_data in raw.get("hardware", []):
                 clean = {k: v for k, v in hw_data.items() if k in HARDWARE_FIELDS}
-                self.hardware.append(Hardware(**clean))
+                self.hardware.append(_normalize_hardware_item(clean))
 
             # rehydrate software
             for sw_data in raw.get("software", []):
                 clean = {k: v for k, v in sw_data.items() if k in SOFTWARE_FIELDS}
-                self.software.append(Software(**clean))
+                self.software.append(_normalize_software_item(clean))
 
             # rehydrate relationships into the loader list
             for rel_data in raw.get("relationships", []):
@@ -235,11 +316,19 @@ class SBOM:
                 normalized_authors.append(item)
             self.authors = normalized_authors
 
-        # Strip out internal-only fields so dataclass logic and JSON serializers ignore them
-        # pylint: disable=access-member-before-definition
-        self.__dataclass_fields__ = {
-            k: v for k, v in self.__dataclass_fields__.items() if k not in INTERNAL_FIELDS
-        }
+        if not isinstance(self.hardware, list):
+            raise TypeError("hardware must be a list")
+        normalized_hardware = []
+        for item in self.hardware:
+            normalized_hardware.append(_normalize_hardware_item(item))
+        self.hardware = normalized_hardware
+
+        if not isinstance(self.software, list):
+            raise TypeError("software must be a list")
+        normalized_software = []
+        for item in self.software:
+            normalized_software.append(_normalize_software_item(item))
+        self.software = normalized_software
 
         # Build the Relationship graph from software and loaded relationships
         self.build_rel_graph()
@@ -685,6 +774,25 @@ class SBOM:
         # Add a node for the new software
         if not self.graph.has_node(sw.UUID):
             self.graph.add_node(sw.UUID, type="Software")
+
+        self._add_software_to_fs_tree(sw)
+
+    def _refresh_merged_software_state(
+        self, sw: Software, *, previous_sha256: Optional[str] = None
+    ) -> None:
+        """
+        Refresh SBOM-level indexes and derived structures after Software.merge()
+        mutates an existing Software entry in place.
+        """
+        if (
+            previous_sha256 is not None
+            and previous_sha256 != sw.sha256
+            and self.software_lookup_by_sha256.get(previous_sha256) is sw
+        ):
+            del self.software_lookup_by_sha256[previous_sha256]
+
+        if sw.sha256 is not None:
+            self.software_lookup_by_sha256[sw.sha256] = sw
 
         self._add_software_to_fs_tree(sw)
 
@@ -1197,7 +1305,7 @@ class SBOM:
             # 3. Merge alias metadata into Software.metadata
             # ------------------------------------------------------------------
             if sw.metadata is None:
-                sw.metadata = []
+                sw._update_field("metadata", [])
 
             def _merge_md(key: str, values: set[str], *, _sw: Software = sw) -> None:
                 """Merge or append a metadata entry for the given key, avoiding duplication."""
@@ -1218,10 +1326,19 @@ class SBOM:
             _merge_md("installPathSymlinks", path_symlinks)
 
             # Optional: legacy-style alias duplication into fileName[]
-            for alias in file_symlinks:
-                if alias not in sw.fileName:
-                    sw.fileName.append(alias)
-                    logger.debug(f"[fs_tree] Added alias '{alias}' to fileName for {sw.UUID}")
+            if file_symlinks:
+                merged_file_names = list(sw.fileName) if sw.fileName is not None else []
+                added_aliases = []
+
+                for alias in sorted(file_symlinks):
+                    if alias not in merged_file_names:
+                        merged_file_names.append(alias)
+                        added_aliases.append(alias)
+
+                if added_aliases:
+                    sw._update_field("fileName", merged_file_names)
+                    for alias in added_aliases:
+                        logger.debug(f"[fs_tree] Added alias '{alias}' to fileName for {sw.UUID}")
 
         logger.debug("[fs_tree] Completed symlink metadata injection pass")
 
@@ -1284,7 +1401,18 @@ class SBOM:
                 if existing_sw := self._find_software_entry(
                     uuid=sw.UUID, sha256=sw.sha256, md5=sw.md5, sha1=sw.sha1
                 ):
+                    if Software.check_for_hash_collision(existing_sw, sw):
+                        raise ValueError(
+                            "Refusing to merge software entries with colliding hash data: "
+                            f"{existing_sw.UUID} and {sw.UUID}"
+                        )
+
+                    previous_sha256 = existing_sw.sha256
                     u1, u2 = existing_sw.merge(sw)
+                    self._refresh_merged_software_state(
+                        existing_sw,
+                        previous_sha256=previous_sha256,
+                    )
                     logger.info(f"MERGE DUPLICATE: uuid1={u1}, uuid2={u2}")
                     uuid_updates[u2] = u1
 
@@ -1301,11 +1429,13 @@ class SBOM:
                         self.graph.remove_node(u2)
 
                 else:
-                    self.software.append(sw)
+                    # Route brand-new software through the normal SBOM add path so
+                    # indexes and derived structures stay in sync.
+                    self.add_software(sw)
 
-                    # Add the new software node in the graph
-                    if hasattr(self, "graph"):
-                        self.graph.add_node(sw.UUID, type="Software")
+        # Rebuild any symlink edges described in merged metadata after software
+        # entries have been inserted or mutated in place.
+        self._rebuild_fs_tree_from_metadata()
 
         # 2) Merge relationships from the incoming SBOM's MultiDiGraph
         for src, dst, rel_type, attrs in sbom_m.graph.edges(keys=True, data=True):
@@ -1355,18 +1485,28 @@ class SBOM:
                     comments=incoming_comments,
                 )
 
-        # 4) Rewrite any containerPath UUIDs
+        # 4) Rewrite any containerPath UUIDs, preserving order and validating updates
         for sw in self.software:
-            if sw.containerPath:
-                for idx, path in enumerate(sw.containerPath):
-                    u = path[:36]
-                    # if container path starts with an invalid uuid4, sbom might not be valid
-                    if self.is_valid_uuid4(u):
-                        if u in uuid_updates:
-                            updated_path = path.replace(u, uuid_updates[u], 1)
-                            sw.containerPath[idx] = updated_path
-                # remove duplicates
-                sw.containerPath = [*set(sw.containerPath)]
+            if not sw.containerPath:
+                continue
+
+            rewritten_container_paths = []
+            seen_paths = set()
+
+            for path in sw.containerPath:
+                updated_path = path
+                u = path[:36]
+
+                # if containerPath starts with a valid uuid4, rewrite it when merged
+                if self.is_valid_uuid4(u) and u in uuid_updates:
+                    updated_path = path.replace(u, uuid_updates[u], 1)
+
+                if updated_path not in seen_paths:
+                    seen_paths.add(updated_path)
+                    rewritten_container_paths.append(updated_path)
+
+            if rewritten_container_paths != sw.containerPath:
+                sw._update_field("containerPath", rewritten_container_paths)
 
         logger.info(f"UUID UPDATES: {uuid_updates}")
 
