@@ -187,7 +187,7 @@ def get_software_entry(
         validated_metadata.append(file_details)
 
     if validated_metadata:
-        sw_entry._update_field("metadata", [*(sw_entry.metadata or []), *validated_metadata])
+        sw_entry.update_field("metadata", [*(sw_entry.metadata or []), *validated_metadata])
 
     # set SBOM fields based on sw_field_hints
     field_confidence: Dict[str, Tuple[Any, int]] = {}
@@ -211,10 +211,10 @@ def get_software_entry(
         if field == "name" and not sw_entry.name:
             normalized_names = _normalize_name_hints(value, filepath=filepath)
             if normalized_names:
-                sw_entry._update_field("name", normalized_names)
+                sw_entry.update_field("name", normalized_names)
         elif field == "version" and not sw_entry.version:
             normalized_version = _normalize_string_hint("version", value, filepath=filepath)
-            sw_entry._update_field("version", normalized_version)
+            sw_entry.update_field("version", normalized_version)
         elif field == "vendor":
             normalized_vendors = _normalize_vendor_hints(value, filepath=filepath)
             if normalized_vendors:
@@ -222,14 +222,14 @@ def get_software_entry(
                 for vendor in normalized_vendors:
                     if vendor not in merged_vendors:
                         merged_vendors.append(vendor)
-                sw_entry._update_field("vendor", merged_vendors)
+                sw_entry.update_field("vendor", merged_vendors)
         elif field == "description" and not sw_entry.description:
             normalized_description = _normalize_string_hint("description", value, filepath=filepath)
-            sw_entry._update_field("description", normalized_description)
+            sw_entry.update_field("description", normalized_description)
         elif field == "comments" and not sw_entry.comments:
             normalized_comments = _normalize_comment_hints(value, filepath=filepath)
             if normalized_comments:
-                sw_entry._update_field("comments", normalized_comments)
+                sw_entry.update_field("comments", normalized_comments)
     return (sw_entry, sw_children)
 
 

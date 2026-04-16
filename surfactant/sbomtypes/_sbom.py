@@ -1303,7 +1303,7 @@ class SBOM:
             # 3. Merge alias metadata into Software.metadata
             # ------------------------------------------------------------------
             if sw.metadata is None:
-                sw._update_field("metadata", [])
+                sw.update_field("metadata", [])
 
             def _merge_md(key: str, values: set[str], *, _sw: Software = sw) -> None:
                 """Merge or append a metadata entry for the given key, avoiding duplication."""
@@ -1334,7 +1334,7 @@ class SBOM:
                         added_aliases.append(alias)
 
                 if added_aliases:
-                    sw._update_field("fileName", merged_file_names)
+                    sw.update_field("fileName", merged_file_names)
                     for alias in added_aliases:
                         logger.debug(f"[fs_tree] Added alias '{alias}' to fileName for {sw.UUID}")
 
@@ -1504,7 +1504,7 @@ class SBOM:
                     rewritten_container_paths.append(updated_path)
 
             if rewritten_container_paths != sw.containerPath:
-                sw._update_field("containerPath", rewritten_container_paths)
+                sw.update_field("containerPath", rewritten_container_paths)
 
         logger.info(f"UUID UPDATES: {uuid_updates}")
 

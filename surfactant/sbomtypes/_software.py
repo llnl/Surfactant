@@ -153,6 +153,10 @@ class Software:
             if not isinstance(item, dict):
                 raise TypeError("All items in metadata must be objects (dicts)")
 
+    def update_field(self, field_name: str, value: Any) -> None:
+        """Public helper to update a field while preserving validation semantics."""
+        self._update_field(field_name, value)
+
     def _update_field(self, field_name: str, value: Any) -> None:
         if value in ("", " ", None):
             return
