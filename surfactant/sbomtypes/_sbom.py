@@ -279,59 +279,66 @@ class SBOM:
         metadata=config(exclude=lambda _: True),
     )
 
+    @classmethod
+    def _from_raw_dict(cls, raw: Dict[str, Any]) -> "SBOM":
+        """Rehydrate an SBOM from a validated raw CyTRICS document dict.
+
+        This is the explicit raw-document construction path used by
+        from_dict_override() and from_json_override().
+        """
+        if not isinstance(raw, dict):
+            raise TypeError("raw must be a dict")
+
+        tool_fields = {f.name for f in fields(Tool)}
+        author_fields = {f.name for f in fields(Author)}
+        hardware_fields = {f.name for f in fields(Hardware)}
+        software_fields = {f.name for f in fields(Software)}
+        relationship_fields = {f.name for f in fields(Relationship)}
+
+        raw_tools = raw.get("tools")
+        normalized_tools = None
+        if raw_tools is not None:
+            normalized_tools = []
+            for tool_data in raw_tools:
+                clean = {k: v for k, v in tool_data.items() if k in tool_fields}
+                normalized_tools.append(Tool(**clean))
+
+        raw_authors = raw.get("authors")
+        normalized_authors = None
+        if raw_authors is not None:
+            normalized_authors = []
+            for author_data in raw_authors:
+                clean = {k: v for k, v in author_data.items() if k in author_fields}
+                normalized_authors.append(Author(**clean))
+
+        normalized_hardware = []
+        for hw_data in raw.get("hardware", []):
+            clean = {k: v for k, v in hw_data.items() if k in hardware_fields}
+            normalized_hardware.append(_normalize_hardware_item(clean))
+
+        normalized_software = []
+        for sw_data in raw.get("software", []):
+            clean = {k: v for k, v in sw_data.items() if k in software_fields}
+            normalized_software.append(_normalize_software_item(clean))
+
+        normalized_relationships = []
+        for rel_data in raw.get("relationships", []):
+            clean = {k: v for k, v in rel_data.items() if k in relationship_fields}
+            normalized_relationships.append(Relationship(**clean))
+
+        return cls(
+            bomUUID=raw.get("bomUUID", str(uuid_module.uuid4())),
+            bomFormat=raw.get("bomFormat", "cytrics"),
+            bomDescription=raw.get("bomDescription", ""),
+            specVersion=raw.get("specVersion", "1.0.1"),
+            tools=normalized_tools,
+            authors=normalized_authors,
+            hardware=normalized_hardware,
+            software=normalized_software,
+            _loaded_relationships=normalized_relationships,
+        )
+
     def __post_init__(self):
-        if isinstance(self.hardware, dict) and not self.software:
-            raw = self.hardware
-
-            self.bomUUID = raw.get("bomUUID", self.bomUUID)
-            self.bomFormat = raw.get("bomFormat", self.bomFormat)
-            self.bomDescription = raw.get("bomDescription", self.bomDescription)
-            self.specVersion = raw.get("specVersion", self.specVersion)
-
-            raw_tools = raw.get("tools")
-            raw_authors = raw.get("authors")
-
-            # zero out every container
-            self.tools = None if raw_tools is None else []
-            self.authors = None if raw_authors is None else []
-            self.hardware = []
-            self.software = []
-            self._loaded_relationships = []
-
-            # prepare valid field-name sets
-            TOOL_FIELDS = {f.name for f in fields(Tool)}
-            AUTHOR_FIELDS = {f.name for f in fields(Author)}
-            HARDWARE_FIELDS = {f.name for f in fields(Hardware)}
-            SOFTWARE_FIELDS = {f.name for f in fields(Software)}
-            REL_FIELDS = {f.name for f in fields(Relationship)}
-
-            # rehydrate tools
-            if raw_tools is not None:
-                for tool_data in raw_tools:
-                    clean = {k: v for k, v in tool_data.items() if k in TOOL_FIELDS}
-                    self.tools.append(Tool(**clean))
-
-            # rehydrate authors
-            if raw_authors is not None:
-                for author_data in raw_authors:
-                    clean = {k: v for k, v in author_data.items() if k in AUTHOR_FIELDS}
-                    self.authors.append(Author(**clean))
-
-            # rehydrate hardware
-            for hw_data in raw.get("hardware", []):
-                clean = {k: v for k, v in hw_data.items() if k in HARDWARE_FIELDS}
-                self.hardware.append(_normalize_hardware_item(clean))
-
-            # rehydrate software
-            for sw_data in raw.get("software", []):
-                clean = {k: v for k, v in sw_data.items() if k in SOFTWARE_FIELDS}
-                self.software.append(_normalize_software_item(clean))
-
-            # rehydrate relationships into the loader list
-            for rel_data in raw.get("relationships", []):
-                clean = {k: v for k, v in rel_data.items() if k in REL_FIELDS}
-                self._loaded_relationships.append(Relationship(**clean))
-
         if not isinstance(self.bomUUID, str):
             raise TypeError("bomUUID must be a string")
         try:
@@ -1691,17 +1698,17 @@ class SBOM:
         return parents
 
     @classmethod
-    def from_dict_override(cls, kvs: Dict[str, Any], infer_missing: bool = False) -> "SBOM":
+    def from_dict_override(cls, kvs: Dict[str, Any]) -> "SBOM":
         if not isinstance(kvs, dict):
             raise TypeError("SBOM.from_dict() requires a dict input")
 
         _validate_cytrics_document(kvs, context="Input SBOM")
-        return cls.schema(infer_missing=infer_missing).load(kvs)
+        return cls._from_raw_dict(kvs)
 
     @classmethod
-    def from_json_override(cls, s: str, infer_missing: bool = False, **kwargs) -> "SBOM":
+    def from_json_override(cls, s: str, **kwargs) -> "SBOM":
         data = json.loads(s, **kwargs)
-        return cls.from_dict(data, infer_missing=infer_missing)
+        return cls.from_dict(data)
 
     def to_dict_override(self) -> dict:
         """
