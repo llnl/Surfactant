@@ -55,8 +55,15 @@ class Hardware:
                 "countryOfOrigin and countryOfOriginSource must both be set or both be None"
             )
 
-        if self.quantity is not None and not isinstance(self.quantity, int):
-            raise TypeError("quantity must be a number or None")
+        # Schema allows "number", but for Surfactant hardware modeling quantity is
+        # intentionally restricted to whole-number component counts. Reject bool
+        # explicitly since bool is a subclass of int in Python.
+        if self.quantity is not None and (
+            not isinstance(self.quantity, int) or isinstance(self.quantity, bool)
+        ):
+            raise TypeError(
+                f"quantity must be a number or None; got {type(self.quantity).__name__}"
+            )
 
         if self.countryOfOrigin is not None:
             if not isinstance(self.countryOfOrigin, list):

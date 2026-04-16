@@ -36,12 +36,15 @@ def test_generate_result_no_install_prefix(output_path: str, extract_path: str):
 
 # Generate Sample SBOMs
 sbom1_json = """{
+  "bomFormat": "cytrics",
+  "specVersion": "1.0.1",
   "software": [
     {
       "UUID": "dd6f7f6b-7c31-4a4a-afef-14678b9942bf",
       "fileName": [
         "helics.tar.gz"
-      ]
+      ],
+      "sha256": "1111111111111111111111111111111111111111111111111111111111111111"
     },
     {
       "UUID": "08526f02-8f08-485d-bfd1-ea16ce964fd2",
@@ -53,7 +56,8 @@ sbom1_json = """{
       ],
       "containerPath": [
         "dd6f7f6b-7c31-4a4a-afef-14678b9942bf/bin/helics_binary"
-      ]
+      ],
+      "sha256": "2222222222222222222222222222222222222222222222222222222222222222"
     },
     {
       "UUID": "a5db7e12-fe3d-490e-90b8-98a8bfaace09",
@@ -65,7 +69,8 @@ sbom1_json = """{
       ],
       "containerPath": [
         "dd6f7f6b-7c31-4a4a-afef-14678b9942bf/lib64/lib1.so"
-      ]
+      ],
+      "sha256": "3333333333333333333333333333333333333333333333333333333333333333"
     }
   ],
   "relationships": [
@@ -93,6 +98,8 @@ def get_sbom1():
 
 
 sbom2_json = """{
+        "bomFormat": "cytrics",
+        "specVersion": "1.0.1",
         "software": [
             {
             "UUID": "625a07da-7eed-47b9-a0fa-47dcbf76574a",
@@ -100,7 +107,8 @@ sbom2_json = """{
             "size": null,
             "fileName": [
                 "helics_plugin.tar.gz"
-            ]
+            ],
+            "sha256": "4444444444444444444444444444444444444444444444444444444444444444"
             },
             {
             "UUID": "820d3ddc-14d7-4ce5-833c-beede8725366",
@@ -112,7 +120,8 @@ sbom2_json = """{
             ],
             "containerPath": [
                 "625a07da-7eed-47b9-a0fa-47dcbf76574a/bin/helics_plugin"
-            ]
+            ],
+            "sha256": "5555555555555555555555555555555555555555555555555555555555555555"
             },
             {
             "UUID": "df81b6a7-f9df-42f1-85ee-86a8865fa5f1",
@@ -124,7 +133,8 @@ sbom2_json = """{
             ],
             "containerPath": [
                 "625a07da-7eed-47b9-a0fa-47dcbf76574a/lib64/lib_plugin.so"
-            ]
+            ],
+            "sha256": "6666666666666666666666666666666666666666666666666666666666666666"
             }
         ],
         "relationships": [

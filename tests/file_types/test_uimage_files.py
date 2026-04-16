@@ -38,7 +38,13 @@ def test_uimage_files():
         file_type = identify_file_type(file_path)
         assert file_type == ["UIMAGE"]
         sw_field_hints = []
-        file_info = extract_file_info(SBOM(), Software(), file_path, file_type, sw_field_hints)
+        file_info = extract_file_info(
+            SBOM(),
+            Software.create_software_from_file(file_path),
+            file_path,
+            file_type,
+            sw_field_hints,
+        )
         assert sw_field_hints == [("name", "Test uImage", 40)]
         assert "uimage_header" in file_info
         uimage_header = file_info["uimage_header"]
@@ -55,5 +61,11 @@ def test_bad_uimage_file():
     file_type = identify_file_type(file_path)
     assert file_type == ["UIMAGE"]
     sw_field_hints = []
-    file_info = extract_file_info(SBOM(), Software(), file_path, file_type, sw_field_hints)
+    file_info = extract_file_info(
+        SBOM(),
+        Software.create_software_from_file(file_path),
+        file_path,
+        file_type,
+        sw_field_hints,
+    )
     assert file_info is None

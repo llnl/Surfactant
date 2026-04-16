@@ -10,11 +10,13 @@ import re
 import uuid as uuid_module
 from collections import deque
 from dataclasses import asdict, dataclass, field, fields
-from pathlib import PurePosixPath
+from functools import lru_cache
+from pathlib import Path, PurePosixPath
 from typing import Any, Dict, List, Optional, Set, Tuple
 
 import networkx as nx
 from dataclasses_json import config, dataclass_json
+from jsonschema import Draft7Validator, FormatChecker
 from loguru import logger
 
 from surfactant.utils.paths import basename_posix, normalize_path
@@ -31,18 +33,84 @@ from ._tool import Tool
 
 INTERNAL_FIELDS = {"software_lookup_by_sha256"}
 _SPEC_VERSION_RE = re.compile(r"^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$")
+_CYTRICS_SCHEMA_VERSION = "1.0.1"
+_CYTRICS_SCHEMA_RELATIVE_PATH = Path("docs") / "cytrics_schema" / "schema.json"
+_CYTRICS_FORMAT_CHECKER = FormatChecker()
+
+
+@_CYTRICS_FORMAT_CHECKER.checks("uuid")
+def _check_uuid_format(value: object) -> bool:
+    if not isinstance(value, str):
+        return True
+
+    try:
+        uuid_module.UUID(value)
+    except (ValueError, TypeError, AttributeError):
+        return False
+
+    return True
 
 
 def recover_serializers(cls):
     """
-    After dataclass_json has bound its own to_dict/to_json,
-    restore any _to_dict/_to_json overrides.
+    After dataclass_json has bound its own serializers, restore any explicit
+    from_dict/from_json/to_dict/to_json overrides defined on the class.
     """
+    if hasattr(cls, "from_dict_override"):
+        cls.from_dict = cls.from_dict_override
+    if hasattr(cls, "from_json_override"):
+        cls.from_json = cls.from_json_override
     if hasattr(cls, "to_dict_override"):
         cls.to_dict = cls.to_dict_override
     if hasattr(cls, "to_json_override"):
         cls.to_json = cls.to_json_override
     return cls
+
+
+@lru_cache(maxsize=1)
+def _load_cytrics_schema() -> Dict[str, Any]:
+    schema_path = Path(__file__).resolve().parents[2] / _CYTRICS_SCHEMA_RELATIVE_PATH
+    with schema_path.open("r", encoding="utf-8") as schema_file:
+        return json.load(schema_file)
+
+
+@lru_cache(maxsize=1)
+def _cytrics_validator() -> Draft7Validator:
+    return Draft7Validator(
+        _load_cytrics_schema(),
+        format_checker=_CYTRICS_FORMAT_CHECKER,
+    )
+
+
+def _format_schema_error_path(error) -> str:
+    if not error.absolute_path:
+        return "<root>"
+
+    parts: List[str] = []
+    for part in error.absolute_path:
+        if isinstance(part, int):
+            parts.append(f"[{part}]")
+        elif not parts:
+            parts.append(str(part))
+        else:
+            parts.append(f".{part}")
+    return "".join(parts)
+
+
+def _validate_cytrics_document(data: Dict[str, Any], *, context: str) -> None:
+    errors = sorted(
+        _cytrics_validator().iter_errors(data),
+        key=lambda err: (list(err.absolute_path), err.message),
+    )
+    if not errors:
+        return
+
+    err = errors[0]
+    path = _format_schema_error_path(err)
+    raise ValueError(
+        f"{context} does not conform to CyTRICS schema {_CYTRICS_SCHEMA_VERSION} "
+        f"at {path}: {err.message}"
+    )
 
 
 def _serialize_for_schema(value):
@@ -1622,6 +1690,19 @@ class SBOM:
                 parents.append(u)
         return parents
 
+    @classmethod
+    def from_dict_override(cls, kvs: Dict[str, Any], infer_missing: bool = False) -> "SBOM":
+        if not isinstance(kvs, dict):
+            raise TypeError("SBOM.from_dict() requires a dict input")
+
+        _validate_cytrics_document(kvs, context="Input SBOM")
+        return cls.schema(infer_missing=infer_missing).load(kvs)
+
+    @classmethod
+    def from_json_override(cls, s: str, infer_missing: bool = False, **kwargs) -> "SBOM":
+        data = json.loads(s, **kwargs)
+        return cls.from_dict(data, infer_missing=infer_missing)
+
     def to_dict_override(self) -> dict:
         """
         Convert the SBOM object into a serializable dictionary for JSON output,
@@ -1692,6 +1773,7 @@ class SBOM:
 
         data["relationships"] = rels
 
+        _validate_cytrics_document(data, context="Serialized SBOM")
         return data
 
     def to_json_override(self, *args, **kwargs) -> str:
