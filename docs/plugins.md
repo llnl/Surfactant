@@ -56,22 +56,22 @@ The `--force` option bypasses the check for whether the upstream database has ch
 
 ### Step 1: Write Plugin
 
-In order to create a plugin, you will need to write your implementation for one or more of the functions in the [hookspec.py](https://github.com/LLNL/Surfactant/tree/main/surfactant/plugin/hookspecs.py) file. Which functions you implement will depend on the goals of your plugin.
+In order to create a plugin, you will need to write your implementation for one or more of the functions in the [hookspecs.py](https://github.com/LLNL/Surfactant/tree/main/surfactant/plugin/hookspecs.py) file. Which functions you implement will depend on the goals of your plugin.
 
 #### Brief overview of functions
-[identify_file_type](https://github.com/LLNL/Surfactant/tree/main/surfactant/plugin/hookspecs.py#L15)
-- Return a string representation of the type of file passed in
+[identify_file_type](https://github.com/LLNL/Surfactant/tree/main/surfactant/plugin/hookspecs.py#L18)
+- Return a string or list of strings representing the type of file passed in
 
-[extract_file_info](https://github.com/LLNL/Surfactant/tree/main/surfactant/plugin/hookspecs.py#L29)
-- Determine how file info is supposed to be extracted
+[extract_file_info](https://github.com/LLNL/Surfactant/tree/main/surfactant/plugin/hookspecs.py#L40)
+- Determine how file info is supposed to be extracted and return a metadata object for the software entry
 
-[establish_relationships](https://github.com/LLNL/Surfactant/tree/main/surfactant/plugin/hookspecs.py#L47)
+[establish_relationships](https://github.com/LLNL/Surfactant/tree/main/surfactant/plugin/hookspecs.py#L88)
 - Determines how to establish relationships between the software/metadata that has been passed to it
 
-[write_sbom](https://github.com/LLNL/Surfactant/tree/main/surfactant/plugin/hookspecs.py#L70)
+[write_sbom](https://github.com/LLNL/Surfactant/tree/main/surfactant/plugin/hookspecs.py#L111)
 - Determine what format to write the SBOM to file
 
-[read_sbom](https://github.com/LLNL/Surfactant/tree/main/surfactant/plugin/hookspecs.py#L80)
+[read_sbom](https://github.com/LLNL/Surfactant/tree/main/surfactant/plugin/hookspecs.py#L122)
 - If reading from input SBOMs, specifies what format the input SBOMs are
 
 ### Step 2. Write pyproject.toml File
