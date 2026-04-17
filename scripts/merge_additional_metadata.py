@@ -46,13 +46,9 @@ if __name__ == "__main__":
             with open(path, encoding="utf-8") as f:
                 additional_data = json.load(f)
             if not isinstance(additional_data, dict):
-                raise TypeError(
-                    f"Additional metadata file must contain a JSON object: {path.name}"
-                )
+                raise TypeError(f"Additional metadata file must contain a JSON object: {path.name}")
             if "sha256hash" not in additional_data:
-                raise ValueError(
-                    f"Additional metadata file must contain sha256hash: {path.name}"
-                )
+                raise ValueError(f"Additional metadata file must contain sha256hash: {path.name}")
             if not isinstance(additional_data["sha256hash"], str):
                 raise TypeError(
                     f"Additional metadata file must contain a string sha256hash: {path.name}"

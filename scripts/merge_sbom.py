@@ -43,8 +43,10 @@ def main():
     args = parser.parse_args()
 
     with ExitStack() as stack:
-        sbom_outfile = sys.stdout if args.sbom_outfile == "-" else stack.enter_context(
-            open(args.sbom_outfile, "w", encoding="utf-8")
+        sbom_outfile = (
+            sys.stdout
+            if args.sbom_outfile == "-"
+            else stack.enter_context(open(args.sbom_outfile, "w", encoding="utf-8"))
         )
         input_sboms = [
             sys.stdin if path == "-" else stack.enter_context(open(path, "r", encoding="utf-8"))
