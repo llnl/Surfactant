@@ -63,18 +63,19 @@ dependencies = [
     "python-msi==0.0.0b3",
     # Pinned to specific version for potential breaking changes
     "rpmfile==2.1.0",
+    "jsonschema",
 ]
 dynamic = ["version"]
 
 [dependency-groups]
-test = ["pytest", "pytest-asyncio", "jsonschema"]
+test = ["pytest", "pytest-asyncio"]
 dev = ["build", "pre-commit"]
 docs = ["sphinx", "myst-parser", "furo>=2025.9.25", "sphinx-copybutton>=0.5.2"]
 
 [project.optional-dependencies]
 macho = ["lief==0.17.6"]
 java = ["javatools>=1.6,==1.*"]
-test = ["pytest", "pytest-asyncio", "jsonschema"]
+test = ["pytest", "pytest-asyncio"]
 dev = ["build", "pre-commit"]
 docs = ["sphinx", "myst-parser", "furo>=2025.9.25", "sphinx-copybutton>=0.5.2"]
 
