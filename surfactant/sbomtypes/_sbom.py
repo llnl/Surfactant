@@ -6,40 +6,228 @@
 from __future__ import annotations
 
 import json
+import re
 import uuid as uuid_module
 from collections import deque
 from dataclasses import asdict, dataclass, field, fields
-from pathlib import PurePosixPath
-from typing import Dict, List, Optional, Set, Tuple
+from functools import lru_cache
+from pathlib import Path, PurePosixPath
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 import networkx as nx
 from dataclasses_json import config, dataclass_json
+from jsonschema import Draft7Validator, FormatChecker
 from loguru import logger
 
 from surfactant.utils.paths import basename_posix, normalize_path
 
-from ._analysisdata import AnalysisData
+from ..utils.capture_time import validate_capture_time
+from ._author import Author
+from ._comment import CommentEntry
 from ._file import File
 from ._hardware import Hardware
-from ._observation import Observation
-from ._provenance import SoftwareProvenance
-from ._relationship import Relationship, StarRelationship
-from ._software import Software, SoftwareComponent
-from ._system import System
+from ._name import NameEntry
+from ._relationship import Relationship
+from ._software import Software
+from ._tool import Tool
 
 INTERNAL_FIELDS = {"software_lookup_by_sha256"}
+_SPEC_VERSION_RE = re.compile(r"^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$")
+_CYTRICS_SCHEMA_VERSION = "1.0.1"
+_CYTRICS_SCHEMA_RELATIVE_PATH = Path("docs") / "cytrics_schema" / "schema.json"
+_CYTRICS_FORMAT_CHECKER = FormatChecker()
+
+
+@_CYTRICS_FORMAT_CHECKER.checks("uuid")
+def _check_uuid_format(value: object) -> bool:
+    if not isinstance(value, str):
+        return True
+
+    try:
+        uuid_module.UUID(value)
+    except (ValueError, TypeError, AttributeError):
+        return False
+
+    return True
 
 
 def recover_serializers(cls):
     """
-    After dataclass_json has bound its own to_dict/to_json,
-    restore any _to_dict/_to_json overrides.
+    After dataclass_json has bound its own serializers, restore any explicit
+    from_dict/from_json/to_dict/to_json overrides defined on the class.
     """
+    if hasattr(cls, "from_dict_override"):
+        cls.from_dict = cls.from_dict_override
+    if hasattr(cls, "from_json_override"):
+        cls.from_json = cls.from_json_override
     if hasattr(cls, "to_dict_override"):
         cls.to_dict = cls.to_dict_override
     if hasattr(cls, "to_json_override"):
         cls.to_json = cls.to_json_override
     return cls
+
+
+@lru_cache(maxsize=1)
+def _load_cytrics_schema() -> Dict[str, Any]:
+    schema_path = Path(__file__).resolve().parents[2] / _CYTRICS_SCHEMA_RELATIVE_PATH
+    with schema_path.open("r", encoding="utf-8") as schema_file:
+        return json.load(schema_file)
+
+
+@lru_cache(maxsize=1)
+def _cytrics_validator() -> Draft7Validator:
+    return Draft7Validator(
+        _load_cytrics_schema(),
+        format_checker=_CYTRICS_FORMAT_CHECKER,
+    )
+
+
+def _format_schema_error_path(error) -> str:
+    if not error.absolute_path:
+        return "<root>"
+
+    parts: List[str] = []
+    for part in error.absolute_path:
+        if isinstance(part, int):
+            parts.append(f"[{part}]")
+        elif not parts:
+            parts.append(str(part))
+        else:
+            parts.append(f".{part}")
+    return "".join(parts)
+
+
+def _validate_cytrics_document(data: Dict[str, Any], *, context: str) -> None:
+    errors = sorted(
+        _cytrics_validator().iter_errors(data),
+        key=lambda err: (list(err.absolute_path), err.message),
+    )
+    if not errors:
+        return
+
+    err = errors[0]
+    path = _format_schema_error_path(err)
+    raise ValueError(
+        f"{context} does not conform to CyTRICS schema {_CYTRICS_SCHEMA_VERSION} "
+        f"at {path}: {err.message}"
+    )
+
+
+def _serialize_for_schema(value):
+    """
+    Recursively serialize nested values into schema-friendly JSON data.
+
+    Some schema properties are optional but do not allow null. For those
+    fields, omit absent values rather than emitting JSON null.
+    """
+    if hasattr(value, "__dataclass_fields__"):
+        omit_none_fields = set()
+        if isinstance(value, File):
+            omit_none_fields = {"filePath", "captureTime"}
+        elif isinstance(value, Hardware):
+            omit_none_fields = {"boardLocation"}
+        elif isinstance(value, NameEntry):
+            omit_none_fields = {"nameValue", "nameType"}
+        elif isinstance(value, Software):
+            omit_none_fields = {"notHashable"}
+
+        data = {}
+        for fld in fields(value):
+            item = getattr(value, fld.name)
+            if fld.name in omit_none_fields and item is None:
+                continue
+            data[fld.name] = _serialize_for_schema(item)
+        return data
+
+    if isinstance(value, list):
+        return [_serialize_for_schema(item) for item in value]
+
+    if isinstance(value, set):
+        return [_serialize_for_schema(item) for item in value]
+
+    if isinstance(value, dict):
+        return {k: _serialize_for_schema(v) for k, v in value.items()}
+
+    return value
+
+
+def _normalize_structured_list(
+    value: Optional[List[Any]],
+    entry_type: type,
+    *,
+    field_name: str,
+) -> Optional[List[Any]]:
+    if value is None:
+        return None
+
+    if not isinstance(value, list):
+        raise TypeError(f"{field_name} must be a list or None")
+
+    normalized = []
+    for item in value:
+        if isinstance(item, dict):
+            item = entry_type(**item)
+
+        if not isinstance(item, entry_type):
+            raise TypeError(f"All items in {field_name} must be {entry_type.__name__} objects")
+
+        normalized.append(item)
+
+    return normalized
+
+
+def _normalize_hardware_item(item: Any) -> Hardware:
+    if isinstance(item, Hardware):
+        return item
+
+    if not isinstance(item, dict):
+        raise TypeError("All items in hardware must be Hardware objects")
+
+    clean = dict(item)
+    clean["name"] = _normalize_structured_list(
+        clean.get("name"),
+        NameEntry,
+        field_name="hardware.name",
+    )
+    clean["comments"] = _normalize_structured_list(
+        clean.get("comments"),
+        CommentEntry,
+        field_name="hardware.comments",
+    )
+    clean["supplementaryFiles"] = _normalize_structured_list(
+        clean.get("supplementaryFiles"),
+        File,
+        field_name="hardware.supplementaryFiles",
+    )
+
+    return Hardware(**clean)
+
+
+def _normalize_software_item(item: Any) -> Software:
+    if isinstance(item, Software):
+        return item
+
+    if not isinstance(item, dict):
+        raise TypeError("All items in software must be Software objects")
+
+    clean = dict(item)
+    clean["name"] = _normalize_structured_list(
+        clean.get("name"),
+        NameEntry,
+        field_name="software.name",
+    )
+    clean["comments"] = _normalize_structured_list(
+        clean.get("comments"),
+        CommentEntry,
+        field_name="software.comments",
+    )
+    clean["supplementaryFiles"] = _normalize_structured_list(
+        clean.get("supplementaryFiles"),
+        File,
+        field_name="software.supplementaryFiles",
+    )
+
+    return Software(**clean)
 
 
 @recover_serializers
@@ -48,7 +236,12 @@ def recover_serializers(cls):
 class SBOM:
     # pylint: disable=too-many-public-methods
     # pylint: disable=R0902
-    systems: List[System] = field(default_factory=list)
+    bomUUID: str = field(default_factory=lambda: str(uuid_module.uuid4()))
+    bomFormat: str = "cytrics"
+    bomDescription: str = ""
+    specVersion: str = "1.0.1"
+    tools: Optional[List[Tool]] = None
+    authors: Optional[List[Author]] = None
     hardware: List[Hardware] = field(default_factory=list)
     software: List[Software] = field(default_factory=list)
     # relationships: Set[Relationship] = field(default_factory=set)  # (removed relationships field. Graph is now the single source of truth)
@@ -58,9 +251,6 @@ class SBOM:
             metadata=config(field_name="relationships", exclude=lambda _: True),
         )
     )
-    analysisData: List[AnalysisData] = field(default_factory=list)
-    observations: List[Observation] = field(default_factory=list)
-    starRelationships: Set[StarRelationship] = field(default_factory=set)
     software_lookup_by_sha256: Dict = field(default_factory=dict)
     fs_tree: nx.DiGraph = field(
         init=False,
@@ -91,71 +281,131 @@ class SBOM:
         metadata=config(exclude=lambda _: True),
     )
 
+    @classmethod
+    def _from_raw_dict(cls, raw: Dict[str, Any]) -> "SBOM":
+        """Rehydrate an SBOM from a validated raw CyTRICS document dict.
+
+        This is the explicit raw-document construction path used by
+        from_dict_override() and from_json_override().
+        """
+        if not isinstance(raw, dict):
+            raise TypeError("raw must be a dict")
+
+        tool_fields = {f.name for f in fields(Tool)}
+        author_fields = {f.name for f in fields(Author)}
+        hardware_fields = {f.name for f in fields(Hardware)}
+        software_fields = {f.name for f in fields(Software)}
+        relationship_fields = {f.name for f in fields(Relationship)}
+
+        raw_tools = raw.get("tools")
+        normalized_tools = None
+        if raw_tools is not None:
+            normalized_tools = []
+            for tool_data in raw_tools:
+                clean = {k: v for k, v in tool_data.items() if k in tool_fields}
+                normalized_tools.append(Tool(**clean))
+
+        raw_authors = raw.get("authors")
+        normalized_authors = None
+        if raw_authors is not None:
+            normalized_authors = []
+            for author_data in raw_authors:
+                clean = {k: v for k, v in author_data.items() if k in author_fields}
+                normalized_authors.append(Author(**clean))
+
+        normalized_hardware = []
+        for hw_data in raw.get("hardware", []):
+            clean = {k: v for k, v in hw_data.items() if k in hardware_fields}
+            normalized_hardware.append(_normalize_hardware_item(clean))
+
+        normalized_software = []
+        for sw_data in raw.get("software", []):
+            clean = {k: v for k, v in sw_data.items() if k in software_fields}
+            normalized_software.append(_normalize_software_item(clean))
+
+        normalized_relationships = []
+        for rel_data in raw.get("relationships", []):
+            clean = {k: v for k, v in rel_data.items() if k in relationship_fields}
+            normalized_relationships.append(Relationship(**clean))
+
+        return cls(
+            bomUUID=raw.get("bomUUID", str(uuid_module.uuid4())),
+            bomFormat=raw.get("bomFormat", "cytrics"),
+            bomDescription=raw.get("bomDescription", ""),
+            specVersion=raw.get("specVersion", "1.0.1"),
+            tools=normalized_tools,
+            authors=normalized_authors,
+            hardware=normalized_hardware,
+            software=normalized_software,
+            _loaded_relationships=normalized_relationships,
+        )
+
     def __post_init__(self):
-        # If called like SBOM(raw_dict), raw_dict will be in .systems
-        if isinstance(self.systems, dict) and not self.hardware and not self.software:
-            raw = self.systems
+        if not isinstance(self.bomUUID, str):
+            raise TypeError("bomUUID must be a string")
+        try:
+            parsed_bom_uuid = uuid_module.UUID(self.bomUUID)
+        except (ValueError, AttributeError, TypeError) as err:
+            raise ValueError(f"bomUUID must be a valid UUID string; got {self.bomUUID!r}") from err
+        if parsed_bom_uuid.version != 4:
+            raise ValueError(
+                f"bomUUID must be a valid RFC 4122 version 4 UUID string; got {self.bomUUID!r}"
+            )
 
-            # zero out every container
-            self.systems = []
-            self.hardware = []
-            self.software = []
-            self.analysisData = []
-            self.observations = []
-            self._loaded_relationships = []
-            self.starRelationships = set()
+        if not isinstance(self.bomFormat, str):
+            raise TypeError("bomFormat must be a string")
+        if self.bomFormat != "cytrics":
+            raise ValueError(f"bomFormat must be 'cytrics'; got {self.bomFormat!r}")
 
-            # prepare valid field-name sets
-            SYSTEM_FIELDS = {f.name for f in fields(System)}
-            HARDWARE_FIELDS = {f.name for f in fields(Hardware)}
-            SOFTWARE_FIELDS = {f.name for f in fields(Software)}
-            REL_FIELDS = {f.name for f in fields(Relationship)}
-            AD_FIELDS = {f.name for f in fields(AnalysisData)}
-            OBS_FIELDS = {f.name for f in fields(Observation)}
-            STAR_FIELDS = {f.name for f in fields(StarRelationship)}
+        if not isinstance(self.bomDescription, str):
+            raise TypeError("bomDescription must be a string")
 
-            # rehydrate systems
-            for sys_data in raw.get("systems", []):
-                clean = {k: v for k, v in sys_data.items() if k in SYSTEM_FIELDS}
-                self.systems.append(System(**clean))
+        if not isinstance(self.specVersion, str):
+            raise TypeError("specVersion must be a string")
+        if not _SPEC_VERSION_RE.fullmatch(self.specVersion):
+            raise ValueError(
+                f"specVersion must be a semantic version like '1.0.1'; got {self.specVersion!r}"
+            )
 
-            # rehydrate hardware
-            for hw_data in raw.get("hardware", []):
-                clean = {k: v for k, v in hw_data.items() if k in HARDWARE_FIELDS}
-                self.hardware.append(Hardware(**clean))
+        if self.tools is not None:
+            if not isinstance(self.tools, list):
+                raise TypeError("tools must be a list or None")
+            normalized_tools = []
+            for item in self.tools:
+                if isinstance(item, dict):
+                    item = Tool(**item)
+                if not isinstance(item, Tool):
+                    raise TypeError("All items in tools must be Tool objects")
+                normalized_tools.append(item)
+            self.tools = normalized_tools
 
-            # rehydrate software
-            for sw_data in raw.get("software", []):
-                clean = {k: v for k, v in sw_data.items() if k in SOFTWARE_FIELDS}
-                self.software.append(Software(**clean))
+        if self.authors is not None:
+            if not isinstance(self.authors, list):
+                raise TypeError("authors must be a list or None")
+            normalized_authors = []
+            for item in self.authors:
+                if isinstance(item, dict):
+                    item = Author(**item)
+                if not isinstance(item, Author):
+                    raise TypeError("All items in authors must be Author objects")
+                normalized_authors.append(item)
+            self.authors = normalized_authors
 
-            # rehydrate relationships into the loader list
-            for rel_data in raw.get("relationships", []):
-                clean = {k: v for k, v in rel_data.items() if k in REL_FIELDS}
-                self._loaded_relationships.append(Relationship(**clean))
+        if not isinstance(self.hardware, list):
+            raise TypeError("hardware must be a list")
+        normalized_hardware = []
+        for item in self.hardware:
+            normalized_hardware.append(_normalize_hardware_item(item))
+        self.hardware = normalized_hardware
 
-            # rehydrate analysisData
-            for ad_data in raw.get("analysisData", []):
-                clean = {k: v for k, v in ad_data.items() if k in AD_FIELDS}
-                self.analysisData.append(AnalysisData(**clean))
+        if not isinstance(self.software, list):
+            raise TypeError("software must be a list")
+        normalized_software = []
+        for item in self.software:
+            normalized_software.append(_normalize_software_item(item))
+        self.software = normalized_software
 
-            # rehydrate observations
-            for obs_data in raw.get("observations", []):
-                clean = {k: v for k, v in obs_data.items() if k in OBS_FIELDS}
-                self.observations.append(Observation(**clean))
-
-            # rehydrate starRelationships
-            for sr_data in raw.get("starRelationships", []):
-                clean = {k: v for k, v in sr_data.items() if k in STAR_FIELDS}
-                self.starRelationships.add(StarRelationship(**clean))
-
-        # Strip out internal-only fields so dataclass logic and JSON serializers ignore them
-        # pylint: disable=access-member-before-definition
-        self.__dataclass_fields__ = {
-            k: v for k, v in self.__dataclass_fields__.items() if k not in INTERNAL_FIELDS
-        }
-
-        # Build the Relationship graph from systems/software and loaded relationships
+        # Build the Relationship graph from software and loaded relationships
         self.build_rel_graph()
 
         # Initialize fs_tree
@@ -488,15 +738,18 @@ class SBOM:
         return sorted(results)
 
     def build_rel_graph(self) -> None:
-        """Rebuild the directed graph from systems, software, and any loaded relationships."""
+        """Rebuild the directed graph from software and any loaded relationships."""
         self.graph = nx.MultiDiGraph()
-        for sys in self.systems:
-            self.graph.add_node(sys.UUID, type="System")
         for sw in self.software:
             self.graph.add_node(sw.UUID, type="Software")
         # rehydrate edges from loaded JSON (if any)
         for rel in self._loaded_relationships:
-            self.graph.add_edge(rel.xUUID, rel.yUUID, key=rel.relationship)
+            self.graph.add_edge(
+                rel.xUUID,
+                rel.yUUID,
+                key=rel.relationship,
+                comments=rel.comments,
+            )
 
     def add_relationship(self, rel: Relationship) -> None:
         # The Relationship object get wired into the graph key=...
@@ -506,20 +759,44 @@ class SBOM:
             self.graph.add_node(rel.yUUID, type="Unknown")
 
         # the edge key is the relationship type
-        self.graph.add_edge(rel.xUUID, rel.yUUID, key=rel.relationship)
+        self.graph.add_edge(
+            rel.xUUID,
+            rel.yUUID,
+            key=rel.relationship,
+            comments=rel.comments,
+        )
 
-    def create_relationship(self, xUUID: str, yUUID: str, relationship: str) -> Relationship:
+    def create_relationship(
+        self,
+        xUUID: str,
+        yUUID: str,
+        relationship: str,
+        comments: Optional[List[CommentEntry]] = None,
+    ) -> Relationship:
+        # Validate first so invalid data never reaches the graph
+        rel = Relationship(
+            xUUID=xUUID,
+            yUUID=yUUID,
+            relationship=relationship,
+            comments=comments,
+        )
+
         # ensure nodes exist
-        if not self.graph.has_node(xUUID):
-            self.graph.add_node(xUUID, type="Unknown")
-        if not self.graph.has_node(yUUID):
-            self.graph.add_node(yUUID, type="Unknown")
+        if not self.graph.has_node(rel.xUUID):
+            self.graph.add_node(rel.xUUID, type="Unknown")
+        if not self.graph.has_node(rel.yUUID):
+            self.graph.add_node(rel.yUUID, type="Unknown")
 
         # record the edge, keyed by the relationship
-        self.graph.add_edge(xUUID, yUUID, key=relationship)
+        self.graph.add_edge(
+            rel.xUUID,
+            rel.yUUID,
+            key=rel.relationship,
+            comments=rel.comments,
+        )
 
-        # return a Relationship object for backwards-compat
-        return Relationship(xUUID, yUUID, relationship)
+        # return the validated Relationship object for backwards-compat
+        return rel
 
     def find_relationship_object(self, r: Relationship) -> bool:
         """
@@ -572,6 +849,25 @@ class SBOM:
         # Add a node for the new software
         if not self.graph.has_node(sw.UUID):
             self.graph.add_node(sw.UUID, type="Software")
+
+        self._add_software_to_fs_tree(sw)
+
+    def _refresh_merged_software_state(
+        self, sw: Software, *, previous_sha256: Optional[str] = None
+    ) -> None:
+        """
+        Refresh SBOM-level indexes and derived structures after Software.merge()
+        mutates an existing Software entry in place.
+        """
+        if (
+            previous_sha256 is not None
+            and previous_sha256 != sw.sha256
+            and self.software_lookup_by_sha256.get(previous_sha256) is sw
+        ):
+            del self.software_lookup_by_sha256[previous_sha256]
+
+        if sw.sha256 is not None:
+            self.software_lookup_by_sha256[sw.sha256] = sw
 
         self._add_software_to_fs_tree(sw)
 
@@ -1084,7 +1380,7 @@ class SBOM:
             # 3. Merge alias metadata into Software.metadata
             # ------------------------------------------------------------------
             if sw.metadata is None:
-                sw.metadata = []
+                sw.update_field("metadata", [])
 
             def _merge_md(key: str, values: set[str], *, _sw: Software = sw) -> None:
                 """Merge or append a metadata entry for the given key, avoiding duplication."""
@@ -1105,10 +1401,19 @@ class SBOM:
             _merge_md("installPathSymlinks", path_symlinks)
 
             # Optional: legacy-style alias duplication into fileName[]
-            for alias in file_symlinks:
-                if alias not in sw.fileName:
-                    sw.fileName.append(alias)
-                    logger.debug(f"[fs_tree] Added alias '{alias}' to fileName for {sw.UUID}")
+            if file_symlinks:
+                merged_file_names = list(sw.fileName) if sw.fileName is not None else []
+                added_aliases = []
+
+                for alias in sorted(file_symlinks):
+                    if alias not in merged_file_names:
+                        merged_file_names.append(alias)
+                        added_aliases.append(alias)
+
+                if added_aliases:
+                    sw.update_field("fileName", merged_file_names)
+                    for alias in added_aliases:
+                        logger.debug(f"[fs_tree] Added alias '{alias}' to fileName for {sw.UUID}")
 
         logger.debug("[fs_tree] Completed symlink metadata injection pass")
 
@@ -1116,32 +1421,35 @@ class SBOM:
     def create_software(
         self,
         *,  # all arguments are keyword-only
-        name: Optional[str] = None,
+        softwareType: Optional[List[str]] = None,
+        name: Optional[List[NameEntry]] = None,
         size: Optional[int] = None,
         sha1: Optional[str] = None,
         sha256: Optional[str] = None,
         md5: Optional[str] = None,
+        notHashable: Optional[bool] = None,
         fileName: Optional[List[str]] = None,
         installPath: Optional[List[str]] = None,
         containerPath: Optional[List[str]] = None,
-        captureTime: Optional[int] = None,
+        captureTime: Optional[str] = None,
         version: Optional[str] = None,
         vendor: Optional[List[str]] = None,
         description: Optional[str] = None,
         relationshipAssertion: Optional[str] = None,
-        comments: Optional[str] = None,
-        metadata: Optional[List[object]] = None,
+        comments: Optional[List[CommentEntry]] = None,
+        metadata: Optional[List[Dict[str, object]]] = None,
         supplementaryFiles: Optional[List[File]] = None,
-        provenance: Optional[List[SoftwareProvenance]] = None,
-        recordedInstitution: Optional[str] = None,
-        components: Optional[List[SoftwareComponent]] = None,
     ) -> Software:
+        captureTime = validate_capture_time(captureTime, nullable=True)
+
         sw = Software(
+            softwareType=softwareType,
             name=name,
             size=size,
             sha1=sha1,
             sha256=sha256,
             md5=md5,
+            notHashable=notHashable,
             fileName=fileName,
             installPath=installPath,
             containerPath=containerPath,
@@ -1151,60 +1459,35 @@ class SBOM:
             description=description,
             relationshipAssertion=relationshipAssertion,
             comments=comments,
-            metadata=metadata,
+            metadata=metadata if metadata is not None else [],
             supplementaryFiles=supplementaryFiles,
-            provenance=provenance,
-            recordedInstitution=recordedInstitution,
-            components=components,
         )
-        self.software_lookup_by_sha256[sw.sha256] = sw
-        self.software.append(sw)
+        self.add_software(sw)
         return sw
 
     def merge(self, sbom_m: SBOM):
         # merged/old to new UUID map
         uuid_updates: Dict[str, str] = {}
 
-        # 1) Merge systems
-        if sbom_m.systems:
-            for system in sbom_m.systems:
-                # check for duplicate UUID/name, merge with existing entry
-                if existing_system := self._find_systems_entry(uuid=system.UUID, name=system.name):
-                    # merge system entries
-                    u1, u2 = existing_system.merge(system)
-                    logger.info(f"MERGE_DUPLICATE_SYS: uuid1={u1}, uuid2={u2}")
-                    uuid_updates[u2] = u1
-
-                    # Redirect any existing edges from u2 -> u1 in self.graph
-                    if hasattr(self, "graph") and self.graph.has_node(u2):
-                        # for each predecessor of u2, add edge (pred -> u1)
-                        # Redirect incoming edges to the merged node u1
-                        for pred, _, key, attrs in self.graph.in_edges(u2, keys=True, data=True):
-                            self.graph.add_edge(pred, u1, key=key, **attrs)
-
-                        # For each successor of u2, add edge (u1 -> succ)
-                        # Redirect outgoing edges from u2 -> u1
-                        for _, succ, key, attrs in self.graph.out_edges(u2, keys=True, data=True):
-                            self.graph.add_edge(u1, succ, key=key, **attrs)
-
-                        # Then drop the old node
-                        self.graph.remove_node(u2)
-
-                else:
-                    self.systems.append(system)
-
-                    # Add the new system node into the graph
-                    if hasattr(self, "graph"):
-                        self.graph.add_node(system.UUID, type="System")
-
-        # 2) Merge software
+        # 1) Merge software
         if sbom_m.software:
             for sw in sbom_m.software:
                 # NOTE: Do we want to pass in teh UUID here? What if we have two different UUIDs for the same file? Should hashes be required?
                 if existing_sw := self._find_software_entry(
                     uuid=sw.UUID, sha256=sw.sha256, md5=sw.md5, sha1=sw.sha1
                 ):
+                    if Software.check_for_hash_collision(existing_sw, sw):
+                        raise ValueError(
+                            "Refusing to merge software entries with colliding hash data: "
+                            f"{existing_sw.UUID} and {sw.UUID}"
+                        )
+
+                    previous_sha256 = existing_sw.sha256
                     u1, u2 = existing_sw.merge(sw)
+                    self._refresh_merged_software_state(
+                        existing_sw,
+                        previous_sha256=previous_sha256,
+                    )
                     logger.info(f"MERGE DUPLICATE: uuid1={u1}, uuid2={u2}")
                     uuid_updates[u2] = u1
 
@@ -1221,14 +1504,16 @@ class SBOM:
                         self.graph.remove_node(u2)
 
                 else:
-                    self.software.append(sw)
+                    # Route brand-new software through the normal SBOM add path so
+                    # indexes and derived structures stay in sync.
+                    self.add_software(sw)
 
-                    # Add the new software node in the graph
-                    if hasattr(self, "graph"):
-                        self.graph.add_node(sw.UUID, type="Software")
+        # Rebuild any symlink edges described in merged metadata after software
+        # entries have been inserted or mutated in place.
+        self._rebuild_fs_tree_from_metadata()
 
-        # 3) Merge relationships from the incoming SBOM's MultiDiGraph
-        for src, dst, rel_type in sbom_m.graph.edges(keys=True):
+        # 2) Merge relationships from the incoming SBOM's MultiDiGraph
+        for src, dst, rel_type, attrs in sbom_m.graph.edges(keys=True, data=True):
             # Skip path/symlink edges during merge as well
             if str(rel_type).lower() == "symlink":
                 continue
@@ -1237,74 +1522,68 @@ class SBOM:
             if sbom_m.graph.nodes.get(dst, {}).get("type") == "path":
                 continue
 
-            # apply any UUID remaps from merged systems/software
+            # apply any UUID remaps from merged software
             xUUID = uuid_updates.get(src, src)
             yUUID = uuid_updates.get(dst, dst)
+            incoming_comments = attrs.get("comments")
 
-            # skip exact duplicates
+            # skip exact duplicates, but merge relationship comments when present
             if self.graph.has_edge(xUUID, yUUID, key=rel_type):
-                logger.info(f"DUPLICATE RELATIONSHIP: {xUUID} -> {yUUID} [{rel_type}]")
+                existing_attrs = self.graph.get_edge_data(xUUID, yUUID, key=rel_type) or {}
+                existing_comments = existing_attrs.get("comments") or []
+                incoming_comments = incoming_comments or []
+
+                merged_comments = []
+                seen_comments = set()
+
+                for comment in [*existing_comments, *incoming_comments]:
+                    comment_key = json.dumps(
+                        asdict(comment) if hasattr(comment, "__dataclass_fields__") else comment,
+                        sort_keys=True,
+                    )
+                    if comment_key not in seen_comments:
+                        seen_comments.add(comment_key)
+                        merged_comments.append(comment)
+
+                self.graph[xUUID][yUUID][rel_type]["comments"] = merged_comments or None
+
+                if merged_comments:
+                    logger.info(f"MERGED RELATIONSHIP COMMENTS: {xUUID} -> {yUUID} [{rel_type}]")
+                else:
+                    logger.info(f"DUPLICATE RELATIONSHIP: {xUUID} -> {yUUID} [{rel_type}]")
             else:
                 # add a new edge, keyed by the relationship
-                self.graph.add_edge(xUUID, yUUID, key=rel_type)
+                self.graph.add_edge(
+                    xUUID,
+                    yUUID,
+                    key=rel_type,
+                    comments=incoming_comments,
+                )
 
-        # 4) Rewrite any containerPath UUIDs
+        # 4) Rewrite any containerPath UUIDs, preserving order and validating updates
         for sw in self.software:
-            if sw.containerPath:
-                for idx, path in enumerate(sw.containerPath):
-                    u = path[:36]
-                    # if container path starts with an invalid uuid4, sbom might not be valid
-                    if self.is_valid_uuid4(u):
-                        if u in uuid_updates:
-                            updated_path = path.replace(u, uuid_updates[u], 1)
-                            sw.containerPath[idx] = updated_path
-                # remove duplicates
-                sw.containerPath = [*set(sw.containerPath)]
+            if not sw.containerPath:
+                continue
+
+            rewritten_container_paths = []
+            seen_paths = set()
+
+            for path in sw.containerPath:
+                updated_path = path
+                u = path[:36]
+
+                # if containerPath starts with a valid uuid4, rewrite it when merged
+                if self.is_valid_uuid4(u) and u in uuid_updates:
+                    updated_path = path.replace(u, uuid_updates[u], 1)
+
+                if updated_path not in seen_paths:
+                    seen_paths.add(updated_path)
+                    rewritten_container_paths.append(updated_path)
+
+            if rewritten_container_paths != sw.containerPath:
+                sw.update_field("containerPath", rewritten_container_paths)
 
         logger.info(f"UUID UPDATES: {uuid_updates}")
-
-        # 5) Merge analysisData, observations, starRelationships
-        for ad in sbom_m.analysisData:
-            self.analysisData.append(ad)
-        for obs in sbom_m.observations:
-            self.observations.append(obs)
-        for star_rel in sbom_m.starRelationships:
-            # rewrite UUIDs before doing the search
-            if star_rel.xUUID in uuid_updates:
-                star_rel.xUUID = uuid_updates[star_rel.xUUID]
-            if star_rel.yUUID in uuid_updates:
-                star_rel.yUUID = uuid_updates[star_rel.yUUID]
-            if existing_star_rel := self._find_star_relationship_entry(
-                xUUID=star_rel.xUUID,
-                yUUID=star_rel.yUUID,
-                relationship=star_rel.relationship,
-            ):
-                logger.info(f"DUPLICATE STAR RELATIONSHIP: {existing_star_rel}")
-            else:
-                self.starRelationships.add(star_rel)
-
-    def _find_systems_entry(
-        self, uuid: Optional[str] = None, name: Optional[str] = None
-    ) -> Optional[System]:
-        """Merge helper function to find and return
-        the matching system entry in the provided sbom.
-
-        Args:
-            uuid (Optional[str]): The uuid of the desired system entry.
-            name (Optional[str]): The name of the desired system entry.
-
-        Returns:
-            Optional[System]: The system found that matches the given criteria, otherwise None.
-        """
-        for system in self.systems:
-            if uuid:
-                if system.UUID != uuid:
-                    continue
-            if name:
-                if system.name != name:
-                    continue
-            return system
-        return None
 
     def _find_software_entry(
         self,
@@ -1367,7 +1646,7 @@ class SBOM:
         Returns:
             Optional[Relationship]: The relationship entry found that matches the given criteria, otherwise None.
         """
-        for u, v, key in self.graph.edges(keys=True):
+        for u, v, key, attrs in self.graph.edges(keys=True, data=True):
             if xUUID and u != xUUID:
                 continue
             if yUUID and v != yUUID:
@@ -1375,37 +1654,12 @@ class SBOM:
             if relationship and key.upper() != relationship.upper():
                 continue
             # reconstruct the Relationship object for merge-logic
-            return Relationship(xUUID=u, yUUID=v, relationship=key)
-        return None
-
-    def _find_star_relationship_entry(
-        self,
-        xUUID: Optional[str] = None,
-        yUUID: Optional[str] = None,
-        relationship: Optional[str] = None,
-    ) -> Optional[StarRelationship]:
-        """Merge helper function to find and return
-        the matching star relationship entry in the provided sbom.
-
-        Args:
-            xUUID (Optional[str]): The xUUID of the desired relationship entry.
-            yUUID (Optional[str]): The yUUID of the desired relationship entry.
-            relationship (Optional[str]): The relationship type of the desired relationship entry.
-
-        Returns:
-            Optional[StarRelationship]: The star relationship found that matches the given criteria, otherwise None.
-        """
-        for rel in self.starRelationships:
-            if xUUID:
-                if rel.xUUID != xUUID:
-                    continue
-            if yUUID:
-                if rel.yUUID != yUUID:
-                    continue
-            if relationship:
-                if rel.relationship != relationship:
-                    continue
-            return rel
+            return Relationship(
+                xUUID=u,
+                yUUID=v,
+                relationship=key,
+                comments=attrs.get("comments"),
+            )
         return None
 
     def is_valid_uuid4(self, u: str) -> bool:
@@ -1445,6 +1699,19 @@ class SBOM:
                 parents.append(u)
         return parents
 
+    @classmethod
+    def from_dict_override(cls, kvs: Dict[str, Any]) -> "SBOM":
+        if not isinstance(kvs, dict):
+            raise TypeError("SBOM.from_dict() requires a dict input")
+
+        _validate_cytrics_document(kvs, context="Input SBOM")
+        return cls._from_raw_dict(kvs)
+
+    @classmethod
+    def from_json_override(cls, s: str, **kwargs) -> "SBOM":
+        data = json.loads(s, **kwargs)
+        return cls.from_dict(data)
+
     def to_dict_override(self) -> dict:
         """
         Convert the SBOM object into a serializable dictionary for JSON output,
@@ -1481,34 +1748,19 @@ class SBOM:
             "software_lookup_by_sha256",
         }
 
-        # Build data dict by iterating over fields, skipping internals
-        # This avoids deep-copying large NetworkX graphs via asdict()
+        # Build data dict by iterating over fields, skipping internals.
+        # This avoids deep-copying large NetworkX graphs via asdict() and
+        # lets us omit absent optional File fields instead of emitting null.
         data = {}
         for fld in fields(self):
             if fld.name in EXCLUDE_FIELDS:
                 continue
             value = getattr(self, fld.name)
-
-            # Convert dataclass instances to dicts
-            if isinstance(value, list):
-                data[fld.name] = [
-                    asdict(item) if hasattr(item, "__dataclass_fields__") else item
-                    for item in value
-                ]
-            elif isinstance(value, set):
-                # Convert sets to sorted lists for JSON compatibility
-                data[fld.name] = [
-                    asdict(item) if hasattr(item, "__dataclass_fields__") else item
-                    for item in value
-                ]
-            elif hasattr(value, "__dataclass_fields__"):
-                data[fld.name] = asdict(value)
-            else:
-                data[fld.name] = value
+            data[fld.name] = _serialize_for_schema(value)
 
         # Only emit logical relationships (exclude filesystem/path symlinks)
         rels = []
-        for u, v, key in self.graph.edges(keys=True):
+        for u, v, key, attrs in self.graph.edges(keys=True, data=True):
             # Skip symlink edges
             if str(key).lower() == "symlink":
                 continue
@@ -1517,10 +1769,20 @@ class SBOM:
             vtype = self.graph.nodes.get(v, {}).get("type")
             if utype == "path" or vtype == "path":
                 continue
-            rels.append({"xUUID": u, "yUUID": v, "relationship": key})
+
+            rel_data = {"xUUID": u, "yUUID": v, "relationship": key}
+            comments = attrs.get("comments")
+            if comments is not None:
+                rel_data["comments"] = [
+                    asdict(item) if hasattr(item, "__dataclass_fields__") else item
+                    for item in comments
+                ]
+
+            rels.append(rel_data)
 
         data["relationships"] = rels
 
+        _validate_cytrics_document(data, context="Serialized SBOM")
         return data
 
     def to_json_override(self, *args, **kwargs) -> str:

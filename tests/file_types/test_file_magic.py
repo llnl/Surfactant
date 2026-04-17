@@ -9,6 +9,8 @@ import zlib
 
 import pytest
 
+from surfactant.filetypeid.id_extension import identify_file_type as identify_extension_file_type
+from surfactant.filetypeid.id_hex import identify_file_type as identify_hex_file_type
 from surfactant.filetypeid.id_magic import identify_file_type
 
 # Files are relative to tests/data/
@@ -53,6 +55,20 @@ def test_zlib_basic(tmp_path):
         write_to = tmp_path / f"basic_{compress_level}.zlib"
         write_to.write_bytes(zlib.compress(b"hello", level=compress_level))
         assert identify_file_type(write_to) == ["ZLIB"]
+
+
+def test_extension_id_returns_list(tmp_path):
+    write_to = tmp_path / "hello.py"
+    write_to.write_text("print('hello')\n", encoding="utf-8")
+
+    assert identify_extension_file_type(write_to) == ["PYTHON"]
+
+
+def test_hex_id_returns_list(tmp_path):
+    write_to = tmp_path / "sample.hex"
+    write_to.write_text(":10010000214601360121470136007EFE09D2190140\n", encoding="utf-8")
+
+    assert identify_hex_file_type(write_to) == ["INTEL_HEX"]
 
 
 @pytest.mark.skipif(

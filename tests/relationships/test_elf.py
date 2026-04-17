@@ -6,10 +6,19 @@
 from surfactant.plugin.manager import get_plugin_manager
 from surfactant.sbomtypes import SBOM, Relationship, Software
 
+BROKER_UUID = "11111111-1111-4111-8111-111111111111"
+HELICS_APPS_UUID = "22222222-2222-4222-8222-222222222222"
+ZMQ_UUID = "33333333-3333-4333-8333-333333333333"
+COMM_UUID = "44444444-4444-4444-8444-444444444444"
+COMM_CPP_UUID = "55555555-5555-4555-8555-555555555555"
+
 sbom = SBOM(
+    bomFormat="cytrics",
+    specVersion="1.0.1",
     software=[
         Software(
-            UUID="abc",
+            UUID=BROKER_UUID,
+            notHashable=True,
             fileName=["helics_broker"],
             installPath=["/usr/local/bin/helics_broker"],
             metadata=[
@@ -23,7 +32,8 @@ sbom = SBOM(
             ],
         ),
         Software(
-            UUID="xyz",
+            UUID=HELICS_APPS_UUID,
+            notHashable=True,
             fileName=["libhelicscpp-apps.so"],
             installPath=["/usr/local/lib/libhelicscpp-apps.so"],
             metadata=[
@@ -37,7 +47,8 @@ sbom = SBOM(
             ],
         ),
         Software(
-            UUID="def",
+            UUID=ZMQ_UUID,
+            notHashable=True,
             fileName=["libzmq.so"],
             installPath=["/lib/libzmq.so", "/customlib/abspath/libzmq.so"],
             metadata=[
@@ -51,7 +62,8 @@ sbom = SBOM(
             ],
         ),
         Software(
-            UUID="hij",
+            UUID=COMM_UUID,
+            notHashable=True,
             fileName=["libcomm.so"],
             installPath=["/customlib/relpath/misc/libcomm.so"],
             metadata=[
@@ -65,7 +77,8 @@ sbom = SBOM(
             ],
         ),
         Software(
-            UUID="klm",
+            UUID=COMM_CPP_UUID,
+            notHashable=True,
             fileName=["libcomm-cpp.so"],
             installPath=["/customlib/relpath/libcomm-cpp.so"],
             metadata=[
@@ -87,7 +100,9 @@ def test_relative_paths():
     sw = sbom.software[4]
     md = sw.metadata[0]
     # located in /customlib/relpath/misc, dependency specified as being under misc/ relative path
-    assert elfPlugin.establish_relationships(sbom, sw, md) == [Relationship("klm", "hij", "Uses")]
+    assert elfPlugin.establish_relationships(sbom, sw, md) == [
+        Relationship(COMM_CPP_UUID, COMM_UUID, "Uses")
+    ]
 
 
 def test_absolute_paths():
@@ -95,7 +110,9 @@ def test_absolute_paths():
     sw = sbom.software[3]
     md = sw.metadata[0]
     # located in /customlib/abspath
-    assert elfPlugin.establish_relationships(sbom, sw, md) == [Relationship("hij", "def", "Uses")]
+    assert elfPlugin.establish_relationships(sbom, sw, md) == [
+        Relationship(COMM_UUID, ZMQ_UUID, "Uses")
+    ]
 
 
 def test_default_system_paths():
@@ -103,7 +120,9 @@ def test_default_system_paths():
     sw = sbom.software[1]
     md = sw.metadata[0]
     # located in /lib
-    assert elfPlugin.establish_relationships(sbom, sw, md) == [Relationship("xyz", "def", "Uses")]
+    assert elfPlugin.establish_relationships(sbom, sw, md) == [
+        Relationship(HELICS_APPS_UUID, ZMQ_UUID, "Uses")
+    ]
 
 
 def test_dst_expansion():
@@ -111,4 +130,6 @@ def test_dst_expansion():
     sw = sbom.software[0]
     md = sw.metadata[0]
     # uses origin expansion
-    assert elfPlugin.establish_relationships(sbom, sw, md) == [Relationship("abc", "xyz", "Uses")]
+    assert elfPlugin.establish_relationships(sbom, sw, md) == [
+        Relationship(BROKER_UUID, HELICS_APPS_UUID, "Uses")
+    ]

@@ -6,49 +6,94 @@ from surfactant.relationships import elf_relationship
 from surfactant.relationships.elf_relationship import establish_relationships
 from surfactant.sbomtypes import SBOM, Relationship, Software
 
+SW1_UUID = "11111111-1111-4111-8111-111111111111"
+SW2_UUID = "22222222-2222-4222-8222-222222222222"
+SW3A_UUID = "33333333-3333-4333-8333-333333333333"
+SW3B_UUID = "44444444-4444-4444-8444-444444444444"
+SW4_CONSUMER_UUID = "55555555-5555-4555-8555-555555555555"
+SW4_UUID = "66666666-6666-4666-8666-666666666666"
+SW5_UUID = "77777777-7777-4777-8777-777777777777"
+SW6_UUID = "88888888-8888-4888-8888-888888888888"
+SW7_UUID = "99999999-9999-4999-8999-999999999999"
+SW8_UUID = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
+SW9_UUID = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"
+BIN_UUID = "cccccccc-cccc-4ccc-8ccc-cccccccccccc"
+UNRELATED_UUID = "dddddddd-dddd-4ddd-8ddd-dddddddddddd"
+FALSEMATCH_UUID = "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee"
+
 
 @pytest.fixture
 def example_sbom():
-    sbom = SBOM()
+    sbom = SBOM(
+        bomFormat="cytrics",
+        specVersion="1.0.1",
+    )
 
-    sw1 = Software(UUID="uuid-1", fileName=["libfoo.so.1"], installPath=["/usr/lib/libfoo.so.1"])
-    sw2 = Software(UUID="uuid-2", fileName=["libbar.so"], installPath=["/opt/myapp/lib/libbar.so"])
+    sw1 = Software(
+        UUID=SW1_UUID,
+        notHashable=True,
+        fileName=["libfoo.so.1"],
+        installPath=["/usr/lib/libfoo.so.1"],
+    )
+    sw2 = Software(
+        UUID=SW2_UUID,
+        notHashable=True,
+        fileName=["libbar.so"],
+        installPath=["/opt/myapp/lib/libbar.so"],
+    )
 
     sw3a = Software(
-        UUID="uuid-3a",
+        UUID=SW3A_UUID,
+        notHashable=True,
         installPath=["/opt/myapp/bin/myapp"],
         metadata=[{"elfDependencies": ["/usr/lib/libfoo.so.1"]}],
     )
     sw3b = Software(
-        UUID="uuid-3b",
+        UUID=SW3B_UUID,
+        notHashable=True,
         installPath=["/opt/myapp/bin/myapp"],
         metadata=[{"elfDependencies": ["libbar.so"], "elfRunpath": ["$ORIGIN/../lib"]}],
     )
     sw4_consumer = Software(
-        UUID="uuid-4-consumer",
+        UUID=SW4_CONSUMER_UUID,
+        notHashable=True,
         installPath=["/bin/testbin"],
         metadata=[{"elfDependencies": ["libxyz.so"]}],
     )
     sw4 = Software(
-        UUID="uuid-4",
+        UUID=SW4_UUID,
+        notHashable=True,
         fileName=["libxyz.so"],
         installPath=["/lib/libxyz.so"],
         metadata=[{"elfDependencies": ["libxyz.so"]}],
     )
-    sw5 = Software(UUID="uuid-5", fileName=["libdep.so"], installPath=["/app/lib/libdep.so"])
+    sw5 = Software(
+        UUID=SW5_UUID,
+        notHashable=True,
+        fileName=["libdep.so"],
+        installPath=["/app/lib/libdep.so"],
+    )
     sw6 = Software(
-        UUID="uuid-6",
+        UUID=SW6_UUID,
+        notHashable=True,
         installPath=["/app/bin/mybin"],
         metadata=[{"elfDependencies": ["libdep.so"], "elfRunpath": ["$ORIGIN/../lib"]}],
     )
     sw7 = Software(
-        UUID="uuid-7",
+        UUID=SW7_UUID,
+        notHashable=True,
         installPath=["/legacy/bin/legacyapp"],
         metadata=[{"elfDependencies": ["libbar.so"], "elfRpath": ["/opt/myapp/lib"]}],
     )
-    sw8 = Software(UUID="uuid-8", fileName=["libalias.so"], installPath=["/opt/alt/lib/libreal.so"])
+    sw8 = Software(
+        UUID=SW8_UUID,
+        notHashable=True,
+        fileName=["libalias.so"],
+        installPath=["/opt/alt/lib/libreal.so"],
+    )
     sw9 = Software(
-        UUID="uuid-9",
+        UUID=SW9_UUID,
+        notHashable=True,
         installPath=["/opt/alt/bin/app"],
         metadata=[{"elfDependencies": ["libalias.so"], "elfRunpath": ["/opt/alt/lib"]}],
     )
@@ -64,12 +109,12 @@ def example_sbom():
     sbom.expand_pending_file_symlinks()
 
     return sbom, {
-        "absolute": (sw3a, "uuid-1"),
-        "relative": (sw3b, "uuid-2"),
-        "system": (sw4_consumer, "uuid-4"),
-        "origin": (sw6, "uuid-5"),
-        "rpath": (sw7, "uuid-2"),
-        "symlink": (sw9, "uuid-8"),
+        "absolute": (sw3a, SW1_UUID),
+        "relative": (sw3b, SW2_UUID),
+        "system": (sw4_consumer, SW4_UUID),
+        "origin": (sw6, SW5_UUID),
+        "rpath": (sw7, SW2_UUID),
+        "symlink": (sw9, SW8_UUID),
     }
 
 
@@ -121,19 +166,26 @@ def test_no_match_edge_case():
     Expect no relationships.
     """
     binary = Software(
-        UUID="bin-uuid",
+        UUID=BIN_UUID,
+        notHashable=True,
         fileName=["mybin"],
         installPath=["/some/bin/mybin"],
         metadata=[{"elfDependencies": ["libnotfound.so"], "elfRunpath": ["/some/lib"]}],
     )
 
     unrelated = Software(
-        UUID="unrelated-uuid",
+        UUID=UNRELATED_UUID,
+        notHashable=True,
         fileName=["libsomethingelse.so"],
         installPath=["/unrelated/path/libsomethingelse.so"],
     )
 
-    sbom = SBOM(systems=[], hardware=[], software=[binary, unrelated])
+    sbom = SBOM(
+        bomFormat="cytrics",
+        specVersion="1.0.1",
+        hardware=[],
+        software=[binary, unrelated],
+    )
 
     metadata = binary.metadata[0]
     results = establish_relationships(sbom, binary, metadata)
@@ -148,7 +200,8 @@ def test_symlink_heuristic_guard():
     fileName matches but installPath is in a different directory.
     """
     binary = Software(
-        UUID="bin-uuid",
+        UUID=BIN_UUID,
+        notHashable=True,
         fileName=["myapp"],
         installPath=["/opt/app/bin/myapp"],
         metadata=[{"elfDependencies": ["libalias.so"], "elfRunpath": ["/opt/app/lib"]}],
@@ -156,15 +209,21 @@ def test_symlink_heuristic_guard():
 
     # Same file name, but located in a different directory -> should NOT match
     candidate = Software(
-        UUID="falsematch-uuid", fileName=["libalias.so"], installPath=["/different/dir/libalias.so"]
+        UUID=FALSEMATCH_UUID,
+        notHashable=True,
+        fileName=["libalias.so"],
+        installPath=["/different/dir/libalias.so"],
     )
 
-    sbom = SBOM(systems=[], hardware=[], software=[binary, candidate])
+    sbom = SBOM(
+        bomFormat="cytrics",
+        specVersion="1.0.1",
+        hardware=[],
+        software=[binary, candidate],
+    )
 
     metadata = binary.metadata[0]
     results = establish_relationships(sbom, binary, metadata)
 
     assert results is not None
-    assert all(rel.yUUID != "falsematch-uuid" for rel in results), (
-        "Heuristic should not have matched"
-    )
+    assert all(rel.yUUID != FALSEMATCH_UUID for rel in results), "Heuristic should not have matched"

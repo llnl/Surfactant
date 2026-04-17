@@ -1,11 +1,13 @@
 import json
 import subprocess
-import time
 from typing import List, Optional
 
 import surfactant.plugin
 from surfactant.plugin.manager import get_plugin_manager
 from surfactant.sbomtypes import SBOM, Relationship, Software
+from surfactant.sbomtypes._comment import CommentEntry
+from surfactant.sbomtypes._name import NameEntry
+from surfactant.utils.capture_time import utc_now_rfc3339
 
 
 @surfactant.plugin.hookimpl
@@ -27,22 +29,30 @@ def extract_file_info(
                 # TODO (Ryan) discuss how to handle software entry without a hash with Lucas in the CyTRICS SBOM schema
                 sha256=i["id"],
                 md5=None,
-                name=[i["name"]],
+                # TODO: Revisit Syft nameType mapping. "product name" is a reasonable fallback
+                # for i["name"], but if Syft provides canonical identifiers such as purl or CPE,
+                # prefer using more specific NameEntry types instead.
+                name=[NameEntry(nameValue=i["name"], nameType="product name")],
                 fileName=None,
                 installPath=[i["locations"][0]["path"]],
                 containerPath=[filename],
                 size=i["metadata"]["installedSize"],
-                captureTime=int(time.time()),
+                captureTime=utc_now_rfc3339(),
                 version=i["metadata"]["version"],
                 vendor=[i["metadata"]["maintainer"]],
                 description="",
                 relationshipAssertion="Unknown",
-                comments="Discovered using the Syft plugin with this cataloger: " + i["foundBy"],
+                comments=[
+                    CommentEntry(
+                        comment="Discovered using the Syft plugin with this cataloger: "
+                        + i["foundBy"]
+                    )
+                ],
                 metadata=[],
                 supplementaryFiles=[],
-                provenance=None,
-                components=[],
             )
+            # TODO: migrate Syft-discovered file paths to sbomtypes.File objects
+            # before storing them in supplementaryFiles.
             for file in i["metadata"]["files"]:
                 if file["path"] not in sw_entry.supplementaryFiles:
                     sw_entry.supplementaryFiles.append(file["path"])

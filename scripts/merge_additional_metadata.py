@@ -4,9 +4,12 @@
 # SPDX-License-Identifier: MIT
 
 import argparse
+import copy
 import json
 import os
 import re
+
+from surfactant.sbomtypes import SBOM
 
 # The following code adds the data present in additional_metadata.json files to an input
 # sbom and outputs it at a new location.
@@ -32,19 +35,33 @@ def parse_args():
 
 if __name__ == "__main__":
     args = parse_args()
-    with open(args.input_sbom) as f:
-        sbom_data = json.load(f)
-    lookup_table = {
-        sbom_node["sha256"]: index for index, sbom_node in enumerate(sbom_data["software"])
-    }
+    with open(args.input_sbom, encoding="utf-8") as f:
+        sbom = SBOM.from_json(f.read())
+    lookup_table = {}
+    for sw in sbom.software:
+        if sw.sha256:
+            lookup_table.setdefault(sw.sha256, []).append(sw)
     for path in os.scandir(args.metadata_dir):
-        if re.match("[a-z0-9]{64}_additional_metadata.json", path.name):
-            with open(path) as f:
+        if path.is_file() and re.fullmatch(r"[a-z0-9]{64}_additional_metadata\.json", path.name):
+            with open(path, encoding="utf-8") as f:
                 additional_data = json.load(f)
-            if additional_data["sha256hash"] in lookup_table:
-                index = lookup_table[additional_data["sha256hash"]]
-                if "metadata" not in sbom_data["software"][index]:
-                    sbom_data["software"][index]["metadata"] = []
-                sbom_data["software"][index]["metadata"].append(additional_data)
-    with open(args.output_file, "w") as f:
-        json.dump(sbom_data, f, indent=4)
+            if not isinstance(additional_data, dict):
+                raise TypeError(f"Additional metadata file must contain a JSON object: {path.name}")
+            if "sha256hash" not in additional_data:
+                raise ValueError(f"Additional metadata file must contain sha256hash: {path.name}")
+            if not isinstance(additional_data["sha256hash"], str):
+                raise TypeError(
+                    f"Additional metadata file must contain a string sha256hash: {path.name}"
+                )
+
+            matches = lookup_table.get(additional_data["sha256hash"], [])
+            if not matches:
+                raise ValueError(
+                    "No software entry found for additional metadata file "
+                    f"{path.name} with sha256hash={additional_data['sha256hash']}"
+                )
+            for sw in matches:
+                if additional_data not in sw.metadata:
+                    sw.metadata.append(copy.deepcopy(additional_data))
+    with open(args.output_file, "w", encoding="utf-8") as f:
+        f.write(sbom.to_json(indent=4))

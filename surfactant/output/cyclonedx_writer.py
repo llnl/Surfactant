@@ -13,7 +13,7 @@ from cyclonedx.model.tool import Tool
 
 import surfactant.plugin
 from surfactant import __version__ as surfactant_version
-from surfactant.sbomtypes import SBOM, Software, System
+from surfactant.sbomtypes import SBOM, Software
 
 
 @surfactant.plugin.hookimpl
@@ -34,11 +34,6 @@ def write_sbom(sbom: SBOM, outfile) -> None:
     surfactant_tool = Tool(name="Surfactant", version=f"{surfactant_version}")
     bom_metadata = BomMetaData(tools=[surfactant_tool])
     bom = Bom(metadata=bom_metadata)
-
-    # Add CycloneDX Components for systems
-    for system in sbom.systems:
-        _, comp = convert_system_to_cyclonedx_component(system)
-        bom.components.add(comp)
 
     # Build container-path lookup for software
     container_path_relationships: Dict[Tuple[str, str]] = {}
@@ -99,42 +94,6 @@ def write_sbom(sbom: SBOM, outfile) -> None:
 @surfactant.plugin.hookimpl
 def short_name() -> Optional[str]:
     return "cyclonedx"
-
-
-def convert_system_to_cyclonedx_component(system: System) -> Tuple[str, Component]:
-    """Converts a system entry in the SBOM to a CycloneDX Component.
-
-    If a system entry has multiple vendors, only the first one is chosen as the
-    supplier for the CycloneDX Component.
-
-    Args:
-        system (System): The SBOM system to convert to a CycloneDX Component.
-
-    Returns:
-        Tuple[str, Component]: A tuple containing the UUID of the system that was
-        converted into a Component, and the CycloneDX Component object that was created.
-    """
-    # Pick the best name for the package
-    name = system.officialName
-    if not name and system.name:
-        name = system.name
-
-    # Pick a vendor to use as the supplier
-    supplier = None
-    if system.vendor:
-        # assume organization, can only list one supplier
-        supplier = OrganizationalEntity(name=system.vendor[0])
-
-    system_component = Component(
-        bom_ref=system.UUID,
-        name=name,
-        supplier=supplier,
-        description=system.description,
-        # components: Optional[Iterable['Component']]
-        type=ComponentType.CONTAINER,
-    )
-
-    return system.UUID, system_component
 
 
 def convert_software_to_cyclonedx_container_components(
