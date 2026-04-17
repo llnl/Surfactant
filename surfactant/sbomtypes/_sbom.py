@@ -128,6 +128,8 @@ def _serialize_for_schema(value):
             omit_none_fields = {"boardLocation"}
         elif isinstance(value, NameEntry):
             omit_none_fields = {"nameValue", "nameType"}
+        elif isinstance(value, Software):
+            omit_none_fields = {"notHashable"}
 
         data = {}
         for fld in fields(value):

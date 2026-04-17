@@ -56,11 +56,31 @@ class Software:
 
     def __post_init__(self) -> None:
         """Validate fields against the CyTRICS software schema requirements."""
+        self._validate_capture_time()
+        self._validate_uuid()
+        self._validate_scalar_fields()
+        self._normalize_relationship_assertion()
+        self._validate_hash_fields()
+        self._enforce_hash_requirement()
 
-        # Validate RFC 3339 captureTime (string|null with date-time format)
+        for field_name in (
+            "softwareType",
+            "fileName",
+            "installPath",
+            "containerPath",
+            "vendor",
+        ):
+            self._validate_optional_string_list_field(field_name)
+
+        self._validate_optional_typed_list_field("name", NameEntry)
+        self._validate_optional_typed_list_field("comments", CommentEntry)
+        self._validate_optional_typed_list_field("supplementaryFiles", File)
+        self._validate_metadata()
+
+    def _validate_capture_time(self) -> None:
         self.captureTime = validate_capture_time(self.captureTime, nullable=True)
 
-        # Validate UUID format and enforce RFC 4122 version 4 UUIDs
+    def _validate_uuid(self) -> None:
         try:
             parsed_uuid = uuid.UUID(self.UUID)
         except (ValueError, AttributeError, TypeError) as err:
@@ -71,27 +91,28 @@ class Software:
                 f"UUID must be a valid RFC 4122 version 4 UUID string; got {self.UUID!r}"
             )
 
-        # Validate scalar fields (schema: boolean|null and string|null)
+    def _validate_scalar_fields(self) -> None:
         if self.notHashable is not None and not isinstance(self.notHashable, bool):
             raise TypeError("notHashable must be a bool or None")
 
         if self.size is not None and not isinstance(self.size, int):
             raise TypeError("size must be an int or None")
 
-        # version and description must be strings when present
-        string_fields = ["version", "description"]
-        for field_name in string_fields:
-            value = getattr(self, field_name)
-            if value is not None and not isinstance(value, str):
-                raise TypeError(f"{field_name} must be a string or None")
+        for field_name in ("version", "description"):
+            self._validate_optional_string_field(field_name)
 
-        # Normalize relationshipAssertion to enum (schema enum enforcement)
+    def _validate_optional_string_field(self, field_name: str) -> None:
+        value = getattr(self, field_name)
+        if value is not None and not isinstance(value, str):
+            raise TypeError(f"{field_name} must be a string or None")
+
+    def _normalize_relationship_assertion(self) -> None:
         if self.relationshipAssertion is not None and not isinstance(
             self.relationshipAssertion, RelationshipAssertion
         ):
             self.relationshipAssertion = RelationshipAssertion(self.relationshipAssertion)
 
-        # Validate hash field types (schema: string|null)
+    def _validate_hash_fields(self) -> None:
         for field_name in ("sha1", "sha256", "md5"):
             value = getattr(self, field_name)
             if value is not None and not isinstance(value, str):
@@ -99,53 +120,35 @@ class Software:
                     f"{field_name} must be a string or None; got {type(value).__name__}"
                 )
 
-        # Enforce schema rule:
-        # If notHashable is false or None, at least one hash must be present
+    def _enforce_hash_requirement(self) -> None:
         if not self.notHashable:
             if not any(isinstance(v, str) for v in (self.sha1, self.sha256, self.md5)):
                 raise ValueError("At least one hash must be a string unless notHashable is True")
 
-        # Validate list fields containing only strings (schema: array|null of strings)
-        list_string_fields = [
-            "softwareType",
-            "fileName",
-            "installPath",
-            "containerPath",
-            "vendor",
-        ]
-        for field_name in list_string_fields:
-            value = getattr(self, field_name)
-            if value is not None:
-                if not isinstance(value, list):
-                    raise TypeError(f"{field_name} must be a list or None")
-                for item in value:
-                    if not isinstance(item, str):
-                        raise TypeError(f"All items in {field_name} must be strings")
+    def _validate_optional_string_list_field(self, field_name: str) -> None:
+        value = getattr(self, field_name)
+        if value is None:
+            return
 
-        # Validate complex list fields (schema: array|null of specific object types)
+        if not isinstance(value, list):
+            raise TypeError(f"{field_name} must be a list or None")
 
-        # name -> array of NameEntry objects
-        if self.name is not None:
-            if not isinstance(self.name, list):
-                raise TypeError("name must be a list or None")
-            if not all(isinstance(item, NameEntry) for item in self.name):
-                raise TypeError("All items in name must be NameEntry objects")
+        for item in value:
+            if not isinstance(item, str):
+                raise TypeError(f"All items in {field_name} must be strings")
 
-        # comments -> array of CommentEntry objects
-        if self.comments is not None:
-            if not isinstance(self.comments, list):
-                raise TypeError("comments must be a list or None")
-            if not all(isinstance(item, CommentEntry) for item in self.comments):
-                raise TypeError("All items in comments must be CommentEntry objects")
+    def _validate_optional_typed_list_field(self, field_name: str, entry_type: type) -> None:
+        value = getattr(self, field_name)
+        if value is None:
+            return
 
-        # supplementaryFiles -> array of File objects
-        if self.supplementaryFiles is not None:
-            if not isinstance(self.supplementaryFiles, list):
-                raise TypeError("supplementaryFiles must be a list or None")
-            if not all(isinstance(item, File) for item in self.supplementaryFiles):
-                raise TypeError("All items in supplementaryFiles must be File objects")
+        if not isinstance(value, list):
+            raise TypeError(f"{field_name} must be a list or None")
 
-        # Validate metadata (schema: array of objects with additionalProperties allowed)
+        if not all(isinstance(item, entry_type) for item in value):
+            raise TypeError(f"All items in {field_name} must be {entry_type.__name__} objects")
+
+    def _validate_metadata(self) -> None:
         if not isinstance(self.metadata, list):
             raise TypeError("metadata must be a list")
 
