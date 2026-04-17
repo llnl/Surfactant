@@ -1,5 +1,6 @@
 {
-  "systems": [],
+  "bomFormat": "cytrics",
+  "specVersion": "1.0.1",
   "hardware": [],
   "software": [
     {
@@ -19,7 +20,7 @@
       "sha256": "f41ca6f7c447225df3a7eef754d303d22cf877586735fb2d56d1eb15bf1daed9",
       "md5": "5fbf80df5004db2f0ce1f78b524024fe",
       "relationshipAssertion": "Unknown",
-      "comments": "",
+      "comments": null,
       "metadata": [
         {
           "collectedBy": "Surfactant",
@@ -30,10 +31,7 @@
           }
         }
       ],
-      "supplementaryFiles": [],
-      "provenance": null,
-      "recordedInstitution": "LLNL",
-      "components": []
+      "supplementaryFiles": []
     },
     {
       "UUID": "c9cbcafa-aa58-41d8-aa04-f5f01ec49eca",
@@ -54,7 +52,7 @@
       "sha256": "8c00309d6dc97c1ce5bbab222e64c1767154ba90dd7e57f57507ce04c9876fde",
       "md5": "098775c1e941be7b9ab7ddbfa13d613c",
       "relationshipAssertion": "Unknown",
-      "comments": "",
+      "comments": null,
       "metadata": [
         {
           "collectedBy": "Surfactant",
@@ -122,10 +120,7 @@
           "elfIsCore": false
         }
       ],
-      "supplementaryFiles": [],
-      "provenance": null,
-      "recordedInstitution": "LLNL",
-      "components": []
+      "supplementaryFiles": []
     },
     {
       "UUID": "455341bb-2739-4918-9805-e1a93e27e2a4",
@@ -146,7 +141,7 @@
       "sha256": "41d834d126772623d0309de4e16ef85cf4029b68e18f410d83955130cbd384f0",
       "md5": "9a8348b34d1a76ea391d71af167b4d66",
       "relationshipAssertion": "Unknown",
-      "comments": "",
+      "comments": null,
       "metadata": [
         {
           "collectedBy": "Surfactant",
@@ -214,10 +209,7 @@
           "elfIsCore": false
         }
       ],
-      "supplementaryFiles": [],
-      "provenance": null,
-      "recordedInstitution": "LLNL",
-      "components": []
+      "supplementaryFiles": []
     },
     {
       "UUID": "e286a415-6c6b-427d-9fe6-d7dbb0486f7d",
@@ -238,7 +230,7 @@
       "sha256": "f75bcccf5328b086bce7c53a431e8aa39959300b8b6d27b5ee958ec287d316d2",
       "md5": "e3896bd762b5e79ebd2f3ecb321a66f0",
       "relationshipAssertion": "Unknown",
-      "comments": "",
+      "comments": null,
       "metadata": [
         {
           "collectedBy": "Surfactant",
@@ -306,10 +298,7 @@
           "elfIsCore": false
         }
       ],
-      "supplementaryFiles": [],
-      "provenance": null,
-      "recordedInstitution": "LLNL",
-      "components": []
+      "supplementaryFiles": []
     },
     {
       "UUID": "db11028f-31ad-4b98-8703-883350e97c49",
@@ -330,7 +319,7 @@
       "sha256": "8d7c12e6df746225ef110c3ae3869f1fd5adb833ced89c8c84cc35813afe29ee",
       "md5": "70665b99862fa193f589f651665c2db5",
       "relationshipAssertion": "Unknown",
-      "comments": "",
+      "comments": null,
       "metadata": [
         {
           "collectedBy": "Surfactant",
@@ -398,10 +387,7 @@
           "elfIsCore": false
         }
       ],
-      "supplementaryFiles": [],
-      "provenance": null,
-      "recordedInstitution": "LLNL",
-      "components": []
+      "supplementaryFiles": []
     },
     {
       "UUID": "b198b272-c752-4b24-ae1b-98a44c9c16e8",
@@ -422,7 +408,7 @@
       "sha256": "ce33a2bc0e75365d5b55b0656d81058eaceb4a1299c62ced64897906391e5a15",
       "md5": "f37cb2dbcc284a18d414f22ea091b1d5",
       "relationshipAssertion": "Unknown",
-      "comments": "",
+      "comments": null,
       "metadata": [
         {
           "collectedBy": "Surfactant",
@@ -490,10 +476,7 @@
           "elfIsCore": false
         }
       ],
-      "supplementaryFiles": [],
-      "provenance": null,
-      "recordedInstitution": "LLNL",
-      "components": []
+      "supplementaryFiles": []
     }
   ],
   "relationships": [
@@ -522,8 +505,5 @@
       "yUUID": "b198b272-c752-4b24-ae1b-98a44c9c16e8",
       "relationship": "Contains"
     }
-  ],
-  "analysisData": [],
-  "observations": [],
-  "starRelationships": []
+  ]
 }
