@@ -24,7 +24,10 @@ FALSEMATCH_UUID = "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee"
 
 @pytest.fixture
 def example_sbom():
-    sbom = SBOM()
+    sbom = SBOM(
+        bomFormat="cytrics",
+        specVersion="1.0.1",
+    )
 
     sw1 = Software(
         UUID=SW1_UUID,
@@ -177,7 +180,12 @@ def test_no_match_edge_case():
         installPath=["/unrelated/path/libsomethingelse.so"],
     )
 
-    sbom = SBOM(hardware=[], software=[binary, unrelated])
+    sbom = SBOM(
+        bomFormat="cytrics",
+        specVersion="1.0.1",
+        hardware=[],
+        software=[binary, unrelated],
+    )
 
     metadata = binary.metadata[0]
     results = establish_relationships(sbom, binary, metadata)
@@ -207,7 +215,12 @@ def test_symlink_heuristic_guard():
         installPath=["/different/dir/libalias.so"],
     )
 
-    sbom = SBOM(hardware=[], software=[binary, candidate])
+    sbom = SBOM(
+        bomFormat="cytrics",
+        specVersion="1.0.1",
+        hardware=[],
+        software=[binary, candidate],
+    )
 
     metadata = binary.metadata[0]
     results = establish_relationships(sbom, binary, metadata)

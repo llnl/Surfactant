@@ -31,7 +31,10 @@ def basic_pe_sbom():
     Returns:
         Tuple[SBOM, Software, Software]: the SBOM, the binary, and the DLL
     """
-    sbom = SBOM()
+    sbom = SBOM(
+        bomFormat="cytrics",
+        specVersion="1.0.1",
+    )
 
     dll = Software(
         UUID=DLL_UUID,

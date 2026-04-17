@@ -25,7 +25,10 @@ def sbom_fixture():
     - Supplier exports SomeLibrary.dll with version metadata.
     - Consumer references SomeLibrary.dll in its dotnetAssemblyRef.
     """
-    sbom = SBOM()
+    sbom = SBOM(
+        bomFormat="cytrics",
+        specVersion="1.0.1",
+    )
 
     supplier = Software(
         UUID=SUPPLIER_UUID,
@@ -64,7 +67,10 @@ def test_dotnet_codebase_match():
     Test: codeBase.href resolution from app.config.
     Ensures href is respected as a valid relative match.
     """
-    sbom = SBOM()
+    sbom = SBOM(
+        bomFormat="cytrics",
+        specVersion="1.0.1",
+    )
 
     supplier = Software(
         UUID=LIB_UUID,
@@ -103,7 +109,10 @@ def test_dotnet_implmap_unmanaged_match():
     Test: unmanaged import from dotnetImplMap should resolve as native.
     Ensures fallback probing with name variants like native.dll, native.so, etc.
     """
-    sbom = SBOM()
+    sbom = SBOM(
+        bomFormat="cytrics",
+        specVersion="1.0.1",
+    )
 
     supplier = Software(
         UUID=NATIVE_UUID,
@@ -131,7 +140,10 @@ def test_dotnet_same_directory():
     Test: assembly in same directory as consumer should be resolved.
     Covers legacy phase and base probing behavior.
     """
-    sbom = SBOM()
+    sbom = SBOM(
+        bomFormat="cytrics",
+        specVersion="1.0.1",
+    )
     supplier = Software(
         UUID=LIB1_UUID,
         notHashable=True,
@@ -156,7 +168,10 @@ def test_dotnet_subdir():
     Test: DLL in legacy-probed subdirectory is found by probing.
     Covers Phase 2 fallback behavior.
     """
-    sbom = SBOM()
+    sbom = SBOM(
+        bomFormat="cytrics",
+        specVersion="1.0.1",
+    )
     supplier = Software(
         UUID=LIB2_UUID,
         notHashable=True,
@@ -190,7 +205,10 @@ def test_dotnet_culture_subdir():
     This test ensures culture mismatches are excluded and matches are accepted
     only when Culture aligns.
     """
-    sbom = SBOM()
+    sbom = SBOM(
+        bomFormat="cytrics",
+        specVersion="1.0.1",
+    )
     supplier = Software(
         UUID=LIB3_UUID,
         notHashable=True,
@@ -227,7 +245,10 @@ def test_dotnet_no_match_without_exact_basename():
       - No heuristic "same-directory" fallback is applied, so no relationship
         is created.
     """
-    sbom = SBOM()
+    sbom = SBOM(
+        bomFormat="cytrics",
+        specVersion="1.0.1",
+    )
 
     supplier = Software(
         UUID=LIB_HEUR_UUID,
@@ -256,7 +277,10 @@ def test_dotnet_private_path():
     Test: DLL resolved from app.config probing.privatePath directories.
     Ensures private paths are appended to probe set.
     """
-    sbom = SBOM()
+    sbom = SBOM(
+        bomFormat="cytrics",
+        specVersion="1.0.1",
+    )
     supplier = Software(
         UUID=LIB4_UUID,
         notHashable=True,
@@ -287,7 +311,10 @@ def test_dotnet_private_path():
 #     """
 #     Test: supplier has wrong version; should be filtered out by version check.
 #     """
-#     sbom = SBOM()
+#     sbom = SBOM(
+#       bomFormat="cytrics",
+#       specVersion="1.0.1",
+#   )
 #     supplier = Software(
 #         UUID="dddddddd-dddd-4ddd-8ddd-dddddddddddd",
 #         notHashable=True,
@@ -312,7 +339,10 @@ def test_dotnet_culture_mismatch_filtered():
     """
     Test: supplier has wrong culture; should be filtered out by culture check.
     """
-    sbom = SBOM()
+    sbom = SBOM(
+        bomFormat="cytrics",
+        specVersion="1.0.1",
+    )
     supplier = Software(
         UUID=LIB6_UUID,
         notHashable=True,

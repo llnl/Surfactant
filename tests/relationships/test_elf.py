@@ -13,6 +13,8 @@ COMM_UUID = "44444444-4444-4444-8444-444444444444"
 COMM_CPP_UUID = "55555555-5555-4555-8555-555555555555"
 
 sbom = SBOM(
+    bomFormat="cytrics",
+    specVersion="1.0.1",
     software=[
         Software(
             UUID=BROKER_UUID,
