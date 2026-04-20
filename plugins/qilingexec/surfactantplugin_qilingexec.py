@@ -29,19 +29,24 @@ except ImportError:
     logger.warning("qiling not installed. QilingExec plugin will be disabled.")
 
 
-def grab_version(fd: io.BytesIO, regex: re.Pattern[str]) -> Optional[Tuple[str, str]]:
-    """Returns a tuple of the word in the first line of fd that matches the given regex pattern and the entire first line
+def parse_stdout(fd: io.BytesIO, regex: re.Pattern[str]) -> Optional[Tuple[str, str]]:
+    """Returns a tuple of the words in fd that match the given regex pattern with either the line the match was found or the first line if no match was found.
 
     Args:
         fd (io.BytesIO): File descriptor used as stdout or stderr when running an executable
         regex (re.Pattern[str]): Regular expression to check for matches against
+    Returns:
+        object(Optional[Tuple[str,str]]): If a match to the supplied regex is found in fd, 
+            returns the 'words' that match the regex and the line from fd where the match was found.
+            If no match is found, returns an empty string and the first line from fd.
     """
     if fd and regex:
         stdout = fd.getvalue().decode().splitlines()
-        words = stdout[0].split(" ")
-        for version in words:
-            if regex.search(version):
-                return (version, stdout[0])
+        for line in stdout:
+            if regex.search(line):
+                # Grab the first occurrence
+                ret_val = regex.search(line).group(0)
+                return (ret_val, line)
         return ("", stdout[0])
     return None
 
@@ -67,9 +72,9 @@ def env_mismatch(filetype: str, os: QL_OS) -> bool:
     return False
 
 
-def get_os_arch(context: ContextEntry, filetype: str) -> Optional[Tuple[QL_OS, QL_ARCH]]:
+def get_os_arch(context: ContextEntry, filetype: str, def_os) -> Optional[Tuple[QL_OS, QL_ARCH]]:
     """Returns a tuple of the OS and architecture to use for the binary associated with the current ContextEntry and checks that the current filetype matches the OS being used."""
-    os = context.get_pconf(__name__, "os_type", "linux")
+    operating_system = context.get_pconf(__name__, "os_type", def_os)
     arch = context.get_pconf(__name__, "arch_type", "x64")
 
     os_conversion = {
@@ -98,14 +103,15 @@ def get_os_arch(context: ContextEntry, filetype: str) -> Optional[Tuple[QL_OS, Q
         "riscv64": QL_ARCH.RISCV64,
         "ppc": QL_ARCH.PPC,
     }
-    if not (os in os_conversion and arch in arch_conversion):
+
+    if not (operating_system in os_conversion and arch in arch_conversion):
         logger.error("QilingExec: OS or Arch not in expected values")
         return None
     # Prevent running binaries when environment doesn't match
-    if env_mismatch(filetype, os_conversion[os]):
-        logger.warning(f"Trying to run qilingexec on {filetype} when os is: {os}")
+    if env_mismatch(filetype, os_conversion[operating_system]):
+        logger.warning(f"Trying to run qilingexec on {filetype} when os is: {operating_system}")
         return None
-    return (os_conversion[os], arch_conversion[arch])
+    return (os_conversion[operating_system], arch_conversion[arch])
 
 
 @surfactant.plugin.hookimpl
@@ -147,15 +153,15 @@ def extract_file_info(  # pylint: disable=too-many-positional-arguments
     Returns:
         object: An object to be added to the metadata field for the software entry. May be `None` to add no metadata.
     """
-    # Stop if Qiling is unavailable or the file type isn't some variety of executable
+    # Stop if Qiling is unavailable or the file type isn't some type of executable
     if not QILING_AVAILABLE or not ("ELF" in filetype or "PE" in filetype):
         return None
     # Set up configuration
     (def_mount, def_os) = (
-        (r"/", r"Linux") if platform.system() == "Linux" else (r"C:\\", r"Windows")
+        (r"/", r"linux") if platform.system() == "Linux" else (r"C:\\", r"windows")
     )
     mountPoint = current_context.get_pconf(__name__, "mount_prefix", def_mount)
-    os_arch_ret = get_os_arch(current_context, filetype)
+    os_arch_ret = get_os_arch(current_context, filetype, def_os)
     if os_arch_ret:
         (os, arch) = os_arch_ret
     else:
@@ -163,7 +169,7 @@ def extract_file_info(  # pylint: disable=too-many-positional-arguments
     timeout = current_context.get_pconf(__name__, "timeout", 150000)
     args_version = [filename, "--version"]
     args_help = [filename, "--help"]
-    reg_string = current_context.get_pconf(__name__, "regex", r"[0-9]+\.[0-9]+")
+    reg_string = current_context.get_pconf(__name__, "regex", r"[0-9a-zA-Z\(\)] [0-9]+\.[0-9]+")
 
     regex = re.compile(reg_string)
 
@@ -191,13 +197,17 @@ def extract_file_info(  # pylint: disable=too-many-positional-arguments
         )
         return None
     file_details: Dict[str, Any] = {"qilingexec": {}}
-    (version, file_details["qilingexec"]["stdout"]) = grab_version(fd_version, regex)
-    if version:
+    (match, file_details["qilingexec"]["stdout"]) = parse_stdout(fd_version, regex)
+    if match:
+        [name,version] = match.split(" ")
         software_field_hints.append(("version", version, 80))
+        software_field_hints.append(("name", name, 10))
         file_details["qilingexec"]["version"] = version
+        file_details["qilingexec"]["name"] = name
     else:
         logger.error(f"No version information returned by {args_version}")
-        return None
+        if not file_details["qilingexec"]["stdout"]:
+            return None
 
     fd_help = pipe.SimpleStringBuffer()
     ql_help = Qiling(
