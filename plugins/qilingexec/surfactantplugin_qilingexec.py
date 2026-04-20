@@ -36,7 +36,7 @@ def parse_stdout(fd: io.BytesIO, regex: re.Pattern[str]) -> Optional[Tuple[str, 
         fd (io.BytesIO): File descriptor used as stdout or stderr when running an executable
         regex (re.Pattern[str]): Regular expression to check for matches against
     Returns:
-        object(Optional[Tuple[str,str]]): If a match to the supplied regex is found in fd, 
+        object(Optional[Tuple[str,str]]): If a match to the supplied regex is found in fd,
             returns the 'words' that match the regex and the line from fd where the match was found.
             If no match is found, returns an empty string and the first line from fd.
     """
@@ -199,7 +199,7 @@ def extract_file_info(  # pylint: disable=too-many-positional-arguments
     file_details: Dict[str, Any] = {"qilingexec": {}}
     (match, file_details["qilingexec"]["stdout"]) = parse_stdout(fd_version, regex)
     if match:
-        [name,version] = match.split(" ")
+        [name, version] = match.split(" ")
         software_field_hints.append(("version", version, 80))
         software_field_hints.append(("name", name, 10))
         file_details["qilingexec"]["version"] = version
