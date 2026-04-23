@@ -32,14 +32,13 @@ def get_config():
 def get_sbom3():
     with open(
         pathlib.Path(__file__).parent / "../data/sample_sboms/helics_binaries_sbom.json",
-        "r",
     ) as f:
         return SBOM.from_json(f.read())
 
 
 def get_sbom4():
     with open(
-        pathlib.Path(__file__).parent / "../data/sample_sboms/helics_libs_sbom.json", "r"
+        pathlib.Path(__file__).parent / "../data/sample_sboms/helics_libs_sbom.json"
     ) as f:
         return SBOM.from_json(f.read())
 
@@ -93,9 +92,9 @@ def test_cmdline_merge():
         merge(input_sboms, sbom_outfile, config_file, output_writer)
 
     # TODO add validation checks here
-    with open(outfile_name, "r") as j:
+    with open(outfile_name) as j:
         generated_sbom = json.loads(j.read())
-    with open(pathlib.Path(__file__).parent / "../data/sample_sboms/helics_sbom.json", "r") as j:
+    with open(pathlib.Path(__file__).parent / "../data/sample_sboms/helics_sbom.json") as j:
         ground_truth_sbom = json.loads(j.read())
     os.remove(os.path.abspath(outfile_name))
 
@@ -112,7 +111,7 @@ def test_merge_with_add_system_true():
     with open(outfile_name, "w") as sbom_outfile:
         merge(input_sboms, sbom_outfile, config_file, output_writer, add_system=True)
 
-    with open(outfile_name, "r") as j:
+    with open(outfile_name) as j:
         generated_sbom = json.loads(j.read())
     assert generated_sbom["systems"]
     assert generated_sbom["systems"][0]["UUID"] == config_file["system"]["UUID"]
@@ -132,7 +131,7 @@ def test_merge_with_add_system_false():
     with open(outfile_name, "w") as sbom_outfile:
         merge(input_sboms, sbom_outfile, config_file, output_writer, add_system=False)
 
-    with open(outfile_name, "r") as j:
+    with open(outfile_name) as j:
         generated_sbom = json.loads(j.read())
     assert not generated_sbom["systems"]
 
@@ -151,7 +150,7 @@ def test_merge_with_custom_system_relationship():
     with open(outfile_name, "w") as sbom_outfile:
         merge(input_sboms, sbom_outfile, config_file, output_writer, add_system=True)
 
-    with open(outfile_name, "r") as j:
+    with open(outfile_name) as j:
         generated_sbom = json.loads(j.read())
     for relationship in generated_sbom["relationships"]:
         if relationship["xUUID"] == config_file["system"]["UUID"]:
@@ -179,7 +178,7 @@ def test_merge_with_specified_system_uuid():
             system_uuid=system_uuid,
         )
 
-    with open(outfile_name, "r") as j:
+    with open(outfile_name) as j:
         generated_sbom = json.loads(j.read())
     assert any(system["UUID"] == system_uuid for system in generated_sbom["systems"])
 
@@ -200,7 +199,7 @@ def test_prevent_orphaned_system_uuid():
     with open(outfile_name, "w") as sbom_outfile:
         merge(input_sboms, sbom_outfile, config_file, output_writer, add_system=False)
 
-    with open(outfile_name, "r") as j:
+    with open(outfile_name) as j:
         generated_sbom = json.loads(j.read())
     assert not generated_sbom["systems"]
 
@@ -222,7 +221,7 @@ def test_add_random_system_uuid():
     with open(outfile_name, "w") as sbom_outfile:
         merge(input_sboms, sbom_outfile, config_file, output_writer, add_system=True)
 
-    with open(outfile_name, "r") as j:
+    with open(outfile_name) as j:
         generated_sbom = json.loads(j.read())
     assert generated_sbom["systems"]
     # Check that the UUID of the generated system is actually random

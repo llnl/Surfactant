@@ -4,7 +4,6 @@
 # SPDX-License-Identifier: MIT
 import os
 import stat
-import sys
 from hashlib import md5, sha1, sha256
 
 
@@ -55,12 +54,7 @@ def calc_file_hashes(filename):
     """
     sha256_hash = sha256()
     sha1_hash = sha1()
-    # hashlib.md5 usedforsecurity flag was added in Python 3.9
-    if sys.version_info >= (3, 9):
-        # avoid error with FIPS-compliant OpenSSL library builds complaining about md5
-        md5_hash = md5(usedforsecurity=False)
-    else:
-        md5_hash = md5()
+    md5_hash = md5()
     b = bytearray(4096)
     mv = memoryview(b)
     try:

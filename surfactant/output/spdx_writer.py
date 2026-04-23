@@ -10,7 +10,6 @@ import sys
 import uuid
 from collections.abc import Iterable
 from datetime import datetime, timezone
-from typing import Dict, List, Optional, Tuple
 
 import spdx_tools.spdx.writer.json.json_writer as jsonwriter
 import spdx_tools.spdx.writer.tagvalue.tagvalue_writer as tvwriter
@@ -46,7 +45,7 @@ def write_sbom(sbom: SBOM, outfile) -> None:
     spdx_doc = create_spdx_doc()
 
     # Build UUID → SPDX ID map
-    uuid_to_spdxid: Dict[str, List[str]] = {}
+    uuid_to_spdxid: dict[str, list[str]] = {}
 
     # Add system packages
     for system in sbom.systems:
@@ -55,7 +54,7 @@ def write_sbom(sbom: SBOM, outfile) -> None:
         uuid_to_spdxid.setdefault(system_uuid, []).append(pkg.spdx_id)
 
     # Track container paths for files
-    container_path_relationships: Dict[str, str] = {}
+    container_path_relationships: dict[str, str] = {}
 
     # Add software as packages or files
     for software in sbom.software:
@@ -156,11 +155,11 @@ def write_sbom(sbom: SBOM, outfile) -> None:
 
 
 @surfactant.plugin.hookimpl
-def short_name() -> Optional[str]:
+def short_name() -> str | None:
     return "spdx"
 
 
-def convert_system_to_spdx_package(system: System) -> Tuple[str, Package]:
+def convert_system_to_spdx_package(system: System) -> tuple[str, Package]:
     """Converts a system entry in the SBOM to a SPDX Package.
 
     If a system entry has multiple vendors, only the first one is chosen as the
@@ -187,7 +186,7 @@ def convert_system_to_spdx_package(system: System) -> Tuple[str, Package]:
     return system.UUID, create_spdx_package(name, system.description, supplier)
 
 
-def convert_software_to_spdx_packages(software: Software) -> Tuple[str, List[Package]]:
+def convert_software_to_spdx_packages(software: Software) -> tuple[str, list[Package]]:
     """Converts a software entry in the SBOM to one or more SPDX Packages.
 
     A SPDX Package is created for each file name that the software can have. If
@@ -201,7 +200,7 @@ def convert_software_to_spdx_packages(software: Software) -> Tuple[str, List[Pac
         Tuple[str, List[Package]]: A tuple containing the UUID of the software that was
         converted into Packages, and a list of the SPDX Package objects that were created.
     """
-    packages: List[Package] = []
+    packages: list[Package] = []
     for fname in software.fileName:
         name = software.name
         if not name:
@@ -227,7 +226,7 @@ def convert_software_to_spdx_packages(software: Software) -> Tuple[str, List[Pac
     return software.UUID, packages
 
 
-def convert_software_to_spdx_files(software: Software) -> List[Tuple[str, str, File]]:
+def convert_software_to_spdx_files(software: Software) -> list[tuple[str, str, File]]:
     """Converts a software entry in the SBOM to one or more SPDX Files.
 
     A SPDX File is created for each unique container path that the software has. If
@@ -244,7 +243,7 @@ def convert_software_to_spdx_files(software: Software) -> List[Tuple[str, str, F
         software entry that was converted into a SPDX File, and the resulting SPDX File that
         was created.
     """
-    files: List[Tuple[str, str, File]] = []
+    files: list[tuple[str, str, File]] = []
     for cpathstr in software.containerPath:
         cpath = pathlib.PurePath(cpathstr)
         # Less than 2 parts would just be the container path uuid, or a file name
@@ -341,11 +340,11 @@ def create_spdx_package(
     summary,
     supplier,
     *,  # all remaining arguments are keyword-only
-    file_name: Optional[str] = None,
-    version: Optional[str] = None,
-    sha1: Optional[str] = None,
-    sha256: Optional[str] = None,
-    md5: Optional[str] = None,
+    file_name: str | None = None,
+    version: str | None = None,
+    sha1: str | None = None,
+    sha256: str | None = None,
+    md5: str | None = None,
 ) -> Package:
     """Creates a SPDX Package from the provided information.
 
@@ -479,7 +478,7 @@ def generate_package_idstring(name: str, version: str, file_name: str) -> str:
     return "-".join(x for x in [idname, idversion, idfilename, generate_random_idstring()] if x)
 
 
-def get_fileinfo_metadata(software: Software, field: str) -> Optional[str]:
+def get_fileinfo_metadata(software: Software, field: str) -> str | None:
     """Retrieves the value for a field in a 'FileInfo' metadata object in a software entry.
 
     Args:
@@ -521,7 +520,7 @@ def get_software_field(software: Software, field: str):
     return None
 
 
-def java_generate_package_verification_code(software: List[Software]) -> Tuple[str, List[str]]:
+def java_generate_package_verification_code(software: list[Software]) -> tuple[str, list[str]]:
     """Generate a SPDX package verif_code according to the method used by the Java SPDX Tools.
 
     This is not the algorithm defined in the SPDX specification. The implementation here is provided
@@ -535,8 +534,8 @@ def java_generate_package_verification_code(software: List[Software]) -> Tuple[s
         Tuple[str, List[str]]: A tuple consisting of the generated package verification code, and a list of
         skipped file names.
     """
-    skippedFileNames: List[str] = []
-    fileNameAndChecksums: List[str] = collect_file_data(software)
+    skippedFileNames: list[str] = []
+    fileNameAndChecksums: list[str] = collect_file_data(software)
     fileNameAndChecksums.sort()
     m = hashlib.sha1()
     for entry in fileNameAndChecksums:
@@ -544,7 +543,7 @@ def java_generate_package_verification_code(software: List[Software]) -> Tuple[s
     return m.hexdigest, skippedFileNames
 
 
-def collect_file_data(software: List[Software]) -> List[str]:
+def collect_file_data(software: list[Software]) -> list[str]:
     """Collect file checksums and paths as done by the Java SPDX Tools.
 
     Args:
@@ -553,7 +552,7 @@ def collect_file_data(software: List[Software]) -> List[str]:
     Returns:
         List[str]: A list of checksums and file paths, in the form "<checksum>||<filepath>".
     """
-    file_data: List[str] = []
+    file_data: list[str] = []
     for sw in software:
         # lower case sha1 hash without a leading 0x prefix
         checksum = sw.sha1.lower()

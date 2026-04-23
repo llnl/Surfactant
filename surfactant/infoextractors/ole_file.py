@@ -5,7 +5,7 @@
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from queue import Queue
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any
 
 import olefile
 import pymsi
@@ -52,7 +52,7 @@ DEFAULT_PATHS = {
 }
 
 
-def replace_root_id(system_folder_id: str) -> Optional[str]:
+def replace_root_id(system_folder_id: str) -> str | None:
     path = ConfigManager().get(
         "ole", f"replacement_{system_folder_id}", DEFAULT_PATHS.get(system_folder_id)
     )
@@ -61,7 +61,7 @@ def replace_root_id(system_folder_id: str) -> Optional[str]:
     return path
 
 
-def supports_file(filetype: List[str]) -> bool:
+def supports_file(filetype: list[str]) -> bool:
     return "OLE" in filetype
 
 
@@ -71,10 +71,10 @@ def extract_file_info(
     sbom: SBOM,
     software: Software,
     filename: str,
-    filetype: List[str],
-    software_field_hints: List[Tuple[str, object, int]],
+    filetype: list[str],
+    software_field_hints: list[tuple[str, object, int]],
     context_queue: "Queue[ContextEntry]",
-    current_context: Optional[ContextEntry],
+    current_context: ContextEntry | None,
 ) -> object:
     if not supports_file(filetype):
         return None
@@ -97,8 +97,8 @@ def extract_file_info(
     return ole_info
 
 
-def extract_ole_info(filename: str) -> Dict[str, Any]:
-    file_details: Dict[str, Any] = {}
+def extract_ole_info(filename: str) -> dict[str, Any]:
+    file_details: dict[str, Any] = {}
 
     with olefile.OleFileIO(filename) as ole:
         md = ole.get_metadata()
@@ -129,7 +129,7 @@ def extract_ole_info(filename: str) -> Dict[str, Any]:
     return file_details
 
 
-def extract_msi(filename: str, output_folder: str) -> List[Tuple[str, str]]:
+def extract_msi(filename: str, output_folder: str) -> list[tuple[str, str]]:
     output_path = Path(output_folder)
 
     try:
@@ -150,7 +150,7 @@ def extract_msi(filename: str, output_folder: str) -> List[Tuple[str, str]]:
 
 
 def preprocess_msi_decompression(msi: pymsi.Msi):
-    folders: List[CabFolder] = []
+    folders: list[CabFolder] = []
     for media in msi.medias.values():
         if media.cabinet and media.cabinet.disks:
             for disk in media.cabinet.disks.values():
@@ -190,13 +190,13 @@ def preprocess_msi_decompression(msi: pymsi.Msi):
     logger.debug("Decompression of .cab folders completed")
 
 
-def extract_msi_root(root: Directory, output: Path) -> List[Tuple[str, str]]:
+def extract_msi_root(root: Directory, output: Path) -> list[tuple[str, str]]:
     if not output.exists():
         output.mkdir(parents=True, exist_ok=True)
 
-    temp_installdir: Optional[Directory] = None
+    temp_installdir: Directory | None = None
 
-    def move_to_temp_installdir(item: Union[Component, Directory]):
+    def move_to_temp_installdir(item: Component | Directory):
         nonlocal temp_installdir
         if not temp_installdir:
             temp_installdir = Directory(

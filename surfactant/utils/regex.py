@@ -5,7 +5,6 @@
 
 import re
 import sys
-from typing import List, Tuple
 
 from loguru import logger
 
@@ -19,7 +18,7 @@ else:
 
 
 # pylint: disable=too-many-return-statements
-def handle_escaped_literal(regex_pattern: str, i: int, length: int) -> Tuple[str, int]:
+def handle_escaped_literal(regex_pattern: str, i: int, length: int) -> tuple[str, int]:
     """
     Handles escaped literals in a regex pattern and returns the character to be added to the prefix
     and the number of positions to advance the index by.
@@ -63,7 +62,7 @@ def handle_escaped_literal(regex_pattern: str, i: int, length: int) -> Tuple[str
     return next_char, 2
 
 
-def extract_fixed_prefixes(regex_pattern: str) -> List[str]:
+def extract_fixed_prefixes(regex_pattern: str) -> list[str]:
     """
     Extracts the fixed string prefixes from a regex pattern, including handling
     escaped characters, expanding character classes, and handling capture groups

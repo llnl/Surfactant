@@ -2,7 +2,7 @@ import os
 import platform
 from pathlib import Path
 from threading import Lock
-from typing import Any, Dict, Optional, Union
+from typing import Any
 
 import tomlkit
 
@@ -20,11 +20,11 @@ class ConfigManager:
     """
 
     _initialized: bool = False
-    _instances: Dict[str, "ConfigManager"] = {}
+    _instances: dict[str, "ConfigManager"] = {}
     _lock = Lock()
 
     def __new__(
-        cls, app_name: str = "surfactant", config_dir: Optional[Union[str, Path]] = None
+        cls, app_name: str = "surfactant", config_dir: str | Path | None = None
     ) -> "ConfigManager":
         """Manage singleton configuration manager for each unique application name.
 
@@ -37,13 +37,13 @@ class ConfigManager:
         """
         with cls._lock:
             if app_name not in cls._instances:
-                instance = super(ConfigManager, cls).__new__(cls)
+                instance = super().__new__(cls)
                 instance._initialized = False
                 cls._instances[app_name] = instance
             return cls._instances[app_name]
 
     def __init__(
-        self, app_name: str = "surfactant", config_dir: Optional[Union[str, Path]] = None
+        self, app_name: str = "surfactant", config_dir: str | Path | None = None
     ) -> None:
         """Initializes the configuration manager.
 
@@ -80,10 +80,10 @@ class ConfigManager:
     def _load_config(self) -> None:
         """Loads the configuration from the configuration file."""
         if self.config_file_path.exists():
-            with open(self.config_file_path, "r") as configfile:
+            with open(self.config_file_path) as configfile:
                 self.config = tomlkit.parse(configfile.read())
 
-    def get(self, section: str, option: str, fallback: Optional[Any] = None) -> Any:
+    def get(self, section: str, option: str, fallback: Any | None = None) -> Any:
         """Gets a configuration value.
 
         Args:

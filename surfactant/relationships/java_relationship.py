@@ -1,5 +1,4 @@
 import weakref
-from typing import Dict, List, Optional
 
 from loguru import logger
 
@@ -19,8 +18,8 @@ class _ExportDict:
     (via weakref).
     """
 
-    _sbom_ref: Optional[weakref.ref[SBOM]] = None
-    supplied_by: Dict[str, str] = {}
+    _sbom_ref: weakref.ref[SBOM] | None = None
+    supplied_by: dict[str, str] = {}
 
     @classmethod
     def create_export_dict(cls, sbom: SBOM) -> None:
@@ -45,14 +44,14 @@ class _ExportDict:
                         cls.supplied_by[export] = software_entry.UUID
 
     @classmethod
-    def get_supplier(cls, import_name: str) -> Optional[str]:
+    def get_supplier(cls, import_name: str) -> str | None:
         return cls.supplied_by.get(import_name)
 
 
 @surfactant.plugin.hookimpl
 def establish_relationships(
     sbom: SBOM, software: Software, metadata
-) -> Optional[List[Relationship]]:
+) -> list[Relationship] | None:
     """Establish 'Uses' relationships for Java class-level imports.
 
     Resolution phases (new -> old):
@@ -75,12 +74,12 @@ def establish_relationships(
     # Build legacy export dict once per SBOM instance.
     _ExportDict.create_export_dict(sbom)
 
-    relationships: List[Relationship] = []
+    relationships: list[Relationship] = []
 
     for class_info in java_classes.values():
         for import_name in class_info.get("javaImports", []):
-            supplier_uuid: Optional[str] = None
-            method: Optional[str] = None
+            supplier_uuid: str | None = None
+            method: str | None = None
 
             # ------------------------------------------------------------------
             # Phase 1: fs_tree / path-based resolution (conservative)

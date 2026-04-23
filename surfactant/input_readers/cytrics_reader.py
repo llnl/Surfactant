@@ -3,7 +3,6 @@
 #
 # SPDX-License-Identifier: MIT
 
-from typing import Optional
 
 import surfactant.plugin
 from surfactant.sbomtypes import SBOM
@@ -15,5 +14,5 @@ def read_sbom(infile) -> SBOM:
 
 
 @surfactant.plugin.hookimpl
-def short_name() -> Optional[str]:
+def short_name() -> str | None:
     return "cytrics"

@@ -7,7 +7,6 @@ from __future__ import annotations
 import uuid
 from collections.abc import Iterable
 from dataclasses import dataclass, field, fields
-from typing import List, Optional
 
 from ._provenance import SystemProvenance
 
@@ -17,13 +16,13 @@ from ._provenance import SystemProvenance
 @dataclass
 class System:
     UUID: str = field(default_factory=lambda: str(uuid.uuid4()))
-    captureStart: Optional[int] = None
-    captureEnd: Optional[int] = None
-    name: Optional[str] = None
-    officialName: Optional[str] = None
-    vendor: Optional[List[str]] = None
-    description: Optional[str] = None
-    provenance: List[SystemProvenance] = field(default_factory=list)
+    captureStart: int | None = None
+    captureEnd: int | None = None
+    name: str | None = None
+    officialName: str | None = None
+    vendor: list[str] | None = None
+    description: str | None = None
+    provenance: list[SystemProvenance] = field(default_factory=list)
 
     def merge(self, sy: System):
         if sy and self != sy:

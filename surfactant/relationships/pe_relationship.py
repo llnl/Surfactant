@@ -4,7 +4,7 @@
 # SPDX-License-Identifier: MIT
 import pathlib
 from collections.abc import Iterable
-from typing import Any, List, Optional
+from typing import Any
 
 from loguru import logger
 
@@ -29,7 +29,7 @@ def has_required_fields(metadata: dict[str, Any]) -> bool:
 @surfactant.plugin.hookimpl
 def establish_relationships(
     sbom: SBOM, software: Software, metadata: dict
-) -> Optional[List[Relationship]]:
+) -> list[Relationship] | None:
     """
     Establish 'Uses' relationships based on PE import metadata.
 
@@ -42,7 +42,7 @@ def establish_relationships(
         logger.debug(f"[PE][skip] No PE import metadata for UUID={software.UUID} ({software.name})")
         return None
 
-    relationships: List[Relationship] = []
+    relationships: list[Relationship] = []
     field_map = {
         "peImport": "Direct",  # NOTE: UWP apps have their own search order for libraries; they use a .appx or .msix file extension and appear to be zip files, so our SBOM probably doesn't even include them
         "peBoundImport": "Bound",
@@ -62,7 +62,7 @@ def establish_relationships(
     return relationships
 
 
-def get_windows_pe_dependencies(sbom: SBOM, sw: Software, peImports) -> List[Relationship]:
+def get_windows_pe_dependencies(sbom: SBOM, sw: Software, peImports) -> list[Relationship]:
     """
     Resolve dynamically loaded PE (Windows) DLL dependencies and generate ``Uses`` relationships.
 
@@ -149,7 +149,7 @@ def get_windows_pe_dependencies(sbom: SBOM, sw: Software, peImports) -> List[Rel
             ``Relationship(xUUID=sw.UUID, yUUID=dep.UUID, relationship="Uses")``.
     """
 
-    relationships: List[Relationship] = []
+    relationships: list[Relationship] = []
 
     # No installPath is probably temporary files/installer
     # TODO maybe resolve dependencies using relative locations in containerPath, for files originating from the same container UUID?
@@ -173,7 +173,7 @@ def get_windows_pe_dependencies(sbom: SBOM, sw: Software, peImports) -> List[Rel
         # -----------------------------------
         # Build probe directories from the importing binary's installPath parents.
         # This mirrors the legacy behavior (Windows DLL search: "application directory").
-        probedirs: List[str] = []
+        probedirs: list[str] = []
         if isinstance(sw.installPath, Iterable):
             for ipath in sw.installPath or []:
                 # Extract the parent directory in normalized POSIX form

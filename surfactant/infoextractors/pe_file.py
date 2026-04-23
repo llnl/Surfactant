@@ -10,7 +10,7 @@
 
 import pathlib
 import re
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import defusedxml.ElementTree
 import dnfile
@@ -20,7 +20,7 @@ import surfactant.plugin
 from surfactant.sbomtypes import SBOM, Software
 
 
-def supports_file(filetype: List[str]) -> bool:
+def supports_file(filetype: list[str]) -> bool:
     return "PE" in filetype
 
 
@@ -29,8 +29,8 @@ def extract_file_info(
     sbom: SBOM,
     software: Software,
     filename: str,
-    filetype: List[str],
-    software_field_hints: List[Tuple[str, object, int]],
+    filetype: list[str],
+    software_field_hints: list[tuple[str, object, int]],
 ) -> object:
     if not supports_file(filetype):
         return None
@@ -119,7 +119,7 @@ def extract_pe_info(filename: str) -> object:
     except (OSError, dnfile.PEFormatError):
         return {}
 
-    file_details: Dict[str, Any] = {"OS": "Windows"}
+    file_details: dict[str, Any] = {"OS": "Windows"}
     if pe.FILE_HEADER is not None:
         if pe.FILE_HEADER.Machine in pe_machine_types:
             file_details["peMachine"] = pe_machine_types[pe.FILE_HEADER.Machine]
@@ -211,7 +211,7 @@ def extract_pe_info(filename: str) -> object:
                     assembly_refs.append(get_assemblyref_info(ar_info))
                 file_details["dotnetAssemblyRef"] = assembly_refs
             if implmap_info := getattr(dnet_mdtables, "ImplMap", None):
-                imp_modules: List[Dict[str, Any]] = []
+                imp_modules: list[dict[str, Any]] = []
                 for im_info in implmap_info:
                     insert_implmap_info(im_info, imp_modules)
                 file_details["dotnetImplMap"] = imp_modules
@@ -246,7 +246,7 @@ def check_attribute_exists(obj):
     return obj
 
 
-def add_core_assembly_info(asm_dict: Dict[str, Any], asm_info):
+def add_core_assembly_info(asm_dict: dict[str, Any], asm_info):
     # REFERENCE: https://github.com/malwarefrank/dnfile/blob/096de1b3/src/dnfile/stream.py#L36-L39
     # HeapItemString value will be decoded string, or None if there was a UnicodeDecodeError
 
@@ -288,8 +288,8 @@ def add_assembly_flags_info(asm_dict, asm_info):
         }
 
 
-def get_assembly_info(asm_info) -> Dict[str, Any]:
-    asm: Dict[str, Any] = {}
+def get_assembly_info(asm_info) -> dict[str, Any]:
+    asm: dict[str, Any] = {}
     add_core_assembly_info(asm, asm_info)
     # REFERENCE: https://github.com/malwarefrank/dnfile/blob/fcccdaf/src/dnfile/enums.py#L851-L863
     # HashAlgID is a dnfile enum, based on possible .NET hash algs
@@ -298,8 +298,8 @@ def get_assembly_info(asm_info) -> Dict[str, Any]:
     return asm
 
 
-def get_assemblyref_info(asmref_info) -> Dict[str, Any]:
-    asmref: Dict[str, Any] = {}
+def get_assemblyref_info(asmref_info) -> dict[str, Any]:
+    asmref: dict[str, Any] = {}
     add_core_assembly_info(asmref, asmref_info)
     # REFERENCE: https://github.com/malwarefrank/dnfile/blob/096de1b3/src/dnfile/stream.py#L62-L66
     # HeapItemBinary value is the bytes following the compressed int (indicating the length)
@@ -311,7 +311,7 @@ def get_assemblyref_info(asmref_info) -> Dict[str, Any]:
     return asmref
 
 
-def insert_implmap_info(im_info, imp_modules: List[Dict[str, Any]]):
+def insert_implmap_info(im_info, imp_modules: list[dict[str, Any]]):
     # REFERENCE: https://github.com/malwarefrank/dnfile/blob/096de1b3/src/dnfile/stream.py#L36-L39
     # HeapItemString value will be decoded string, or None if there was a UnicodeDecodeError
     dllName = check_attribute_exists(im_info.ImportScope.row.Name)
@@ -336,7 +336,7 @@ def get_xmlns_and_tag(uri):
 
 # check for manifest file on Windows (note: could also be a resource contained within an exe/dll)
 # return any info that could be useful for establishing "Uses" relationships later
-def get_windows_manifest_info(filename: str) -> Optional[Dict[str, Any]]:
+def get_windows_manifest_info(filename: str) -> dict[str, Any] | None:
     binary_filepath = pathlib.Path(filename)
     manifest_filepath = binary_filepath.with_suffix(binary_filepath.suffix + ".manifest")
     if manifest_filepath.exists():
@@ -367,7 +367,7 @@ def get_windows_manifest_info(filename: str) -> Optional[Dict[str, Any]]:
                         "duplicate dependency element found in the manifest file: "
                         + str(manifest_filepath)
                     )
-                dependency_info: Dict[str, Any] = {}
+                dependency_info: dict[str, Any] = {}
                 for dependency in asm_e:
                     dependency_xmlns, dependency_tag = get_xmlns_and_tag(dependency)
                     if dependency_tag == "dependentAssembly":
@@ -562,7 +562,7 @@ def get_windows_application_config_info(filename: str):
                 if tag == "assemblyBinding":
                     windows_info["assemblyBinding"] = get_assemblyBinding_info(win_child)
                 if tag == "dependency":
-                    dependency_info: Dict[str, Any] = {}
+                    dependency_info: dict[str, Any] = {}
                     for dependency in win_child:
                         dependency_xmlns, dependency_tag = get_xmlns_and_tag(dependency)
                         if dependency_tag == "dependentAssembly":

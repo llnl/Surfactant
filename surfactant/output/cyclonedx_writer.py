@@ -1,6 +1,5 @@
 import pathlib
 from collections.abc import Iterable
-from typing import Dict, List, Optional, Tuple
 
 import cyclonedx.output
 from cyclonedx.model import HashAlgorithm, HashType
@@ -41,7 +40,7 @@ def write_sbom(sbom: SBOM, outfile) -> None:
         bom.components.add(comp)
 
     # Build container-path lookup for software
-    container_path_relationships: Dict[Tuple[str, str]] = {}
+    container_path_relationships: dict[tuple[str, str]] = {}
     for software in sbom.software:
         if sbom.get_children(software.UUID, rel_type="Contains"):
             _, container_list = convert_software_to_cyclonedx_container_components(software)
@@ -54,7 +53,7 @@ def write_sbom(sbom: SBOM, outfile) -> None:
                     container_path_relationships[file.bom_ref.value] = parent_uuid
 
     # Build a map of Dependency objects keyed by UUID
-    cdx_rels: Dict[str, Dependency] = {}
+    cdx_rels: dict[str, Dependency] = {}
 
     # Walk every edge, pulling the relationship out of the key
     for parent_uuid, child_uuid, rel_type in sbom.graph.edges(keys=True):
@@ -97,11 +96,11 @@ def write_sbom(sbom: SBOM, outfile) -> None:
 
 
 @surfactant.plugin.hookimpl
-def short_name() -> Optional[str]:
+def short_name() -> str | None:
     return "cyclonedx"
 
 
-def convert_system_to_cyclonedx_component(system: System) -> Tuple[str, Component]:
+def convert_system_to_cyclonedx_component(system: System) -> tuple[str, Component]:
     """Converts a system entry in the SBOM to a CycloneDX Component.
 
     If a system entry has multiple vendors, only the first one is chosen as the
@@ -139,7 +138,7 @@ def convert_system_to_cyclonedx_component(system: System) -> Tuple[str, Componen
 
 def convert_software_to_cyclonedx_container_components(
     software: Software,
-) -> Tuple[str, List[Component]]:
+) -> tuple[str, list[Component]]:
     """Converts a software entry in the SBOM to one or more CycloneDX Components.
 
     A CycloneDX Component is created for each file name that the software can have. If
@@ -153,7 +152,7 @@ def convert_software_to_cyclonedx_container_components(
         Tuple[str, List[Component]]: A tuple containing the UUID of the software that was
         converted into Components, and a list of the CycloneDX Component objects that were created.
     """
-    containers: List[Component] = []
+    containers: list[Component] = []
     for fname in software.fileName:
         name = software.name
         if not name:
@@ -190,7 +189,7 @@ def convert_software_to_cyclonedx_container_components(
 
 def convert_software_to_cyclonedx_file_components(
     software: Software,
-) -> List[Tuple[str, str, Component]]:
+) -> list[tuple[str, str, Component]]:
     """Converts a software entry in the SBOM to one or more CycloneDX FILE Components.
 
     A CycloneDX Component is created for each unique container path that the software has. If
@@ -207,7 +206,7 @@ def convert_software_to_cyclonedx_file_components(
         software entry that was converted into a CycloneDX Component, and the resulting CycloneDX
         Component that was created.
     """
-    files: List[Tuple[str, str, Component]] = []
+    files: list[tuple[str, str, Component]] = []
     for cpathstr in software.containerPath:
         cpath = pathlib.PurePath(cpathstr)
         # Less than 2 parts would just be the container path uuid, or a file name
@@ -276,7 +275,7 @@ def create_cyclonedx_file(file_path: str, software: Software) -> Component:
     )
 
 
-def get_fileinfo_metadata(software: Software, field: str) -> Optional[str]:
+def get_fileinfo_metadata(software: Software, field: str) -> str | None:
     """Retrieves the value for a field in a 'FileInfo' metadata object in a software entry.
 
     Args:

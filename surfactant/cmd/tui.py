@@ -6,7 +6,6 @@
 import json
 import os
 import pathlib
-from typing import Optional
 
 import click
 import textual.app
@@ -72,7 +71,7 @@ class SelectFileButtons(textual.widgets.Static):
             yield textual.widgets.Button("Select directory", id="select_dir")
 
 
-class SelectFile(textual.screen.ModalScreen[Optional[textual.widgets.DirectoryTree.FileSelected]]):
+class SelectFile(textual.screen.ModalScreen[textual.widgets.DirectoryTree.FileSelected|None]):
     """Pop-up to select a file"""
 
     def __init__(self, allow_folder_selection: bool, start_path: str):
@@ -111,7 +110,7 @@ class SelectFile(textual.screen.ModalScreen[Optional[textual.widgets.DirectoryTr
 
 class FileInput(textual.widgets.Static):
     def __init__(
-        self, label: str, allow_folder_selection: bool, file_input: Optional[textual.widgets.Input]
+        self, label: str, allow_folder_selection: bool, file_input: textual.widgets.Input | None
     ):
         super().__init__()
         self.label = label
@@ -126,7 +125,7 @@ class FileInput(textual.widgets.Static):
             yield textual.widgets.Label(f"{self.label} {self.input_path}")
 
     def on_click(self):
-        def set_path(path: Optional[pathlib.Path]):
+        def set_path(path: pathlib.Path | None):
             if path:
                 if self.file_input and not os.path.isdir(path):
                     # Set the directory and the file separately
@@ -363,7 +362,7 @@ class ContextEntry(textual.widgets.Static):
 
     @textual.on(textual.widgets.Button.Pressed, "#delete_entry")
     def delete_entry(self):
-        def delete_self(do_it: Optional[bool]):
+        def delete_self(do_it: bool | None):
             if do_it:
                 self.remove()
                 self.active = False
@@ -435,7 +434,7 @@ class ContextTab(textual.widgets.Static):
     def load(self):
         file_to_load = self.context_input.input_path + "/" + self.context_name.value
         try:
-            with open(file_to_load, "r") as config_file:
+            with open(file_to_load) as config_file:
                 js = json.load(config_file)
         except (FileNotFoundError, IsADirectoryError):
             self.app.notify(f"Could not find file {file_to_load}")

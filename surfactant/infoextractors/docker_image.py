@@ -12,7 +12,6 @@ import gzip
 import json
 import subprocess
 import tempfile
-from typing import List, Optional
 
 from loguru import logger
 
@@ -76,7 +75,7 @@ class DockerScoutManager:
 dsManager = DockerScoutManager()
 
 
-def supports_file(filetype: List[str]) -> bool:
+def supports_file(filetype: list[str]) -> bool:
     """Check if the file type is supported."""
     if "DOCKER_TAR" in filetype or "DOCKER_GZIP" in filetype:
         return True
@@ -84,14 +83,14 @@ def supports_file(filetype: List[str]) -> bool:
 
 
 @surfactant.plugin.hookimpl
-def extract_file_info(sbom: SBOM, software: Software, filename: str, filetype: List[str]) -> object:
+def extract_file_info(sbom: SBOM, software: Software, filename: str, filetype: list[str]) -> object:
     """Extract file information using Docker Scout if supported."""
     if dsManager.disable_docker_scout or not supports_file(filetype):
         return None
     return extract_docker_info(filetype, filename)
 
 
-def extract_docker_info(filetype: List[str], filename: str) -> object:
+def extract_docker_info(filetype: list[str], filename: str) -> object:
     """Extract Docker information based on file type."""
     if "DOCKER_GZIP" in filetype:
         with open(filename, "rb") as gzip_in:
@@ -104,11 +103,11 @@ def extract_docker_info(filetype: List[str], filename: str) -> object:
 
 
 @surfactant.plugin.hookimpl
-def init_hook(command_name: Optional[str] = None) -> None:
+def init_hook(command_name: str | None = None) -> None:
     if command_name != "update-db" and not dsManager.disable_docker_scout:
         dsManager.check_docker_scout_installed()
 
 
 @surfactant.plugin.hookimpl
-def settings_name() -> Optional[str]:
+def settings_name() -> str | None:
     return "docker"

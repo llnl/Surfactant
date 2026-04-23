@@ -21,7 +21,7 @@ def find_js_match(expressions: dict, filename: str) -> str:
                 if re.search(pattern, filename):
                     return name
     try:
-        with open(filename, "r") as jsfile:
+        with open(filename) as jsfile:
             contents = jsfile.read()
         for name, library in expressions.items():
             if "filecontent" in library:
@@ -35,7 +35,7 @@ def find_js_match(expressions: dict, filename: str) -> str:
 
 get_test_file()
 json_file_path = ConfigManager().get_data_dir_path() / "infoextractors" / "js_library_patterns.json"
-with open(json_file_path, "r") as f:
+with open(json_file_path) as f:
     patterns = json.load(f)
 
 library_name = find_js_match(patterns, "testFile.js")

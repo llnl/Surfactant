@@ -5,17 +5,15 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "Surfactant"
 authors = [
-    {name = "Ryan Mast", email = "mast9@llnl.gov"},
-    {name = "Levi Lloyd", email = "lloyd27@llnl.gov"},
-    {name = "Micaela Gallegos", email = "gallegos31@llnl.gov"},
-    {name = "Alexander Armstrong", email = "armstrong48@llnl.gov"},
-    {name = "Shayna Kapadia", email = "kapadia2@llnl.gov"},
-    {name = "Asriel Margarian", email = "margarian1@llnl.gov"},
-    {name = "Matthew Kelley", email = "kelley41@llnl.gov"},
+    { name = "Ryan Mast", email = "mast9@llnl.gov" },
+    { name = "Levi Lloyd", email = "lloyd27@llnl.gov" },
+    { name = "Micaela Gallegos", email = "gallegos31@llnl.gov" },
+    { name = "Alexander Armstrong", email = "armstrong48@llnl.gov" },
+    { name = "Shayna Kapadia", email = "kapadia2@llnl.gov" },
+    { name = "Asriel Margarian", email = "margarian1@llnl.gov" },
+    { name = "Matthew Kelley", email = "kelley41@llnl.gov" },
 ]
-maintainers = [
-    {name = "Ryan Mast", email = "mast9@llnl.gov"},
-]
+maintainers = [{ name = "Ryan Mast", email = "mast9@llnl.gov" }]
 description = "Modular framework to gather file information, analyze dependencies, and generate an SBOM"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -68,7 +66,7 @@ dynamic = ["version"]
 
 [dependency-groups]
 test = ["pytest"]
-dev = ["build", "pre-commit"]
+dev = ["build", "pre-commit", "ruff"]
 docs = ["sphinx", "myst-parser", "furo>=2025.9.25", "sphinx-copybutton>=0.5.2"]
 
 [project.optional-dependencies]
@@ -101,10 +99,17 @@ pythonpath = "."
 [tool.ruff]
 line-length = 100
 indent-width = 4
+target-version = "py310"
 
 [tool.ruff.lint]
 # ruff defaults: E4, E7, E9, F
-select = ["E", "F", "B", "I"]
+select = [
+    "UP", # pyupgrade
+    "E",
+    "F",
+    "B",
+    "I",
+]
 ignore = ["E501", "F841"]
 # don't fix flake8-bugbear (`B`) violations
 unfixable = ["B"]
@@ -113,25 +118,29 @@ unfixable = ["B"]
 [tool.ruff.lint.per-file-ignores]
 "surfactant/plugin/manager.py" = ["E402"]
 
+
+[tool.ruff.format]
+
+
 [tool.pylint.messages_control]
 max-line-length = "100"
 good-names-rgxs = "x,y,e,md,sw"
 disable = [
-  "line-too-long",
-  "missing-module-docstring",
-  "missing-class-docstring",
-  "missing-function-docstring",
-  "duplicate-code",
-  "too-many-branches",
-  "too-many-statements",
-  "unused-variable",
-  "invalid-name",
-  "no-member",
-  "too-many-nested-blocks",
-  "fixme",
-  "too-many-locals",
-  "too-many-arguments",
-  "unused-argument",
-  "unspecified-encoding",
-  "import-error",
+    "line-too-long",
+    "missing-module-docstring",
+    "missing-class-docstring",
+    "missing-function-docstring",
+    "duplicate-code",
+    "too-many-branches",
+    "too-many-statements",
+    "unused-variable",
+    "invalid-name",
+    "no-member",
+    "too-many-nested-blocks",
+    "fixme",
+    "too-many-locals",
+    "too-many-arguments",
+    "unused-argument",
+    "unspecified-encoding",
+    "import-error",
 ]

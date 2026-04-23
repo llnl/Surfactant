@@ -16,7 +16,6 @@ import traceback
 import uuid
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Optional
 from unittest.mock import patch
 
 import click
@@ -84,7 +83,7 @@ def deterministic_context(enabled: bool = True):
 
 def generate_sbom_string(
     input_folder: str,
-    install_prefix: Optional[str] = None,
+    install_prefix: str | None = None,
     deterministic: bool = False,
 ) -> str:
     """
@@ -202,12 +201,12 @@ def test_all_data_folders():
 
 
 def test_gha(
-    old_folders: dict[str, dict[str, Optional[str]]],
-    repo: Optional[str],
-    current_run: Optional[tuple[str, str]],
-    last_run: Optional[tuple[str, str]],
-    requested_last_sha: Optional[str] = None,
-) -> tuple[str, dict[str, dict[str, Optional[str]]]]:
+    old_folders: dict[str, dict[str, str | None]],
+    repo: str | None,
+    current_run: tuple[str, str] | None,
+    last_run: tuple[str, str] | None,
+    requested_last_sha: str | None = None,
+) -> tuple[str, dict[str, dict[str, str | None]]]:
     """
     Test function for CI/CD mode.
 
@@ -360,7 +359,7 @@ def main():
         gh_summary = os.environ.get("GITHUB_STEP_SUMMARY", None)
         old_folders = {}
         if input_file:
-            with open(input_file, "r") as f:
+            with open(input_file) as f:
                 old_folders = json.load(f)
         summary, new_folders = test_gha(
             old_folders,

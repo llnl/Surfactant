@@ -5,7 +5,6 @@
 import gzip
 import subprocess
 import tempfile
-from typing import List, Optional
 
 from loguru import logger
 
@@ -76,8 +75,8 @@ def run_grype(filename: str) -> object:
 
 @surfactant.plugin.hookimpl
 def extract_file_info(
-    sbom: SBOM, software: Software, filename: str, filetype: List[str], children: list
-) -> Optional[List[Software]]:
+    sbom: SBOM, software: Software, filename: str, filetype: list[str], children: list
+) -> list[Software] | None:
     if disable_plugin:
         return None
 

@@ -3,7 +3,7 @@
 #
 # SPDX-License-Identifier: MIT
 import sys
-from typing import Any, List, Optional
+from typing import Any
 
 import pluggy
 from loguru import logger
@@ -164,7 +164,7 @@ def print_plugins(pm: pluggy.PluginManager) -> None:
         print(f"\t  short name: {short_name}\n")
 
 
-def find_io_plugin(pm: pluggy.PluginManager, io_format: str, function_name: str) -> Optional[Any]:
+def find_io_plugin(pm: pluggy.PluginManager, io_format: str, function_name: str) -> Any | None:
     """
     Finds and returns a plugin that matches the specified input/output format and has the desired function.
 
@@ -203,7 +203,7 @@ def find_io_plugin(pm: pluggy.PluginManager, io_format: str, function_name: str)
     return found_plugin
 
 
-def find_plugin_by_name(pm: pluggy.PluginManager, name: str) -> Optional[Any]:
+def find_plugin_by_name(pm: pluggy.PluginManager, name: str) -> Any | None:
     """
     Finds a plugin by matching the given name against the plugin's registered name,
     canonical name, and its short name (if applicable).
@@ -241,7 +241,7 @@ def find_plugin_by_name(pm: pluggy.PluginManager, name: str) -> Optional[Any]:
 
 
 def call_init_hooks(
-    pm: pluggy.PluginManager, hook_filter: List[str] = None, command_name: str = None
+    pm: pluggy.PluginManager, hook_filter: list[str] = None, command_name: str = None
 ) -> None:
     """
     Call the initialization hook for plugins that implement it.

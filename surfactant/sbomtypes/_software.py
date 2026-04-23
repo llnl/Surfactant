@@ -11,7 +11,7 @@ import time
 import uuid
 from collections.abc import Iterable
 from dataclasses import dataclass, field, fields
-from typing import Any, List, Optional
+from typing import Any
 
 from dataclasses_json import dataclass_json
 
@@ -27,42 +27,42 @@ from ._provenance import SoftwareComponentProvenance, SoftwareProvenance
 @dataclass
 class SoftwareComponent:
     name: str
-    captureTime: Optional[int] = None
-    version: Optional[str] = None
-    vendor: Optional[List[str]] = None
-    description: Optional[str] = None
-    comments: Optional[str] = None
-    metadata: Optional[List[object]] = None
-    supplementaryFiles: Optional[List[File]] = None
-    provenance: Optional[List[SoftwareComponentProvenance]] = None
-    recordedInstitution: Optional[str] = None
+    captureTime: int | None = None
+    version: str | None = None
+    vendor: list[str] | None = None
+    description: str | None = None
+    comments: str | None = None
+    metadata: list[object] | None = None
+    supplementaryFiles: list[File] | None = None
+    provenance: list[SoftwareComponentProvenance] | None = None
+    recordedInstitution: str | None = None
 
 
 @dataclass_json
 @dataclass
 class Software:
     UUID: str = field(default_factory=lambda: str(uuid.uuid4()))
-    name: Optional[str] = None
-    size: Optional[int] = None
-    fileName: Optional[List[str]] = None
-    installPath: Optional[List[str]] = None
-    containerPath: Optional[List[str]] = None
-    captureTime: Optional[int] = None
-    version: Optional[str] = None
-    vendor: Optional[List[str]] = None
-    description: Optional[str] = None
-    sha1: Optional[str] = None
-    sha256: Optional[str] = None
-    md5: Optional[str] = None
-    relationshipAssertion: Optional[str] = (
+    name: str | None = None
+    size: int | None = None
+    fileName: list[str] | None = None
+    installPath: list[str] | None = None
+    containerPath: list[str] | None = None
+    captureTime: int | None = None
+    version: str | None = None
+    vendor: list[str] | None = None
+    description: str | None = None
+    sha1: str | None = None
+    sha256: str | None = None
+    md5: str | None = None
+    relationshipAssertion: str | None = (
         None  # enum: Unknown, Root, Partial, Known; default=Unknown
     )
-    comments: Optional[str] = None
-    metadata: Optional[List[object]] = None
-    supplementaryFiles: Optional[List[File]] = None
-    provenance: Optional[List[SoftwareProvenance]] = None
-    recordedInstitution: Optional[str] = None
-    components: Optional[List[SoftwareComponent]] = None
+    comments: str | None = None
+    metadata: list[object] | None = None
+    supplementaryFiles: list[File] | None = None
+    provenance: list[SoftwareProvenance] | None = None
+    recordedInstitution: str | None = None
+    components: list[SoftwareComponent] | None = None
 
     def _update_field(self, field_name: str, value: Any):
         if value not in ["", " ", None]:
@@ -155,7 +155,7 @@ class Software:
         return self.UUID, sw.UUID
 
     @staticmethod
-    def check_for_hash_collision(soft1: Optional[Software], soft2: Optional[Software]) -> bool:
+    def check_for_hash_collision(soft1: Software | None, soft2: Software | None) -> bool:
         if not soft1 or not soft2:
             return False
         # A hash collision occurs if one or more but less than all hashes match or

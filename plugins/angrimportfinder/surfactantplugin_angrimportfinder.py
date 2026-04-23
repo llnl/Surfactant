@@ -4,7 +4,6 @@
 # SPDX-License-Identifier: MIT
 import json
 from pathlib import Path
-from typing import List
 
 import angr
 from cle import CLECompatibilityError
@@ -17,7 +16,7 @@ from surfactant.sbomtypes import SBOM, Software
 @surfactant.plugin.hookimpl(specname="extract_file_info")
 # extract_strings(sbom: SBOM, software: Software, filename: str, filetype: str):
 # def angrimport_finder(filename: str, filetype: str, filehash: str):
-def angrimport_finder(sbom: SBOM, software: Software, filename: str, filetype: List[str]):
+def angrimport_finder(sbom: SBOM, software: Software, filename: str, filetype: list[str]):
     """
     :param sbom(SBOM): The SBOM that the software entry/file is being added to. Can be used to add observations or analysis data.
     :param software(Software): The software entry associated with the file to extract information from.
@@ -42,7 +41,7 @@ def angrimport_finder(sbom: SBOM, software: Software, filename: str, filetype: L
             output_name = f
 
     if existing_json:
-        with open(existing_json, "r") as json_file:
+        with open(existing_json) as json_file:
             existing_data = json.load(json_file)
         if (
             "imported function names" in existing_data

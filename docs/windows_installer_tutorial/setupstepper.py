@@ -290,7 +290,7 @@ def handle_transfers() -> None:
     """
 
     # Copy each file into the shared folder
-    with open(f"{DRIVE}/{FILE_LIST}", "r", encoding="utf-8") as f_handle:
+    with open(f"{DRIVE}/{FILE_LIST}", encoding="utf-8") as f_handle:
         for line in f_handle.readlines():
             # The name for each file is changed to a variant of its path
             file = line.strip()
@@ -298,7 +298,7 @@ def handle_transfers() -> None:
 
             try:
                 copy2(file, f"{DRIVE}/{newname}")
-            except IOError as err:
+            except OSError as err:
                 exception(err)
 
     # Signal to the host that each file has finished copying
@@ -367,13 +367,13 @@ def handle_file(fname: str) -> None:
     # Parse txt into dict as json
     try:
         info("Processing text file as args...")
-        with open(fname, "r", encoding="utf-8") as f_handle:
+        with open(fname, encoding="utf-8") as f_handle:
             argstr = f_handle.readlines()[0]
             arguments.update(loads(argstr))
 
         # Remove file from folder
         remove(fname)
-    except IOError as err:
+    except OSError as err:
         exception(err)
         sleep(0.5)
 

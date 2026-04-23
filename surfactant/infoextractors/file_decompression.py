@@ -17,8 +17,9 @@ import shutil
 import tarfile
 import tempfile
 import zipfile
+from collections.abc import Callable
 from queue import Queue
-from typing import Any, Callable, Dict, List, Literal, Optional, Tuple, Union
+from typing import Any, Literal
 
 import rarfile
 from loguru import logger
@@ -43,7 +44,7 @@ EXTRACT_DIRS_PATH = EXTRACT_DIR / ".surfactant_extracted_dirs.json"
 RAR_SUPPORT = {"enabled": False}
 
 
-def supports_file(filetype: list[str]) -> Optional[list[str]]:
+def supports_file(filetype: list[str]) -> list[str] | None:
     if filetype is None:
         return None
     supported_types = {"TAR", "GZIP", "ZIP", "BZIP2", "XZ"}
@@ -66,10 +67,10 @@ def extract_file_info(
     sbom: SBOM,
     software: Software,
     filename: str,
-    filetype: List[str],
+    filetype: list[str],
     context_queue: "Queue[ContextEntry]",
-    current_context: Optional[ContextEntry],
-) -> Optional[Dict[str, Any]]:
+    current_context: ContextEntry | None,
+) -> dict[str, Any] | None:
     # Check if the file is compressed and get its format
     compression_format = supports_file(filetype)
 
@@ -88,8 +89,8 @@ def create_extraction(
     filename: str,
     software: Software,
     context_queue: "Queue[ContextEntry]",
-    current_context: Optional[ContextEntry],
-    decompress: Callable[[str, str], Union[bool, List[Tuple[str, str]]]],
+    current_context: ContextEntry | None,
+    decompress: Callable[[str, str], bool | list[tuple[str, str]]],
 ):
     """Create extraction context entries for decompressed archive files.
 
@@ -269,7 +270,7 @@ def setup_extracted_dirs():
     should_cache_extractions = ConfigManager().get("decompression", "cache_extractions", True)
     if should_cache_extractions and EXTRACT_DIRS_PATH.exists():
         try:
-            with open(EXTRACT_DIRS_PATH, "r") as f:
+            with open(EXTRACT_DIRS_PATH) as f:
                 GLOBAL_EXTRACT_DIRS = json.load(f)
             if not isinstance(GLOBAL_EXTRACT_DIRS, dict):
                 logger.error(f"Invalid format in {EXTRACT_DIRS_PATH}. Expected a dictionary.")
@@ -288,7 +289,7 @@ def store_extracted_dirs():
         try:
             with open(EXTRACT_DIRS_PATH, "w") as f:
                 json.dump(EXTRACT_DIRS, f)
-        except IOError as e:
+        except OSError as e:
             logger.error(f"Failed to write extracted directories to {EXTRACT_DIRS_PATH}: {e}")
 
 
@@ -333,7 +334,7 @@ def setup_rar_support():
 
 
 @surfactant.plugin.hookimpl
-def init_hook(command_name: Optional[str] = None):
+def init_hook(command_name: str | None = None):
     """Initialize the file decompression plugin."""
     setup_extracted_dirs()
     setup_rar_support()

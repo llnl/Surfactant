@@ -11,7 +11,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any
 from urllib.parse import urlparse
 
 from loguru import logger
@@ -43,7 +43,7 @@ class DatabaseConfig:
     database_key: str
     database_file: str
     source: str
-    plugin_name: Optional[str] = None
+    plugin_name: str | None = None
 
     def __post_init__(self) -> None:
         # Validate that source is either a URL or "file"
@@ -84,9 +84,9 @@ class BaseDatabaseManager(ABC):
         else:
             logger.debug("Using hard-coded URL for {}", self.config.database_key)
 
-        self.new_hash: Optional[str] = None
-        self.download_timestamp: Optional[str] = None
-        self._database: Optional[Dict[str, Any]] = None
+        self.new_hash: str | None = None
+        self.download_timestamp: str | None = None
+        self._database: dict[str, Any] | None = None
 
         # Ensure the parent directory exists
         path = self.database_version_file_path
@@ -108,7 +108,7 @@ class BaseDatabaseManager(ABC):
         return self.data_dir / f"{self.config.database_dir}" / f"{self.config.database_file}"
 
     @property
-    def database_info(self) -> Dict[str, Any]:
+    def database_info(self) -> dict[str, Any]:
         """Returns metadata about the database patterns."""
         return {
             "database_key": self.config.database_key,
@@ -118,7 +118,7 @@ class BaseDatabaseManager(ABC):
             "timestamp": self.download_timestamp,
         }
 
-    def initialize_database(self, command_name: Optional[str] = None) -> None:
+    def initialize_database(self, command_name: str | None = None) -> None:
         """
         Initialization hook to load the pattern database.
 
@@ -147,13 +147,13 @@ class BaseDatabaseManager(ABC):
             )
             self._database = None
 
-    def get_database(self) -> Optional[Dict[str, Any]]:
+    def get_database(self) -> dict[str, Any] | None:
         """Returns the loaded database."""
         if self._database is None:
             self.load_db()
         return self._database
 
-    def save_database(self, data: Dict[str, Any]) -> None:
+    def save_database(self, data: dict[str, Any]) -> None:
         """Saves the database to a JSON file."""
         self.data_dir.mkdir(parents=True, exist_ok=True)
         with self.database_file_path.open("w") as db_file:
@@ -161,7 +161,7 @@ class BaseDatabaseManager(ABC):
         logger.info("{} database saved successfully.", self.config.database_key)
 
     @abstractmethod
-    def parse_raw_data(self, raw_data: str) -> Dict[str, Any]:
+    def parse_raw_data(self, raw_data: str) -> dict[str, Any]:
         """Parses raw database data into a structured format."""
         # No implementation needed for abstract methods.
 

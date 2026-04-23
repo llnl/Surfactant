@@ -241,7 +241,7 @@ def test_surfactant_generate(config_and_tarball_fixture, tmp_path_factory):
     # Run the Surfactant generate command (with Grype enabled)
     output_enabled_sbom = temp_dir / "docker_tball_grype-enabled_sbom.json"
     logging.info(config_file)
-    with open(config_file, "r", encoding="utf-8") as f:
+    with open(config_file, encoding="utf-8") as f:
         config_out = json.load(f)
     logging.info(json.dumps(config_out, indent=4))
     logging.info("Running surfactant generate via API for: '%s'", output_enabled_sbom)
@@ -251,7 +251,7 @@ def test_surfactant_generate(config_and_tarball_fixture, tmp_path_factory):
     assert output_enabled_sbom.exists(), f"SBOM file not created: {output_enabled_sbom}"
 
     # Read and parse the SBOM
-    with open(output_enabled_sbom, "r", encoding="utf-8") as f:
+    with open(output_enabled_sbom, encoding="utf-8") as f:
         sbom_enabled = json.load(f)
 
     # Assert that the Grype output is present
@@ -284,7 +284,7 @@ def test_surfactant_generate(config_and_tarball_fixture, tmp_path_factory):
     assert output_disabled_sbom.exists(), f"SBOM file not created: {output_disabled_sbom}"
 
     # Read and parse the SBOM
-    with open(output_disabled_sbom, "r", encoding="utf-8") as f:
+    with open(output_disabled_sbom, encoding="utf-8") as f:
         sbom_disabled = json.load(f)
 
     # Assert that the Grype output is not present

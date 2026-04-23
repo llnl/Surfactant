@@ -107,7 +107,7 @@ def handle_cli_add(sbom, output, output_format, input_format, **kwargs):
     pm = get_plugin_manager()
     output_writer = find_io_plugin(pm, output_format, "write_sbom")
     input_reader = find_io_plugin(pm, input_format, "read_sbom")
-    with open(Path(sbom), "r") as f:
+    with open(Path(sbom)) as f:
         in_sbom = input_reader.read_sbom(f)
     # Remove None values
     filtered_kwargs = dict({(k, v) for k, v in kwargs.items() if v is not None})

@@ -3,7 +3,6 @@
 #
 # SPDX-License-Identifier: MIT
 from dataclasses import dataclass
-from typing import List, Optional
 
 # pylint: disable=too-many-instance-attributes
 
@@ -16,4 +15,4 @@ class File:
     capturedBy: str
     captureTime: str
     source: str
-    methodOfAcquisition: Optional[List[str]] = None
+    methodOfAcquisition: list[str] | None = None

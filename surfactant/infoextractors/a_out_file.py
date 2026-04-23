@@ -2,13 +2,12 @@
 # See the top-level LICENSE file for details.
 #
 # SPDX-License-Identifier: MIT
-from typing import List, Union
 
 import surfactant.plugin
 from surfactant.sbomtypes import SBOM, Software
 
 
-def supports_file(filetype: List[str]) -> bool:
+def supports_file(filetype: list[str]) -> bool:
     supported_types = ("A.OUT little", "A.OUT big")
     for ft in filetype:
         if ft in supported_types:
@@ -17,7 +16,7 @@ def supports_file(filetype: List[str]) -> bool:
 
 
 @surfactant.plugin.hookimpl
-def extract_file_info(sbom: SBOM, software: Software, filename: str, filetype: List[str]) -> object:
+def extract_file_info(sbom: SBOM, software: Software, filename: str, filetype: list[str]) -> object:
     if not supports_file(filetype):
         return None
     return extract_a_out_info(filetype, filename)
@@ -72,7 +71,7 @@ _A_OUT_TARGET_NAME = {
 }
 
 
-def extract_a_out_info(filetype: List[str], filename: str) -> object:
+def extract_a_out_info(filetype: list[str], filename: str) -> object:
     try:
         with open(filename, "rb") as f:
             magic_bytes = f.read(4)
@@ -84,7 +83,7 @@ def extract_a_out_info(filetype: List[str], filename: str) -> object:
         return None
 
 
-def get_target_type(filetype: List[str], magic_bytes: bytes) -> Union[str, None]:
+def get_target_type(filetype: list[str], magic_bytes: bytes) -> str | None:
     if "A.OUT big" in filetype:
         big_endian_magic = (
             int.from_bytes(magic_bytes[:4], byteorder="big", signed=False) >> 16

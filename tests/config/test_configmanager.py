@@ -109,7 +109,7 @@ def test_preserve_comments(config_manager):
 
     # Set a new value to make ConfigManager to save an updated config file
     config_manager.set("Settings", "language", "en")
-    with open(config_manager.config_file_path, "r") as configfile:
+    with open(config_manager.config_file_path) as configfile:
         content = configfile.read()
     assert "# This is a comment" in content
 

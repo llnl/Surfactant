@@ -4,7 +4,6 @@
 # SPDX-License-Identifier: MIT
 import uuid
 from dataclasses import dataclass, field
-from typing import List, Optional
 
 from ._file import File
 from ._provenance import AnalysisDataProvenance
@@ -20,7 +19,7 @@ class AnalysisData:
     testName: str
     testVersion: str
     UUID: str = field(default_factory=lambda: str(uuid.uuid4()))
-    specificEnvironment: Optional[str] = None
-    files: Optional[List[File]] = None
-    linksToKnownVulnerabilities: Optional[str] = None
-    provenance: Optional[List[AnalysisDataProvenance]] = None
+    specificEnvironment: str | None = None
+    files: list[File] | None = None
+    linksToKnownVulnerabilities: str | None = None
+    provenance: list[AnalysisDataProvenance] | None = None

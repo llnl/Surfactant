@@ -1,6 +1,5 @@
 import pathlib
 from collections.abc import Iterable
-from typing import List, Optional
 
 from loguru import logger
 
@@ -245,7 +244,7 @@ def is_absolute_path(fname: str) -> bool:
 @surfactant.plugin.hookimpl
 def establish_relationships(
     sbom: SBOM, software: Software, metadata
-) -> Optional[List[Relationship]]:
+) -> list[Relationship] | None:
     """
     Establish 'Uses' relationships for .NET assembly dependencies.
 
@@ -293,7 +292,7 @@ def establish_relationships(
         logger.debug(f"[.NET] Skipping: No usable .NET metadata for {software.UUID}")
         return None
 
-    relationships: List[Relationship] = []
+    relationships: list[Relationship] = []
     dependent_uuid = software.UUID
 
     # The following variables declared in legacy but never used and are kept for potential future use

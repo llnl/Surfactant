@@ -7,7 +7,7 @@ import pathlib
 import queue
 import re
 import sys
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any
 
 import click
 from loguru import logger
@@ -45,7 +45,7 @@ def get_software_entry(
     omit_unrecognized_types=False,
     skip_extraction=False,
     container_prefix=None,
-) -> Tuple[Software, List[Software]]:
+) -> tuple[Software, list[Software]]:
     sw_entry = Software.create_software_from_file(filepath)
     if root_path is not None and install_path is not None:
         sw_entry.installPath = [real_path_to_install_path(root_path, install_path, filepath)]
@@ -60,12 +60,12 @@ def get_software_entry(
                 re.sub("^" + root_path, container_uuid + container_prefix + "/", filepath)
             ]
     sw_entry.recordedInstitution = user_institution_name
-    sw_children: List[Software] = []
-    sw_field_hints: List[Tuple[str, Any, int]] = []
+    sw_children: list[Software] = []
+    sw_field_hints: list[tuple[str, Any, int]] = []
 
     # for unsupported file types, details are just empty; this is the case for archive files (e.g. zip, tar, iso)
     # as well as intel hex or motorola s-rec files
-    extracted_info_results: List[object] = (
+    extracted_info_results: list[object] = (
         pluginmanager.hook.extract_file_info(
             sbom=parent_sbom,
             software=sw_entry,
@@ -92,7 +92,7 @@ def get_software_entry(
         sw_entry.metadata.append(file_details)
 
     # set SBOM fields based on sw_field_hints
-    field_confidence: Dict[str, Tuple[Any, int]] = {}
+    field_confidence: dict[str, tuple[Any, int]] = {}
     for field, value, confidence in sw_field_hints:
         # special case since vendor can list multiple values
         if field == "vendor":
@@ -151,10 +151,10 @@ def print_input_formats(ctx, _, value):
 
 
 def determine_install_prefix(
-    entry: Optional[ContextEntry] = None,
-    extract_path: Optional[Union[str, pathlib.Path]] = None,
+    entry: ContextEntry | None = None,
+    extract_path: str | pathlib.Path | None = None,
     skip_extract_path: bool = False,
-) -> Optional[str]:
+) -> str | None:
     """Determine the install prefix based on what is provided in the context entry, and the extract path for the file.
 
     Args:
@@ -181,7 +181,7 @@ def determine_install_prefix(
     return install_prefix
 
 
-def get_default_from_config(option: str, fallback: Optional[Any] = None) -> Any:
+def get_default_from_config(option: str, fallback: Any | None = None) -> Any:
     """Retrive a core config option for use as default argument value.
 
     Args:
@@ -317,11 +317,11 @@ def sbom(
     # gather metadata for files and add/augment software entries in the sbom
     if not skip_gather:
         # List of directory symlinks; 2-sized tuples with (source, dest)
-        dir_symlinks: List[Tuple[str, str]] = []
+        dir_symlinks: list[tuple[str, str]] = []
         # List of file install path symlinks; keys are SHA256 hashes, values are source paths
-        file_symlinks: Dict[str, List[str]] = {}
+        file_symlinks: dict[str, list[str]] = {}
         # List of filename symlinks; keys are SHA256 hashes, values are file names
-        filename_symlinks: Dict[str, List[str]] = {}
+        filename_symlinks: dict[str, list[str]] = {}
         while not contextQ.empty():
             entry: ContextEntry = contextQ.get()
             if entry.archive:
@@ -399,7 +399,7 @@ def sbom(
                 logger.trace("Extracted Path: " + epath.as_posix())
 
                 # variable used to track software entries to add to the SBOM
-                entries: List[Software]
+                entries: list[Software]
 
                 # handle individual file case, since os.walk doesn't
                 if epath.is_file():
@@ -483,7 +483,7 @@ def sbom(
                                             f"Failed to record directory symlink in fs_tree: {install_source} -> {install_dest}: {e}"
                                         )
 
-                    entries: List[Software] = []
+                    entries: list[Software] = []
                     for file in files:
                         # os.path.join will insert an OS specific separator between cdir and f
                         # need to make sure that separator is a / and not a \ on windows
@@ -674,8 +674,8 @@ def sbom(
 
 
 def resolve_link(
-    path: str, cur_dir: str, extract_dir: str, install_prefix: Optional[str] = None
-) -> Union[str, None]:
+    path: str, cur_dir: str, extract_dir: str, install_prefix: str | None = None
+) -> str | None:
     assert cur_dir.startswith(extract_dir)
     # Links seen before
     seen_paths = set()

@@ -2,18 +2,17 @@
 # See the top-level LICENSE file for details.
 #
 # SPDX-License-Identifier: MIT
-from typing import List
 
 import surfactant.plugin
 from surfactant.sbomtypes import SBOM, Software
 
 
-def supports_file(filetype: List[str]) -> bool:
+def supports_file(filetype: list[str]) -> bool:
     return "COFF" in filetype
 
 
 @surfactant.plugin.hookimpl
-def extract_file_info(sbom: SBOM, software: Software, filename: str, filetype: List[str]) -> object:
+def extract_file_info(sbom: SBOM, software: Software, filename: str, filetype: list[str]) -> object:
     if not supports_file(filetype):
         return None
     return extract_coff_out_info(filename)

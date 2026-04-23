@@ -1,13 +1,14 @@
 import sys
-from typing import Any, Callable, Optional
+from collections.abc import Callable
+from typing import Any
 
 
 # https://stackoverflow.com/a/9741784
 class ExitHooks:
     def __init__(self):
-        self.exit_code: Optional[int] = None
-        self.exception: Optional[Exception] = None
-        self._orig_exit: Optional[Callable[[int], None]] = None
+        self.exit_code: int | None = None
+        self.exception: Exception | None = None
+        self._orig_exit: Callable[[int], None] | None = None
 
     def hook(self):
         """Install the exit and exception hooks."""
@@ -30,12 +31,12 @@ _HOOKS = ExitHooks()
 _HOOKS.hook()
 
 
-def get_exit_code() -> Optional[int]:
+def get_exit_code() -> int | None:
     """Get the exit code from the last program exit."""
     return _HOOKS.exit_code
 
 
-def get_exception() -> Optional[Exception]:
+def get_exception() -> Exception | None:
     """Get the exception from the last unhandled exception."""
     return _HOOKS.exception
 

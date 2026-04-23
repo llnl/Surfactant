@@ -4,7 +4,6 @@
 # SPDX-License-Identifier: MIT
 import uuid
 from dataclasses import dataclass, field
-from typing import List, Optional
 
 from ._file import File
 from ._provenance import HardwareProvenance
@@ -15,20 +14,20 @@ from ._provenance import HardwareProvenance
 @dataclass
 class Hardware:
     UUID: str = field(default_factory=lambda: str(uuid.uuid4()))
-    name: Optional[str] = None
-    captureTime: Optional[int] = None
-    officialName: Optional[str] = None
-    countryOfOrigin: Optional[List[str]] = None
-    countryOfOriginSource: Optional[str] = None
-    quantity: Optional[int] = None
-    description: Optional[str] = None
-    vendor: Optional[List[str]] = None
-    identifiers: Optional[List[str]] = None
-    hardwareType: Optional[List[str]] = None
-    comments: Optional[str] = None
-    metadata: Optional[List[object]] = None
-    supplementaryFiles: Optional[List[File]] = None
-    packageType: Optional[str] = None
-    boardLocation: Optional[List[str]] = None
-    provenance: Optional[List[HardwareProvenance]] = None
-    recordedInstitution: Optional[str] = None
+    name: str | None = None
+    captureTime: int | None = None
+    officialName: str | None = None
+    countryOfOrigin: list[str] | None = None
+    countryOfOriginSource: str | None = None
+    quantity: int | None = None
+    description: str | None = None
+    vendor: list[str] | None = None
+    identifiers: list[str] | None = None
+    hardwareType: list[str] | None = None
+    comments: str | None = None
+    metadata: list[object] | None = None
+    supplementaryFiles: list[File] | None = None
+    packageType: str | None = None
+    boardLocation: list[str] | None = None
+    provenance: list[HardwareProvenance] | None = None
+    recordedInstitution: str | None = None

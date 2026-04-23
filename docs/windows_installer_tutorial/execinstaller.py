@@ -170,7 +170,7 @@ def cleanup(session: Session) -> None:
     for file in listdir(f"./{SHARED}"):
         try:
             remove(f"./{SHARED}/{file}")
-        except IOError as err:
+        except OSError as err:
             exception(f"CANNOT DELETE ./{SHARED}/{file}: {str(err)}")
 
     # Let the user read VM output if debug is on
@@ -209,7 +209,7 @@ def get_attributes() -> list:
     # Load file data
     lines = None
 
-    with open(UNFILTERED, "r", encoding="utf-16") as f_handle:
+    with open(UNFILTERED, encoding="utf-16") as f_handle:
         lines = f_handle.readlines()
 
     remove(UNFILTERED)
