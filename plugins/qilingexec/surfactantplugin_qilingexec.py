@@ -161,13 +161,14 @@ def extract_file_info(  # pylint: disable=too-many-positional-arguments
         (r"/", r"linux") if platform.system() == "Linux" else (r"C:\\", r"windows")
     )
     mountPoint = current_context.get_pconf(__name__, "mount_prefix", def_mount)
+    version_argument = current_context.get_pconf(__name__, "version_arg", "--version")
     os_arch_ret = get_os_arch(current_context, filetype, def_os)
     if os_arch_ret:
         (os, arch) = os_arch_ret
     else:
         return None
     timeout = current_context.get_pconf(__name__, "timeout", 150000)
-    args_version = [filename, "--version"]
+    args_version = [filename, version_argument]
     args_help = [filename, "--help"]
     reg_string = current_context.get_pconf(__name__, "regex", r"[0-9a-zA-Z\(\)] [0-9]+\.[0-9]+")
 
@@ -191,7 +192,6 @@ def extract_file_info(  # pylint: disable=too-many-positional-arguments
             f"qilingexec ran into a(n) {error} exception when trying to run {args_version}"
         )
     except QlErrorBase as error:
-        # raise error
         logger.error(
             f"qilingexec ran into a(n) {error} exception when trying to run {args_version}"
         )
@@ -199,7 +199,9 @@ def extract_file_info(  # pylint: disable=too-many-positional-arguments
     file_details: Dict[str, Any] = {"qilingexec": {}}
     (match, file_details["qilingexec"]["stdout"]) = parse_stdout(fd_version, regex)
     if match:
-        [name, version] = match.split(" ")
+        match_arr = match.split(" ")
+        name = match_arr[0]
+        version = match_arr[-1]
         software_field_hints.append(("version", version, 80))
         software_field_hints.append(("name", name, 10))
         file_details["qilingexec"]["version"] = version
@@ -227,7 +229,6 @@ def extract_file_info(  # pylint: disable=too-many-positional-arguments
             f"qilingexec ran into a(n) {error} exception when trying to run {args_version}"
         )
     except QlErrorBase as error:
-        # raise error
         logger.warning(
             f"qilingexec ran into a(n) {error} exception when trying to run {args_version}"
         )
