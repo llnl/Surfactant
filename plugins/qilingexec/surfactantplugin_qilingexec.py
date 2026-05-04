@@ -42,12 +42,13 @@ def parse_stdout(fd: io.BytesIO, regex: re.Pattern[str]) -> Optional[Tuple[str, 
     """
     if fd and regex:
         stdout = fd.getvalue().decode().splitlines()
-        for line in stdout:
-            if regex.search(line):
-                # Grab the first occurrence
-                ret_val = regex.search(line).group(0)
-                return (ret_val, line)
-        return ("", stdout[0])
+        if stdout:
+            for line in stdout:
+                if regex.search(line):
+                    # Grab the first occurrence
+                    ret_val = regex.search(line).group(0)
+                    return (ret_val, line)
+            return ("", stdout[0])
     return None
 
 
@@ -197,7 +198,8 @@ def extract_file_info(  # pylint: disable=too-many-positional-arguments
         )
         return None
     file_details: Dict[str, Any] = {"qilingexec": {}}
-    (match, file_details["qilingexec"]["stdout"]) = parse_stdout(fd_version, regex)
+    result = parse_stdout(fd_version, regex)
+    (match, file_details["qilingexec"]["stdout"]) = result if result else (None, None)
     if match:
         match_arr = match.split(" ")
         name = match_arr[0]
@@ -207,7 +209,7 @@ def extract_file_info(  # pylint: disable=too-many-positional-arguments
         file_details["qilingexec"]["version"] = version
         file_details["qilingexec"]["name"] = name
     else:
-        logger.error(f"No version information returned by {args_version}")
+        logger.info(f"No version information returned by {args_version} with {version_argument}")
         if not file_details["qilingexec"]["stdout"]:
             return None
 
