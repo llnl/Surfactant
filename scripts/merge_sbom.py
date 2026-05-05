@@ -2,6 +2,11 @@
 # See the top-level LICENSE file for details.
 #
 # SPDX-License-Identifier: MIT
+# /// script
+# dependencies = [
+#   "surfactant>=0.0.0rc18",
+# ]
+# ///
 
 import argparse
 import sys
