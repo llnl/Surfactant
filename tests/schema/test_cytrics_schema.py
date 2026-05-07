@@ -299,6 +299,38 @@ def test_software_name_entry_rejects_null_values(
     )
 
 
+def test_explicit_file_validation_rejects_null_file_path() -> None:
+    """Verify explicit File validation rejects null filePath values."""
+    with pytest.raises(TypeError, match="filePath must be a string"):
+        File(filePath=None).validate()  # type: ignore[arg-type]
+
+
+def test_runtime_file_path_serialization_does_not_hide_null_values(
+    cytrics_validator: Draft7Validator,
+) -> None:
+    """Verify runtime serialization preserves invalid null filePath values."""
+    sbom = SBOM(
+        software=[
+            Software(
+                UUID="dddddddd-dddd-4ddd-8ddd-dddddddddddd",
+                sha256="f" * 64,
+                supplementaryFiles=[
+                    File(filePath=None),  # type: ignore[arg-type]
+                ],
+            )
+        ]
+    )
+
+    serialized = sbom.to_dict()
+
+    assert serialized["software"][0]["supplementaryFiles"][0]["filePath"] is None
+    assert_schema_invalid_at(
+        cytrics_validator,
+        serialized,
+        ["software", 0, "supplementaryFiles", 0, "filePath"],
+    )
+
+
 def test_explicit_software_validation_requires_supplementary_file_path() -> None:
     """Verify explicit validation treats supplementary filePath as required."""
     sw = Software(
@@ -361,14 +393,19 @@ def test_supplementary_file_without_file_path_is_invalid_under_required_policy(
             Software(
                 UUID="66666666-6666-4666-8666-666666666666",
                 sha256="c" * 64,
-                supplementaryFiles=[File(description="Missing filePath")],
+                supplementaryFiles=[
+                    File(
+                        filePath="66666666-6666-4666-8666-666666666666/manual.pdf",
+                        description="Missing filePath",
+                    )
+                ],
             )
         ]
     )
 
     serialized = sbom.to_dict()
+    del serialized["software"][0]["supplementaryFiles"][0]["filePath"]
 
-    assert "filePath" not in serialized["software"][0]["supplementaryFiles"][0]
     assert_schema_invalid_at(
         validator,
         serialized,
@@ -388,14 +425,19 @@ def test_hardware_supplementary_file_without_file_path_is_invalid_under_required
         hardware=[
             Hardware(
                 UUID="88888888-8888-4888-8888-888888888888",
-                supplementaryFiles=[File(description="Missing filePath")],
+                supplementaryFiles=[
+                    File(
+                        filePath="88888888-8888-4888-8888-888888888888/manual.pdf",
+                        description="Missing filePath",
+                    )
+                ],
             )
         ]
     )
 
     serialized = sbom.to_dict()
+    del serialized["hardware"][0]["supplementaryFiles"][0]["filePath"]
 
-    assert "filePath" not in serialized["hardware"][0]["supplementaryFiles"][0]
     assert_schema_invalid_at(
         validator,
         serialized,

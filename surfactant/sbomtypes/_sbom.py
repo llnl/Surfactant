@@ -56,7 +56,7 @@ def _serialize_for_schema(value):
     if hasattr(value, "__dataclass_fields__"):
         omit_none_fields = set()
         if isinstance(value, File):
-            omit_none_fields = {"filePath", "captureTime"}
+            omit_none_fields = {"captureTime"}
         elif isinstance(value, Hardware):
             omit_none_fields = {"boardLocation"}
         elif isinstance(value, Software):

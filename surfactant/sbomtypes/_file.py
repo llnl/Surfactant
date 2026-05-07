@@ -12,7 +12,7 @@ from ..utils.capture_time import validate_capture_time
 
 @dataclass
 class File:
-    filePath: Optional[str] = None
+    filePath: str = ""
     captureTime: Optional[str] = None
     description: str = ""
     category: str = ""
@@ -23,11 +23,11 @@ class File:
     def validate(self) -> None:
         """Validate this file entry against the CyTRICS field constraints."""
 
-        if self.filePath is None:
-            raise ValueError("filePath is required")
-
         if not isinstance(self.filePath, str):
             raise TypeError("filePath must be a string")
+
+        if not self.filePath:
+            raise ValueError("filePath is required")
 
         if len(self.filePath) < 5:
             raise ValueError("filePath must be at least 5 characters long")
