@@ -17,6 +17,7 @@ from dataclasses_json import config, dataclass_json
 from loguru import logger
 
 from surfactant.utils.paths import basename_posix, normalize_path
+
 from ._author import Author
 from ._comment import CommentEntry
 from ._file import File

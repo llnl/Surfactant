@@ -20,7 +20,7 @@ from pathlib import Path
 import pytest
 from jsonschema import Draft7Validator, FormatChecker, ValidationError
 
-from surfactant.sbomtypes import CommentEntry, SBOM, Software
+from surfactant.sbomtypes import SBOM, CommentEntry, Software
 from surfactant.utils.capture_time import utc_now_rfc3339
 
 SCHEMA_PATH = Path("docs/cytrics_schema/schema.json")
@@ -50,9 +50,7 @@ def format_checker_fixture() -> FormatChecker:
 
 
 @pytest.fixture(scope="module", name="cytrics_validator")
-def cytrics_validator_fixture(
-    schema: dict, format_checker: FormatChecker
-) -> Draft7Validator:
+def cytrics_validator_fixture(schema: dict, format_checker: FormatChecker) -> Draft7Validator:
     """Provide a validator for full CyTRICS SBOM documents."""
     return Draft7Validator(schema, format_checker=format_checker)
 
@@ -64,8 +62,7 @@ def assert_schema_valid(validator: Draft7Validator, instance: dict) -> None:
         key=lambda err: (list(err.absolute_path), err.message),
     )
     assert not errors, "\n".join(
-        f"{list(error.absolute_path) or ['<root>']}: {error.message}"
-        for error in errors[:5]
+        f"{list(error.absolute_path) or ['<root>']}: {error.message}" for error in errors[:5]
     )
 
 
@@ -81,8 +78,7 @@ def assert_schema_invalid_at(
     )
     assert errors
     assert any(list(error.absolute_path) == expected_path for error in errors), "\n".join(
-        f"{list(error.absolute_path) or ['<root>']}: {error.message}"
-        for error in errors[:5]
+        f"{list(error.absolute_path) or ['<root>']}: {error.message}" for error in errors[:5]
     )
 
 
