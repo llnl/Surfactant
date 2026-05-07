@@ -23,7 +23,7 @@ from pathlib import Path
 import pytest
 from jsonschema import Draft7Validator, FormatChecker, ValidationError
 
-from surfactant.sbomtypes import CommentEntry, File, Hardware, NameEntry, SBOM, Software
+from surfactant.sbomtypes import SBOM, CommentEntry, File, Hardware, NameEntry, Software
 from surfactant.utils.capture_time import utc_now_rfc3339, validate_capture_time
 
 SCHEMA_PATH = Path("docs/cytrics_schema/schema.json")
