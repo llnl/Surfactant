@@ -19,7 +19,7 @@ from surfactant.configmanager import ConfigManager
 from surfactant.fileinfo import sha256sum
 from surfactant.plugin.manager import call_init_hooks, find_io_plugin, get_plugin_manager
 from surfactant.relationships import parse_relationships
-from surfactant.sbomtypes import SBOM, Author, Software
+from surfactant.sbomtypes import Author, SBOM, Software
 from surfactant.sbomtypes._comment import CommentEntry
 from surfactant.sbomtypes._name import NameEntry
 
@@ -187,7 +187,7 @@ def get_software_entry(
 
     # for unsupported file types, details are just empty; this is the case for archive files (e.g. zip, tar, iso)
     # as well as intel hex or motorola s-rec files
-    extracted_info_results: List[Optional[Dict[str, Any]]] = (
+    extracted_info_results: List[Any] = (
         pluginmanager.hook.extract_file_info(
             sbom=parent_sbom,
             software=sw_entry,
@@ -203,17 +203,11 @@ def get_software_entry(
         else []
     )
     # add metadata extracted from the file
-    validated_metadata: List[Dict[str, Any]] = []
+    validated_metadata: List[Any] = []
     for file_details in extracted_info_results:
         # None as details doesn't add any useful info...
         if file_details is None:
             continue
-
-        if not isinstance(file_details, dict):
-            raise TypeError(
-                "extract_file_info plugins must return a metadata object (dict) or None; "
-                f"got {type(file_details).__name__} for {filepath}"
-            )
 
         validated_metadata.append(file_details)
 

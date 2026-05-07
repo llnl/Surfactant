@@ -4,7 +4,7 @@
 # SPDX-License-Identifier: MIT
 import uuid
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any, List, Optional
 
 from ..utils.capture_time import validate_capture_time
 from ._comment import CommentEntry
@@ -27,7 +27,7 @@ class Hardware:
     identifiers: Optional[List[str]] = None
     hardwareType: Optional[List[str]] = None
     comments: Optional[List[CommentEntry]] = None
-    metadata: List[Dict[str, Any]] = field(default_factory=list)
+    metadata: List[Any] = field(default_factory=list)
     supplementaryFiles: Optional[List[File]] = None
     packageType: Optional[str] = None
     boardLocation: List[str] = field(default_factory=list)
@@ -113,7 +113,3 @@ class Hardware:
 
         if not isinstance(self.metadata, list):
             raise TypeError("metadata must be a list")
-
-        for item in self.metadata:
-            if not isinstance(item, dict):
-                raise TypeError("All items in metadata must be objects (dicts)")

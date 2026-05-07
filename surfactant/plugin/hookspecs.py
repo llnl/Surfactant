@@ -4,12 +4,12 @@
 # SPDX-License-Identifier: MIT
 
 from queue import Queue
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, List, Optional, Tuple, Union
 
 from pluggy import HookspecMarker
 
 from surfactant import ContextEntry
-from surfactant.sbomtypes import SBOM, Relationship, Software
+from surfactant.sbomtypes import Relationship, SBOM, Software
 
 hookspec = HookspecMarker("surfactant")
 
@@ -47,16 +47,16 @@ def extract_file_info(
     children: List[Software],
     software_field_hints: List[Tuple[str, Any, int]],
     omit_unrecognized_types: bool,
-) -> Optional[Dict[str, Any]]:
+) -> Optional[Any]:
     """Extract information from the given file and add it to the given software entry.
 
     Plugins may:
-      - return a metadata object to append to ``software.metadata``
+      - return a JSON-compatible metadata value to append to ``software.metadata``
       - add child Software entries through ``children``
       - provide candidate field values through ``software_field_hints``
 
-    The returned metadata value must be a ``dict`` representing a JSON object, or
-    ``None`` if the plugin has no metadata to contribute for this file.
+    The returned metadata value may be any JSON-compatible value, or ``None`` if
+    the plugin has no metadata to contribute for this file.
 
     Args:
         sbom (SBOM): The SBOM that the software entry is part of. Can be used to add observations or analysis data.
@@ -80,27 +80,27 @@ def extract_file_info(
             default to propagating this value to the new context entries that it creates.
 
     Returns:
-        Optional[Dict[str, Any]]: A metadata object to append to ``software.metadata``, or ``None`` to add no metadata.
+        Optional[Any]: A metadata value to append to ``software.metadata``, or ``None`` to add no metadata.
     """
 
 
 @hookspec
 def establish_relationships(
-    sbom: SBOM, software: Software, metadata
+    sbom: SBOM, software: Software, metadata: Any
 ) -> Optional[List[Relationship]]:
     """Called to add relationships to an SBOM after information has been gathered.
 
-    The function will be called once for every metadata object in every software
+    The function will be called once for every metadata value in every software
     entry in the SBOM. Realistically, this means a plugin should not be trying to
     establish relationships for the entire SBOM before returning, just for the
-    software/metadata object that has been passed to it.
+    software/metadata value that has been passed to it.
 
     Returns a list of relationships to be added to the SBOM.
 
     Args:
         sbom (SBOM): The SBOM object that the Software is part of.
-        software (Software): The Software entry that the metadata object is from.
-        metadata: The metadata object to establish relationships based on.
+        software (Software): The Software entry that the metadata value is from.
+        metadata: The metadata value to establish relationships based on.
 
     Returns:
         Optional[List[Relationship]]: A list of relationships to add to the SBOM.

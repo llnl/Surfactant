@@ -10,7 +10,7 @@ import platform
 import uuid
 from dataclasses import dataclass, field, fields
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any, List, Optional
 
 from dataclasses_json import dataclass_json
 
@@ -51,7 +51,7 @@ class Software:
     notHashable: Optional[bool] = None
     relationshipAssertion: Optional["RelationshipAssertion"] = RelationshipAssertion.UNKNOWN
     comments: Optional[List[CommentEntry]] = None
-    metadata: List[Dict[str, Any]] = field(default_factory=list)
+    metadata: List[Any] = field(default_factory=list)
     supplementaryFiles: Optional[List[File]] = None
 
     def validate(self) -> None:
@@ -154,10 +154,6 @@ class Software:
     def _validate_metadata(self) -> None:
         if not isinstance(self.metadata, list):
             raise TypeError("metadata must be a list")
-
-        for item in self.metadata:
-            if not isinstance(item, dict):
-                raise TypeError("All items in metadata must be objects (dicts)")
 
     def update_field(self, field_name: str, value: Any) -> None:
         """Public helper to update a field without implicit schema validation."""

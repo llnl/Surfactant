@@ -23,7 +23,7 @@ from pathlib import Path
 import pytest
 from jsonschema import Draft7Validator, FormatChecker, ValidationError
 
-from surfactant.sbomtypes import SBOM, CommentEntry, File, Hardware, NameEntry, Software
+from surfactant.sbomtypes import CommentEntry, File, Hardware, NameEntry, SBOM, Software
 from surfactant.utils.capture_time import utc_now_rfc3339, validate_capture_time
 
 SCHEMA_PATH = Path("docs/cytrics_schema/schema.json")
@@ -297,6 +297,43 @@ def test_software_name_entry_rejects_null_values(
         serialized,
         ["software", 0, "name", 0, field_name],
     )
+
+
+def test_explicit_software_validation_allows_json_metadata_values() -> None:
+    """Verify explicit Software validation allows non-dict JSON metadata values."""
+    sw = Software(
+        UUID="eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
+        sha256="a" * 64,
+        metadata=[
+            "metadata string",
+            123,
+            1.5,
+            True,
+            None,
+            ["nested", "array"],
+            {"nested": "object"},
+        ],
+    )
+
+    sw.validate()
+
+
+def test_explicit_hardware_validation_allows_json_metadata_values() -> None:
+    """Verify explicit Hardware validation allows non-dict JSON metadata values."""
+    hw = Hardware(
+        UUID="ffffffff-ffff-4fff-8fff-ffffffffffff",
+        metadata=[
+            "metadata string",
+            123,
+            1.5,
+            True,
+            None,
+            ["nested", "array"],
+            {"nested": "object"},
+        ],
+    )
+
+    hw.validate()
 
 
 def test_explicit_file_validation_rejects_null_file_path() -> None:

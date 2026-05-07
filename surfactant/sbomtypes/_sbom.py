@@ -1323,7 +1323,7 @@ class SBOM:
         description: Optional[str] = None,
         relationshipAssertion: Optional[str] = None,
         comments: Optional[List[CommentEntry]] = None,
-        metadata: Optional[List[Dict[str, object]]] = None,
+        metadata: Optional[List[Any]] = None,
         supplementaryFiles: Optional[List[File]] = None,
     ) -> Software:
         sw = Software(
