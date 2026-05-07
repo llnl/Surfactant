@@ -8,6 +8,7 @@ Focus areas:
 - Hardware captureTime accepts RFC 3339 strings and null
 - Software captureTime accepts RFC 3339 strings and null
 - File captureTime accepts RFC 3339 strings and rejects null
+- Supplementary filePath is treated as required ahead of the next schema update
 - Invalid comment timestamps are caught by schema tests, not runtime constructors
 - Legacy epoch integers are rejected by schema validation
 """
@@ -15,12 +16,13 @@ Focus areas:
 from __future__ import annotations
 
 import json
+from copy import deepcopy
 from pathlib import Path
 
 import pytest
 from jsonschema import Draft7Validator, FormatChecker, ValidationError
 
-from surfactant.sbomtypes import SBOM, CommentEntry, Software
+from surfactant.sbomtypes import CommentEntry, File, Hardware, SBOM, Software
 from surfactant.utils.capture_time import utc_now_rfc3339
 
 SCHEMA_PATH = Path("docs/cytrics_schema/schema.json")
@@ -80,6 +82,17 @@ def assert_schema_invalid_at(
     assert any(list(error.absolute_path) == expected_path for error in errors), "\n".join(
         f"{list(error.absolute_path) or ['<root>']}: {error.message}" for error in errors[:5]
     )
+
+
+def schema_with_required_supplementary_file_path(schema: dict) -> dict:
+    """Return a schema copy with shared supplementary filePath marked required."""
+    schema_copy = deepcopy(schema)
+    file_schema = schema_copy["sharedDefinitions"]["file"]
+    required_fields = list(file_schema.get("required", []))
+    if "filePath" not in required_fields:
+        required_fields.append("filePath")
+    file_schema["required"] = required_fields
+    return schema_copy
 
 
 def test_format_checker_enforces_date_time() -> None:
@@ -182,6 +195,110 @@ def test_runtime_comment_entry_does_not_validate_schema(
         cytrics_validator,
         serialized,
         ["software", 0, "comments", 0, "timestamp"],
+    )
+
+
+def test_explicit_software_validation_requires_supplementary_file_path() -> None:
+    """Verify explicit validation treats supplementary filePath as required."""
+    sw = Software(
+        UUID="44444444-4444-4444-8444-444444444444",
+        sha256="a" * 64,
+        supplementaryFiles=[File(description="Missing filePath")],
+    )
+
+    with pytest.raises(ValueError, match="filePath is required"):
+        sw.validate()
+
+
+def test_explicit_hardware_validation_requires_supplementary_file_path() -> None:
+    """Verify explicit hardware validation treats supplementary filePath as required."""
+    hw = Hardware(
+        UUID="77777777-7777-4777-8777-777777777777",
+        supplementaryFiles=[File(description="Missing filePath")],
+    )
+
+    with pytest.raises(ValueError, match="filePath is required"):
+        hw.validate()
+
+
+def test_supplementary_file_with_file_path_is_valid_under_required_policy(
+    schema: dict, format_checker: FormatChecker
+) -> None:
+    """Verify supplementary files with filePath pass the upcoming schema rule."""
+    validator = Draft7Validator(
+        schema_with_required_supplementary_file_path(schema),
+        format_checker=format_checker,
+    )
+    sbom = SBOM(
+        software=[
+            Software(
+                UUID="55555555-5555-4555-8555-555555555555",
+                sha256="b" * 64,
+                supplementaryFiles=[
+                    File(
+                        filePath="55555555-5555-4555-8555-555555555555/manual.pdf",
+                        description="Manual",
+                    )
+                ],
+            )
+        ]
+    )
+
+    assert_schema_valid(validator, sbom.to_dict())
+
+
+def test_supplementary_file_without_file_path_is_invalid_under_required_policy(
+    schema: dict, format_checker: FormatChecker
+) -> None:
+    """Verify supplementary files without filePath fail the upcoming schema rule."""
+    validator = Draft7Validator(
+        schema_with_required_supplementary_file_path(schema),
+        format_checker=format_checker,
+    )
+    sbom = SBOM(
+        software=[
+            Software(
+                UUID="66666666-6666-4666-8666-666666666666",
+                sha256="c" * 64,
+                supplementaryFiles=[File(description="Missing filePath")],
+            )
+        ]
+    )
+
+    serialized = sbom.to_dict()
+
+    assert "filePath" not in serialized["software"][0]["supplementaryFiles"][0]
+    assert_schema_invalid_at(
+        validator,
+        serialized,
+        ["software", 0, "supplementaryFiles", 0],
+    )
+
+
+def test_hardware_supplementary_file_without_file_path_is_invalid_under_required_policy(
+    schema: dict, format_checker: FormatChecker
+) -> None:
+    """Verify hardware supplementary files without filePath fail the upcoming schema rule."""
+    validator = Draft7Validator(
+        schema_with_required_supplementary_file_path(schema),
+        format_checker=format_checker,
+    )
+    sbom = SBOM(
+        hardware=[
+            Hardware(
+                UUID="88888888-8888-4888-8888-888888888888",
+                supplementaryFiles=[File(description="Missing filePath")],
+            )
+        ]
+    )
+
+    serialized = sbom.to_dict()
+
+    assert "filePath" not in serialized["hardware"][0]["supplementaryFiles"][0]
+    assert_schema_invalid_at(
+        validator,
+        serialized,
+        ["hardware", 0, "supplementaryFiles", 0],
     )
 
 

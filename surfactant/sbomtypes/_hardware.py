@@ -108,6 +108,7 @@ class Hardware:
             for item in self.supplementaryFiles:
                 if not isinstance(item, File):
                     raise TypeError("All items in supplementaryFiles must be File objects")
+                item.validate()
 
         if not isinstance(self.metadata, list):
             raise TypeError("metadata must be a list")

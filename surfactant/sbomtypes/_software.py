@@ -145,8 +145,11 @@ class Software:
         if not isinstance(value, list):
             raise TypeError(f"{field_name} must be a list or None")
 
-        if not all(isinstance(item, entry_type) for item in value):
-            raise TypeError(f"All items in {field_name} must be {entry_type.__name__} objects")
+        for item in value:
+            if not isinstance(item, entry_type):
+                raise TypeError(f"All items in {field_name} must be {entry_type.__name__} objects")
+            if hasattr(item, "validate"):
+                item.validate()
 
     def _validate_metadata(self) -> None:
         if not isinstance(self.metadata, list):

@@ -23,12 +23,14 @@ class File:
     def validate(self) -> None:
         """Validate this file entry against the CyTRICS field constraints."""
 
-        if self.filePath is not None:
-            if not isinstance(self.filePath, str):
-                raise TypeError("filePath must be a string or None")
+        if self.filePath is None:
+            raise ValueError("filePath is required")
 
-            if len(self.filePath) < 5:
-                raise ValueError("filePath must be at least 5 characters long when provided")
+        if not isinstance(self.filePath, str):
+            raise TypeError("filePath must be a string")
+
+        if len(self.filePath) < 5:
+            raise ValueError("filePath must be at least 5 characters long")
 
         string_fields = ["description", "category", "capturedBy", "source"]
         for field_name in string_fields:
