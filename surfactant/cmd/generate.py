@@ -134,6 +134,7 @@ def _normalize_author_value(value: Optional[str], option_name: str) -> Optional[
     return value or None
 
 
+# pylint: disable-next=redefined-outer-name
 def _set_sbom_author(sbom: SBOM, author_name: Optional[str], author_type: Optional[str]) -> None:
     """Set a generated SBOM author from CLI/config values."""
     author_name = _normalize_author_value(author_name, "--author_name")
