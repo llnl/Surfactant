@@ -19,7 +19,7 @@ from surfactant.configmanager import ConfigManager
 from surfactant.fileinfo import sha256sum
 from surfactant.plugin.manager import call_init_hooks, find_io_plugin, get_plugin_manager
 from surfactant.relationships import parse_relationships
-from surfactant.sbomtypes import Author, SBOM, Software
+from surfactant.sbomtypes import SBOM, Author, Software
 from surfactant.sbomtypes._comment import CommentEntry
 from surfactant.sbomtypes._name import NameEntry
 

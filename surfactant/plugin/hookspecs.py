@@ -9,7 +9,7 @@ from typing import Any, List, Optional, Tuple, Union
 from pluggy import HookspecMarker
 
 from surfactant import ContextEntry
-from surfactant.sbomtypes import Relationship, SBOM, Software
+from surfactant.sbomtypes import SBOM, Relationship, Software
 
 hookspec = HookspecMarker("surfactant")
 
