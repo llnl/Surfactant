@@ -23,7 +23,7 @@ import pytest
 from jsonschema import Draft7Validator, FormatChecker, ValidationError
 
 from surfactant.sbomtypes import CommentEntry, File, Hardware, SBOM, Software
-from surfactant.utils.capture_time import utc_now_rfc3339
+from surfactant.utils.capture_time import utc_now_rfc3339, validate_capture_time
 
 SCHEMA_PATH = Path("docs/cytrics_schema/schema.json")
 SAMPLE_SBOM_PATHS = (
@@ -48,7 +48,17 @@ def schema_fixture() -> dict:
 @pytest.fixture(scope="module", name="format_checker")
 def format_checker_fixture() -> FormatChecker:
     """Provide a JSON Schema format checker for RFC 3339 date-time validation."""
-    return FormatChecker()
+    checker = FormatChecker()
+
+    @checker.checks("date-time", raises=(TypeError, ValueError))
+    def _is_rfc3339_date_time(value: object) -> bool:
+        if not isinstance(value, str):
+            return True
+
+        validate_capture_time(value, nullable=False, field_name="date-time")
+        return True
+
+    return checker
 
 
 @pytest.fixture(scope="module", name="cytrics_validator")
@@ -95,11 +105,11 @@ def schema_with_required_supplementary_file_path(schema: dict) -> dict:
     return schema_copy
 
 
-def test_format_checker_enforces_date_time() -> None:
+def test_format_checker_enforces_date_time(format_checker: FormatChecker) -> None:
     """Verify the test environment enforces JSON Schema date-time formats."""
     validator = Draft7Validator(
         {"type": "string", "format": "date-time"},
-        format_checker=FormatChecker(),
+        format_checker=format_checker,
     )
 
     with pytest.raises(ValidationError):
