@@ -49,12 +49,7 @@ def stat(input_sbom, input_format):
         elif pe_is_clr_sw and pe_is_dll_sw:
             clr_dll += 1
 
-    num_pe_exe_str = f"Number of PE Executables: {pe_is_exe} with {clr_exe} using .NET/CLR"
-    num_dll_str = f"Number of DLLs: {pe_is_dll} with {clr_dll} using .NET/CLR"
-    num_elf_bin_str = f"Number of ELF Binaries: {elf_is_exe}"
-    num_elf_shared_lib_str = f"Number of ELF shared libraries: {elf_is_lib}"
-
-    click.echo(num_pe_exe_str)
-    click.echo(num_dll_str)
-    click.echo(num_elf_bin_str)
-    click.echo(num_elf_shared_lib_str)
+    click.echo(f"Number of PE Executables: {pe_is_exe} with {clr_exe} using .NET/CLR")
+    click.echo(f"Number of DLLs: {pe_is_dll} with {clr_dll} using .NET/CLR")
+    click.echo(f"Number of ELF Binaries: {elf_is_exe}")
+    click.echo(f"Number of ELF shared libraries: {elf_is_lib}")
