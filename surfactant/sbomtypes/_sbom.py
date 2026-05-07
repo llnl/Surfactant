@@ -6,22 +6,17 @@
 from __future__ import annotations
 
 import json
-import re
 import uuid as uuid_module
 from collections import deque
 from dataclasses import asdict, dataclass, field, fields
-from functools import lru_cache
-from pathlib import Path, PurePosixPath
+from pathlib import PurePosixPath
 from typing import Any, Dict, List, Optional, Set, Tuple
 
 import networkx as nx
 from dataclasses_json import config, dataclass_json
-from jsonschema import Draft7Validator, FormatChecker
 from loguru import logger
 
 from surfactant.utils.paths import basename_posix, normalize_path
-
-from ..utils.capture_time import validate_capture_time
 from ._author import Author
 from ._comment import CommentEntry
 from ._file import File
@@ -32,23 +27,6 @@ from ._software import Software
 from ._tool import Tool
 
 INTERNAL_FIELDS = {"software_lookup_by_sha256"}
-_SPEC_VERSION_RE = re.compile(r"^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$")
-_CYTRICS_SCHEMA_VERSION = "1.0.1"
-_CYTRICS_SCHEMA_RELATIVE_PATH = Path("docs") / "cytrics_schema" / "schema.json"
-_CYTRICS_FORMAT_CHECKER = FormatChecker()
-
-
-@_CYTRICS_FORMAT_CHECKER.checks("uuid")
-def _check_uuid_format(value: object) -> bool:
-    if not isinstance(value, str):
-        return True
-
-    try:
-        uuid_module.UUID(value)
-    except (ValueError, TypeError, AttributeError):
-        return False
-
-    return True
 
 
 def recover_serializers(cls):
@@ -65,52 +43,6 @@ def recover_serializers(cls):
     if hasattr(cls, "to_json_override"):
         cls.to_json = cls.to_json_override
     return cls
-
-
-@lru_cache(maxsize=1)
-def _load_cytrics_schema() -> Dict[str, Any]:
-    schema_path = Path(__file__).resolve().parents[2] / _CYTRICS_SCHEMA_RELATIVE_PATH
-    with schema_path.open("r", encoding="utf-8") as schema_file:
-        return json.load(schema_file)
-
-
-@lru_cache(maxsize=1)
-def _cytrics_validator() -> Draft7Validator:
-    return Draft7Validator(
-        _load_cytrics_schema(),
-        format_checker=_CYTRICS_FORMAT_CHECKER,
-    )
-
-
-def _format_schema_error_path(error) -> str:
-    if not error.absolute_path:
-        return "<root>"
-
-    parts: List[str] = []
-    for part in error.absolute_path:
-        if isinstance(part, int):
-            parts.append(f"[{part}]")
-        elif not parts:
-            parts.append(str(part))
-        else:
-            parts.append(f".{part}")
-    return "".join(parts)
-
-
-def _validate_cytrics_document(data: Dict[str, Any], *, context: str) -> None:
-    errors = sorted(
-        _cytrics_validator().iter_errors(data),
-        key=lambda err: (list(err.absolute_path), err.message),
-    )
-    if not errors:
-        return
-
-    err = errors[0]
-    path = _format_schema_error_path(err)
-    raise ValueError(
-        f"{context} does not conform to CyTRICS schema {_CYTRICS_SCHEMA_VERSION} "
-        f"at {path}: {err.message}"
-    )
 
 
 def _serialize_for_schema(value):
@@ -283,7 +215,7 @@ class SBOM:
 
     @classmethod
     def _from_raw_dict(cls, raw: Dict[str, Any]) -> "SBOM":
-        """Rehydrate an SBOM from a validated raw CyTRICS document dict.
+        """Rehydrate an SBOM from a raw CyTRICS document dict.
 
         This is the explicit raw-document construction path used by
         from_dict_override() and from_json_override().
@@ -341,69 +273,24 @@ class SBOM:
         )
 
     def __post_init__(self):
-        if not isinstance(self.bomUUID, str):
-            raise TypeError("bomUUID must be a string")
-        try:
-            parsed_bom_uuid = uuid_module.UUID(self.bomUUID)
-        except (ValueError, AttributeError, TypeError) as err:
-            raise ValueError(f"bomUUID must be a valid UUID string; got {self.bomUUID!r}") from err
-        if parsed_bom_uuid.version != 4:
-            raise ValueError(
-                f"bomUUID must be a valid RFC 4122 version 4 UUID string; got {self.bomUUID!r}"
-            )
-
-        if not isinstance(self.bomFormat, str):
-            raise TypeError("bomFormat must be a string")
-        if self.bomFormat != "cytrics":
-            raise ValueError(f"bomFormat must be 'cytrics'; got {self.bomFormat!r}")
-
-        if not isinstance(self.bomDescription, str):
-            raise TypeError("bomDescription must be a string")
-
-        if not isinstance(self.specVersion, str):
-            raise TypeError("specVersion must be a string")
-        if not _SPEC_VERSION_RE.fullmatch(self.specVersion):
-            raise ValueError(
-                f"specVersion must be a semantic version like '1.0.1'; got {self.specVersion!r}"
-            )
-
         if self.tools is not None:
-            if not isinstance(self.tools, list):
-                raise TypeError("tools must be a list or None")
             normalized_tools = []
             for item in self.tools:
                 if isinstance(item, dict):
                     item = Tool(**item)
-                if not isinstance(item, Tool):
-                    raise TypeError("All items in tools must be Tool objects")
                 normalized_tools.append(item)
             self.tools = normalized_tools
 
         if self.authors is not None:
-            if not isinstance(self.authors, list):
-                raise TypeError("authors must be a list or None")
             normalized_authors = []
             for item in self.authors:
                 if isinstance(item, dict):
                     item = Author(**item)
-                if not isinstance(item, Author):
-                    raise TypeError("All items in authors must be Author objects")
                 normalized_authors.append(item)
             self.authors = normalized_authors
 
-        if not isinstance(self.hardware, list):
-            raise TypeError("hardware must be a list")
-        normalized_hardware = []
-        for item in self.hardware:
-            normalized_hardware.append(_normalize_hardware_item(item))
-        self.hardware = normalized_hardware
-
-        if not isinstance(self.software, list):
-            raise TypeError("software must be a list")
-        normalized_software = []
-        for item in self.software:
-            normalized_software.append(_normalize_software_item(item))
-        self.software = normalized_software
+        self.hardware = [_normalize_hardware_item(item) for item in self.hardware]
+        self.software = [_normalize_software_item(item) for item in self.software]
 
         # Build the Relationship graph from software and loaded relationships
         self.build_rel_graph()
@@ -773,7 +660,7 @@ class SBOM:
         relationship: str,
         comments: Optional[List[CommentEntry]] = None,
     ) -> Relationship:
-        # Validate first so invalid data never reaches the graph
+        # Construct first so callers still receive a Relationship object.
         rel = Relationship(
             xUUID=xUUID,
             yUUID=yUUID,
@@ -795,7 +682,7 @@ class SBOM:
             comments=rel.comments,
         )
 
-        # return the validated Relationship object for backwards-compat
+        # return the Relationship object for backwards-compat
         return rel
 
     def find_relationship_object(self, r: Relationship) -> bool:
@@ -1440,8 +1327,6 @@ class SBOM:
         metadata: Optional[List[Dict[str, object]]] = None,
         supplementaryFiles: Optional[List[File]] = None,
     ) -> Software:
-        captureTime = validate_capture_time(captureTime, nullable=True)
-
         sw = Software(
             softwareType=softwareType,
             name=name,
@@ -1704,7 +1589,6 @@ class SBOM:
         if not isinstance(kvs, dict):
             raise TypeError("SBOM.from_dict() requires a dict input")
 
-        _validate_cytrics_document(kvs, context="Input SBOM")
         return cls._from_raw_dict(kvs)
 
     @classmethod
@@ -1782,7 +1666,6 @@ class SBOM:
 
         data["relationships"] = rels
 
-        _validate_cytrics_document(data, context="Serialized SBOM")
         return data
 
     def to_json_override(self, *args, **kwargs) -> str:

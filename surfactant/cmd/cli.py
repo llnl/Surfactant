@@ -11,7 +11,6 @@ from surfactant.plugin.manager import find_io_plugin, get_plugin_manager
 from surfactant.sbomtypes._relationship import Relationship
 from surfactant.sbomtypes._sbom import SBOM
 from surfactant.sbomtypes._software import Software
-from surfactant.utils.capture_time import validate_capture_time
 
 
 @click.argument("sbom", type=click.File("r"), required=True)
@@ -205,10 +204,7 @@ class cli_add:
         self.sbom.software.append(Software.create_software_from_file(path))
 
     def add_entry(self, entry):
-        """Add a software entry, validating captureTime before deserialization."""
-        if "captureTime" in entry:
-            entry["captureTime"] = validate_capture_time(entry["captureTime"], nullable=True)
-
+        """Add a software entry without implicit schema validation."""
         self.sbom.software.append(Software.from_dict(entry))
 
     def add_installpath(self, prefixes: tuple):

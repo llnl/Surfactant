@@ -20,8 +20,8 @@ class File:
     source: str = ""
     methodOfAcquisition: Optional[List[str]] = None
 
-    def __post_init__(self) -> None:
-        """Validate against the CyTRICS file schema requirements."""
+    def validate(self) -> None:
+        """Validate this file entry against the CyTRICS field constraints."""
 
         if self.filePath is not None:
             if not isinstance(self.filePath, str):

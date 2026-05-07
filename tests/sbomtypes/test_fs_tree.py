@@ -181,21 +181,20 @@ def test_to_dict_override_filters_path_edges():
     assert data["relationships"] == []
 
 
-def test_create_relationship_invalid_uuid_does_not_mutate_graph():
+def test_create_relationship_does_not_validate_uuid_schema():
     """
-    Ensure invalid relationship UUIDs are rejected before the graph is mutated.
+    Runtime relationship creation should not reject schema-invalid UUID values.
+    Schema compliance is checked by schema-focused pytest coverage instead.
     """
     sbom = SBOM()
-    initial_node_count = sbom.graph.number_of_nodes()
-    initial_edge_count = sbom.graph.number_of_edges()
 
-    with pytest.raises(ValueError):
-        sbom.create_relationship("not-a-uuid", UUID_REL_DST, "Contains")
+    rel = sbom.create_relationship("not-a-uuid", UUID_REL_DST, "Contains")
 
-    assert sbom.graph.number_of_nodes() == initial_node_count
-    assert sbom.graph.number_of_edges() == initial_edge_count
-    assert not sbom.graph.has_node("not-a-uuid")
-    assert not sbom.graph.has_node(UUID_REL_DST)
+    assert rel.xUUID == "not-a-uuid"
+    assert rel.yUUID == UUID_REL_DST
+    assert sbom.graph.has_node("not-a-uuid")
+    assert sbom.graph.has_node(UUID_REL_DST)
+    assert sbom.graph.has_edge("not-a-uuid", UUID_REL_DST, key="Contains")
 
 
 def test_expand_pending_dir_symlinks_creates_chained_edges(tmp_path):

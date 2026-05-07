@@ -11,7 +11,7 @@ class Tool:
     version: str = ""
     externalReference: str = ""
 
-    def __post_init__(self) -> None:
+    def validate(self) -> None:
         if not isinstance(self.toolName, str):
             raise TypeError("toolName must be a string")
 

@@ -16,8 +16,8 @@ class CommentEntry:
     author: Optional[str] = None
     timestamp: Optional[str] = None
 
-    def __post_init__(self) -> None:
-        """Validate timestamp against the CyTRICS comment schema requirement."""
+    def validate(self) -> None:
+        """Validate this comment entry against the CyTRICS field constraints."""
         if not isinstance(self.comment, str):
             raise ValueError("comment must be a string")
 

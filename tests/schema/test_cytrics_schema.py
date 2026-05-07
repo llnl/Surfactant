@@ -8,6 +8,7 @@ Focus areas:
 - Hardware captureTime accepts RFC 3339 strings and null
 - Software captureTime accepts RFC 3339 strings and null
 - File captureTime accepts RFC 3339 strings and rejects null
+- Invalid comment timestamps are caught by schema tests, not runtime constructors
 - Legacy epoch integers are rejected by schema validation
 """
 
@@ -19,9 +20,15 @@ from pathlib import Path
 import pytest
 from jsonschema import Draft7Validator, FormatChecker, ValidationError
 
+from surfactant.sbomtypes import CommentEntry, SBOM, Software
 from surfactant.utils.capture_time import utc_now_rfc3339
 
 SCHEMA_PATH = Path("docs/cytrics_schema/schema.json")
+SAMPLE_SBOM_PATHS = (
+    Path("tests/data/sample_sboms/helics_binaries_sbom.json"),
+    Path("tests/data/sample_sboms/helics_libs_sbom.json"),
+    Path("tests/data/sample_sboms/helics_sbom.json"),
+)
 
 
 def load_schema() -> dict:
@@ -42,6 +49,54 @@ def format_checker_fixture() -> FormatChecker:
     return FormatChecker()
 
 
+@pytest.fixture(scope="module", name="cytrics_validator")
+def cytrics_validator_fixture(
+    schema: dict, format_checker: FormatChecker
+) -> Draft7Validator:
+    """Provide a validator for full CyTRICS SBOM documents."""
+    return Draft7Validator(schema, format_checker=format_checker)
+
+
+def assert_schema_valid(validator: Draft7Validator, instance: dict) -> None:
+    """Assert an instance is schema-valid and report the first few failures."""
+    errors = sorted(
+        validator.iter_errors(instance),
+        key=lambda err: (list(err.absolute_path), err.message),
+    )
+    assert not errors, "\n".join(
+        f"{list(error.absolute_path) or ['<root>']}: {error.message}"
+        for error in errors[:5]
+    )
+
+
+def assert_schema_invalid_at(
+    validator: Draft7Validator,
+    instance: dict,
+    expected_path: list[object],
+) -> None:
+    """Assert an instance is schema-invalid at the expected schema path."""
+    errors = sorted(
+        validator.iter_errors(instance),
+        key=lambda err: (list(err.absolute_path), err.message),
+    )
+    assert errors
+    assert any(list(error.absolute_path) == expected_path for error in errors), "\n".join(
+        f"{list(error.absolute_path) or ['<root>']}: {error.message}"
+        for error in errors[:5]
+    )
+
+
+def test_format_checker_enforces_date_time() -> None:
+    """Verify the test environment enforces JSON Schema date-time formats."""
+    validator = Draft7Validator(
+        {"type": "string", "format": "date-time"},
+        format_checker=FormatChecker(),
+    )
+
+    with pytest.raises(ValidationError):
+        validator.validate("not-rfc3339")
+
+
 def test_utc_now_rfc3339_returns_utc_rfc3339_string() -> None:
     """Verify utc_now_rfc3339 generates a UTC RFC 3339 date-time string."""
     capture_time = utc_now_rfc3339()
@@ -50,6 +105,88 @@ def test_utc_now_rfc3339_returns_utc_rfc3339_string() -> None:
     assert capture_time.endswith("Z")
     assert "T" in capture_time
     assert "." not in capture_time
+
+
+@pytest.mark.parametrize("sample_path", SAMPLE_SBOM_PATHS)
+def test_sample_sbom_fixture_is_schema_valid(
+    sample_path: Path, cytrics_validator: Draft7Validator
+) -> None:
+    """Verify checked-in CyTRICS SBOM fixtures conform to the schema."""
+    with sample_path.open("r", encoding="utf-8") as sample_file:
+        assert_schema_valid(cytrics_validator, json.load(sample_file))
+
+
+def test_serialized_sbom_is_schema_valid(cytrics_validator: Draft7Validator) -> None:
+    """Verify Surfactant's normal serialized CyTRICS output conforms to the schema."""
+    sbom = SBOM(
+        software=[
+            Software(
+                UUID="11111111-1111-4111-8111-111111111111",
+                fileName=["valid.bin"],
+                sha256="a" * 64,
+            )
+        ]
+    )
+
+    assert_schema_valid(cytrics_validator, sbom.to_dict())
+
+
+def test_runtime_sbom_serialization_does_not_validate_schema(
+    cytrics_validator: Draft7Validator,
+) -> None:
+    """Verify schema-invalid SBOMs are not rejected during runtime serialization."""
+    sbom = SBOM.from_dict(
+        {
+            "bomFormat": "cytrics",
+            "specVersion": "1.0.1",
+            "software": [
+                {
+                    "UUID": "22222222-2222-4222-8222-222222222222",
+                    "captureTime": "not-rfc3339",
+                    "notHashable": True,
+                }
+            ],
+        }
+    )
+
+    serialized = sbom.to_dict()
+
+    assert serialized["software"][0]["captureTime"] == "not-rfc3339"
+    assert_schema_invalid_at(
+        cytrics_validator,
+        serialized,
+        ["software", 0, "captureTime"],
+    )
+
+
+def test_runtime_comment_entry_does_not_validate_schema(
+    cytrics_validator: Draft7Validator,
+) -> None:
+    """Verify invalid comment timestamps are rejected by schema tests, not construction."""
+    sbom = SBOM(
+        software=[
+            Software(
+                UUID="33333333-3333-4333-8333-333333333333",
+                fileName=["valid.bin"],
+                sha256="a" * 64,
+                comments=[
+                    CommentEntry(
+                        comment="Invalid timestamp should be carried until schema validation.",
+                        timestamp="not-rfc3339",
+                    )
+                ],
+            )
+        ]
+    )
+
+    serialized = sbom.to_dict()
+
+    assert serialized["software"][0]["comments"][0]["timestamp"] == "not-rfc3339"
+    assert_schema_invalid_at(
+        cytrics_validator,
+        serialized,
+        ["software", 0, "comments", 0, "timestamp"],
+    )
 
 
 def test_hardware_capture_time_accepts_rfc3339_string(

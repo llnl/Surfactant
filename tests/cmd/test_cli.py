@@ -197,12 +197,12 @@ def test_add_entry_capturetime(test_sbom):
     assert out_bom.software[-1].captureTime == "2024-01-01T00:00:00Z"
 
 
-def test_add_entry_invalid_capturetime(test_sbom):
+def test_add_entry_does_not_validate_capturetime(test_sbom):
     entry = {
         "UUID": "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
         "notHashable": True,
         "captureTime": "invalid",
     }
 
-    with pytest.raises(ValueError):
-        cli_add().execute(test_sbom, entry=entry)
+    out_bom = cli_add().execute(test_sbom, entry=entry)
+    assert out_bom.software[-1].captureTime == "invalid"

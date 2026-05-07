@@ -10,7 +10,7 @@ class Author:
     authorType: str = ""
     authorName: str = ""
 
-    def __post_init__(self) -> None:
+    def validate(self) -> None:
         if not isinstance(self.authorType, str):
             raise TypeError("authorType must be a string")
 

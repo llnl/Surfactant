@@ -25,7 +25,7 @@ class Relationship:
     relationship: str
     comments: Optional[List[CommentEntry]] = None
 
-    def __post_init__(self) -> None:
+    def validate(self) -> None:
         validate_uuid(self.xUUID)
         validate_uuid(self.yUUID)
 

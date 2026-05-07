@@ -54,8 +54,8 @@ class Software:
     metadata: List[Dict[str, Any]] = field(default_factory=list)
     supplementaryFiles: Optional[List[File]] = None
 
-    def __post_init__(self) -> None:
-        """Validate fields against the CyTRICS software schema requirements."""
+    def validate(self) -> None:
+        """Validate this software entry against the CyTRICS field constraints."""
         self._validate_capture_time()
         self._validate_uuid()
         self._validate_scalar_fields()
@@ -157,22 +157,14 @@ class Software:
                 raise TypeError("All items in metadata must be objects (dicts)")
 
     def update_field(self, field_name: str, value: Any) -> None:
-        """Public helper to update a field while preserving validation semantics."""
+        """Public helper to update a field without implicit schema validation."""
         self._update_field(field_name, value)
 
     def _update_field(self, field_name: str, value: Any) -> None:
         if value in ("", " ", None):
             return
 
-        original_value = getattr(self, field_name)
-
         setattr(self, field_name, value)
-
-        try:
-            self.__post_init__()
-        except Exception:
-            setattr(self, field_name, original_value)
-            raise
 
     @staticmethod
     def create_software_from_file(filepath) -> Software:

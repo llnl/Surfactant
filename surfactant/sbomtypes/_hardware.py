@@ -32,8 +32,8 @@ class Hardware:
     packageType: Optional[str] = None
     boardLocation: List[str] = field(default_factory=list)
 
-    def __post_init__(self) -> None:
-        """Validate captureTime against the CyTRICS hardware schema requirement."""
+    def validate(self) -> None:
+        """Validate this hardware entry against the CyTRICS field constraints."""
 
         # Validate UUID format
         try:
