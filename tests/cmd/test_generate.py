@@ -1,6 +1,7 @@
 import json
 from pathlib import Path
 
+import click
 import pytest
 
 from surfactant.cmd.generate import sbom
@@ -63,6 +64,63 @@ def test_generate_with_install_prefix(tmp_path):
         "yUUID": uuids["testlib.dll"],
         "relationship": "Uses",
     }
+
+
+def test_generate_with_author(tmp_path):
+    extract_path = Path(testing_data, "Windows_dll_test_no1").as_posix()
+    config_data = f'[{{"extractPaths": ["{extract_path}"]}}]'
+    config_path = str(Path(tmp_path, "config.json"))
+    output_path = str(Path(tmp_path, "out.json"))
+
+    with open(config_path, "w") as f:
+        f.write(config_data)
+
+    # pylint: disable=no-value-for-parameter
+    sbom(
+        [
+            "--author_name",
+            "Lawrence Livermore National Laboratory",
+            "--author_type",
+            "organization",
+            config_path,
+            output_path,
+        ],
+        standalone_mode=False,
+    )
+    # pylint: enable
+
+    with open(output_path) as f:
+        generated_sbom = json.load(f)
+
+    assert generated_sbom["authors"] == [
+        {
+            "authorType": "organization",
+            "authorName": "Lawrence Livermore National Laboratory",
+        }
+    ]
+
+
+def test_generate_author_requires_name_and_type(tmp_path):
+    extract_path = Path(testing_data, "Windows_dll_test_no1").as_posix()
+    config_data = f'[{{"extractPaths": ["{extract_path}"]}}]'
+    config_path = str(Path(tmp_path, "config.json"))
+    output_path = str(Path(tmp_path, "out.json"))
+
+    with open(config_path, "w") as f:
+        f.write(config_data)
+
+    with pytest.raises(click.ClickException, match="--author_name and --author_type"):
+        # pylint: disable=no-value-for-parameter
+        sbom(
+            [
+                "--author_name",
+                "Lawrence Livermore National Laboratory",
+                config_path,
+                output_path,
+            ],
+            standalone_mode=False,
+        )
+        # pylint: enable
 
 
 def test_generate_with_skip_install_path(tmp_path):

@@ -19,7 +19,7 @@ from surfactant.configmanager import ConfigManager
 from surfactant.fileinfo import sha256sum
 from surfactant.plugin.manager import call_init_hooks, find_io_plugin, get_plugin_manager
 from surfactant.relationships import parse_relationships
-from surfactant.sbomtypes import SBOM, Software
+from surfactant.sbomtypes import Author, SBOM, Software
 from surfactant.sbomtypes._comment import CommentEntry
 from surfactant.sbomtypes._name import NameEntry
 
@@ -120,6 +120,37 @@ def _normalize_vendor_hints(value: Any, *, filepath: str) -> List[str]:
 
     _append_vendor(value)
     return normalized
+
+
+def _normalize_author_value(value: Optional[str], option_name: str) -> Optional[str]:
+    """Normalize an optional author CLI/config value."""
+    if value is None:
+        return None
+
+    if not isinstance(value, str):
+        raise click.ClickException(f"{option_name} must be a string")
+
+    value = value.strip()
+    return value or None
+
+
+def _set_sbom_author(sbom: SBOM, author_name: Optional[str], author_type: Optional[str]) -> None:
+    """Set a generated SBOM author from CLI/config values."""
+    author_name = _normalize_author_value(author_name, "--author_name")
+    author_type = _normalize_author_value(author_type, "--author_type")
+
+    if author_name is None and author_type is None:
+        return
+
+    if author_name is None or author_type is None:
+        raise click.ClickException("--author_name and --author_type must be provided together")
+
+    author = Author(authorType=author_type, authorName=author_name)
+    if sbom.authors is None:
+        sbom.authors = []
+
+    if author not in sbom.authors:
+        sbom.authors.append(author)
 
 
 def get_software_entry(
@@ -355,6 +386,18 @@ def get_default_from_config(option: str, fallback: Optional[Any] = None) -> Any:
     help="Input SBOM format, see --list-input-formats for list of options; default is CyTRICS",
 )
 @click.option(
+    "--author_name",
+    is_flag=False,
+    default=get_default_from_config("author_name"),
+    help="Name of the BOM author.",
+)
+@click.option(
+    "--author_type",
+    is_flag=False,
+    default=get_default_from_config("author_type"),
+    help="Type of the BOM author, such as name, organization, or program.",
+)
+@click.option(
     "--list_input_formats",
     is_flag=True,
     callback=print_input_formats,
@@ -388,6 +431,8 @@ def sbom(
     skip_install_path: bool,
     output_format: str,
     input_format: str,
+    author_name: Optional[str],
+    author_type: Optional[str],
     omit_unrecognized_types: bool,
     install_prefix_arg: str,
 ):
@@ -415,6 +460,8 @@ def sbom(
         new_sbom = SBOM()
     else:
         new_sbom = input_reader.read_sbom(input_sbom)
+
+    _set_sbom_author(new_sbom, author_name, author_type)
 
     # gather metadata for files and add/augment software entries in the sbom
     if not skip_gather:
