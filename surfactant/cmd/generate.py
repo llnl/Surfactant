@@ -216,25 +216,53 @@ def get_software_entry(
 
     # set SBOM fields based on sw_field_hints
     field_confidence: Dict[str, Tuple[Any, int]] = {}
+    name_hints: List[Tuple[Any, int]] = []
     vendor_hints: List[Any] = []
+    comment_hints: List[Any] = []
 
     for field, value, confidence in sw_field_hints:
+        # name values are confidence-ranked separately for each name type
+        if field == "name":
+            name_hints.append((value, confidence))
+            continue
+
         # vendor values are aggregated across hints rather than confidence-ranked
         if field == "vendor":
             vendor_hints.append(value)
+            continue
+
+        # comment values are aggregated across hints rather than confidence-ranked
+        if field == "comments":
+            comment_hints.append(value)
             continue
 
         # for all other fields, keep only the value with the highest confidence
         if field not in field_confidence or confidence > field_confidence[field][1]:
             field_confidence[field] = (value, confidence)
 
+    if name_hints:
+        field_confidence["name"] = (name_hints, 0)
+
     if vendor_hints:
         field_confidence["vendor"] = (vendor_hints, 0)
+
+    if comment_hints:
+        field_confidence["comments"] = (comment_hints, 0)
 
     # set any fields that haven't been set yet (user/previously set fields take precedence)
     for field, (value, _) in field_confidence.items():
         if field == "name" and not sw_entry.name:
-            normalized_names = _normalize_name_hints(value, filepath=filepath)
+            selected_names: Dict[str, Tuple[NameEntry, int]] = {}
+            for name_value, name_confidence in value:
+                for name_entry in _normalize_name_hints(name_value, filepath=filepath):
+                    name_type = name_entry.nameType if isinstance(name_entry.nameType, str) else ""
+                    if (
+                        name_type not in selected_names
+                        or name_confidence > selected_names[name_type][1]
+                    ):
+                        selected_names[name_type] = (name_entry, name_confidence)
+
+            normalized_names = [name_entry for name_entry, _ in selected_names.values()]
             if normalized_names:
                 sw_entry.update_field("name", normalized_names)
         elif field == "version" and not sw_entry.version:
@@ -251,10 +279,15 @@ def get_software_entry(
         elif field == "description" and not sw_entry.description:
             normalized_description = _normalize_string_hint("description", value, filepath=filepath)
             sw_entry.update_field("description", normalized_description)
-        elif field == "comments" and not sw_entry.comments:
-            normalized_comments = _normalize_comment_hints(value, filepath=filepath)
-            if normalized_comments:
-                sw_entry.update_field("comments", normalized_comments)
+        elif field == "comments":
+            merged_comments = [*(sw_entry.comments or [])]
+            for comment_value in value:
+                for comment in _normalize_comment_hints(comment_value, filepath=filepath):
+                    if comment not in merged_comments:
+                        merged_comments.append(comment)
+
+            if merged_comments != (sw_entry.comments or []):
+                sw_entry.update_field("comments", merged_comments)
     return (sw_entry, sw_children)
 
 
