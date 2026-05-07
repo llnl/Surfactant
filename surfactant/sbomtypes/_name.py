@@ -1,18 +1,28 @@
 from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Any, Optional
+from typing import Any
+
+
+def _string_or_empty(value: Any, field_name: str) -> str:
+    if value is None:
+        return ""
+
+    if not isinstance(value, str):
+        raise TypeError(f"{field_name} must be a string")
+
+    return value
 
 
 @dataclass
 class NameEntry:
-    nameValue: Optional[str] = None
-    nameType: Optional[str] = None
+    nameValue: str = ""
+    nameType: str = ""
 
     def validate(self) -> None:
-        if self.nameValue is not None and not isinstance(self.nameValue, str):
-            raise TypeError("nameValue must be a string or None")
-        if self.nameType is not None and not isinstance(self.nameType, str):
-            raise TypeError("nameType must be a string or None")
+        if not isinstance(self.nameValue, str):
+            raise TypeError("nameValue must be a string")
+        if not isinstance(self.nameType, str):
+            raise TypeError("nameType must be a string")
 
     @classmethod
     def from_hint(cls, value: Any) -> "NameEntry":
@@ -25,14 +35,14 @@ class NameEntry:
         if isinstance(value, Mapping):
             if "nameValue" in value:
                 return cls(
-                    nameValue=value.get("nameValue"),
-                    nameType=value.get("nameType"),
+                    nameValue=_string_or_empty(value.get("nameValue"), "nameValue"),
+                    nameType=_string_or_empty(value.get("nameType"), "nameType"),
                 )
 
             if "name" in value:
                 return cls(
-                    nameValue=value["name"],
-                    nameType=value.get("nameType"),
+                    nameValue=_string_or_empty(value.get("name"), "name"),
+                    nameType=_string_or_empty(value.get("nameType"), "nameType"),
                 )
 
             raise TypeError("name hint mappings must contain 'nameValue' or legacy 'name'")

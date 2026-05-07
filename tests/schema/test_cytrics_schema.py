@@ -9,6 +9,7 @@ Focus areas:
 - Software captureTime accepts RFC 3339 strings and null
 - File captureTime accepts RFC 3339 strings and rejects null
 - Supplementary filePath is treated as required ahead of the next schema update
+- NameEntry nameValue/nameType values are strings, not null
 - Invalid comment timestamps are caught by schema tests, not runtime constructors
 - Legacy epoch integers are rejected by schema validation
 """
@@ -22,7 +23,7 @@ from pathlib import Path
 import pytest
 from jsonschema import Draft7Validator, FormatChecker, ValidationError
 
-from surfactant.sbomtypes import SBOM, CommentEntry, File, Hardware, Software
+from surfactant.sbomtypes import CommentEntry, File, Hardware, NameEntry, SBOM, Software
 from surfactant.utils.capture_time import utc_now_rfc3339, validate_capture_time
 
 SCHEMA_PATH = Path("docs/cytrics_schema/schema.json")
@@ -205,6 +206,96 @@ def test_runtime_comment_entry_does_not_validate_schema(
         cytrics_validator,
         serialized,
         ["software", 0, "comments", 0, "timestamp"],
+    )
+
+
+def test_explicit_name_entry_validation_rejects_null_values() -> None:
+    """Verify explicit NameEntry validation rejects null field values."""
+    with pytest.raises(TypeError, match="nameValue must be a string"):
+        NameEntry(nameValue=None).validate()  # type: ignore[arg-type]
+
+    with pytest.raises(TypeError, match="nameType must be a string"):
+        NameEntry(nameType=None).validate()  # type: ignore[arg-type]
+
+
+def test_explicit_hardware_name_entry_validation_rejects_null_values() -> None:
+    """Verify explicit Hardware validation rejects null NameEntry field values."""
+    hw = Hardware(
+        UUID="bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+        name=[NameEntry(nameValue=None)],  # type: ignore[arg-type]
+    )
+
+    with pytest.raises(TypeError, match="nameValue must be a string"):
+        hw.validate()
+
+
+def test_name_entry_empty_strings_are_schema_valid(cytrics_validator: Draft7Validator) -> None:
+    """Verify empty nameValue/nameType strings satisfy the schema."""
+    sbom = SBOM(
+        software=[
+            Software(
+                UUID="99999999-9999-4999-8999-999999999999",
+                sha256="d" * 64,
+                name=[NameEntry()],
+            )
+        ]
+    )
+
+    serialized = sbom.to_dict()
+
+    assert serialized["software"][0]["name"][0] == {
+        "nameValue": "",
+        "nameType": "",
+    }
+    assert_schema_valid(cytrics_validator, serialized)
+
+
+def test_runtime_name_entry_serialization_does_not_hide_null_values(
+    cytrics_validator: Draft7Validator,
+) -> None:
+    """Verify runtime serialization preserves invalid null NameEntry values."""
+    sbom = SBOM(
+        software=[
+            Software(
+                UUID="cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+                sha256="f" * 64,
+                name=[NameEntry(nameValue=None)],  # type: ignore[arg-type]
+            )
+        ]
+    )
+
+    serialized = sbom.to_dict()
+
+    assert serialized["software"][0]["name"][0]["nameValue"] is None
+    assert_schema_invalid_at(
+        cytrics_validator,
+        serialized,
+        ["software", 0, "name", 0, "nameValue"],
+    )
+
+
+@pytest.mark.parametrize("field_name", ("nameValue", "nameType"))
+def test_software_name_entry_rejects_null_values(
+    cytrics_validator: Draft7Validator,
+    field_name: str,
+) -> None:
+    """Verify schema validation rejects null nameValue/nameType values."""
+    sbom = SBOM(
+        software=[
+            Software(
+                UUID="aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+                sha256="e" * 64,
+                name=[NameEntry(nameValue="valid", nameType="product name")],
+            )
+        ]
+    )
+    serialized = sbom.to_dict()
+    serialized["software"][0]["name"][0][field_name] = None
+
+    assert_schema_invalid_at(
+        cytrics_validator,
+        serialized,
+        ["software", 0, "name", 0, field_name],
     )
 
 

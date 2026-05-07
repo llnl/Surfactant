@@ -59,8 +59,6 @@ def _serialize_for_schema(value):
             omit_none_fields = {"filePath", "captureTime"}
         elif isinstance(value, Hardware):
             omit_none_fields = {"boardLocation"}
-        elif isinstance(value, NameEntry):
-            omit_none_fields = {"nameValue", "nameType"}
         elif isinstance(value, Software):
             omit_none_fields = {"notHashable"}
 

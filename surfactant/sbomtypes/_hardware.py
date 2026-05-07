@@ -49,6 +49,7 @@ class Hardware:
             for item in self.name:
                 if not isinstance(item, NameEntry):
                     raise TypeError("All items in name must be NameEntry objects")
+                item.validate()
 
         if (self.countryOfOrigin is None) != (self.countryOfOriginSource is None):
             raise ValueError(
