@@ -62,7 +62,7 @@ dependencies = [
     # Pinned to specific version for potential breaking changes
     "python-msi==0.0.0b3",
     # Pinned to specific version for potential breaking changes
-    "rpmfile==2.1.0",
+    "rpmfile==2.2.1",
 ]
 dynamic = ["version"]
 
