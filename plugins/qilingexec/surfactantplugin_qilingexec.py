@@ -162,56 +162,58 @@ def extract_file_info(  # pylint: disable=too-many-positional-arguments
         (r"/", r"linux") if platform.system() == "Linux" else (r"C:\\", r"windows")
     )
     mountPoint = current_context.get_pconf(__name__, "mount_prefix", def_mount)
-    version_argument = current_context.get_pconf(__name__, "version_arg", "--version")
+    ver_arg_list = current_context.get_pconf(
+        __name__, "ver_arg_list", ["--version", "-v", "-V", "version"]
+    )
     os_arch_ret = get_os_arch(current_context, filetype, def_os)
     if os_arch_ret:
         (os, arch) = os_arch_ret
     else:
         return None
     timeout = current_context.get_pconf(__name__, "timeout", 150000)
-    args_version = [filename, version_argument]
     args_help = [filename, "--help"]
     reg_string = current_context.get_pconf(__name__, "regex", r"[0-9a-zA-Z\(\)] [0-9]+\.[0-9]+")
 
     regex = re.compile(reg_string)
-
-    fd_version = pipe.SimpleStringBuffer()
-    ql_version = Qiling(
-        argv=args_version,
-        rootfs=mountPoint,
-        archtype=arch,
-        ostype=os,
-        verbose=QL_VERBOSE.OFF,
-    )
-    ql_version.os.stdout = fd_version
-    # Emulate executable
-    try:
-        ql_version.run(timeout=timeout)
-    except UcError as error:
-        # This error occurs even during normal emulation
-        logger.error(
-            f"qilingexec ran into a(n) {error} exception when trying to run {args_version}"
-        )
-    except QlErrorBase as error:
-        logger.error(
-            f"qilingexec ran into a(n) {error} exception when trying to run {args_version}"
-        )
-        return None
     file_details: Dict[str, Any] = {"qilingexec": {}}
-    result = parse_stdout(fd_version, regex)
-    (match, file_details["qilingexec"]["stdout"]) = result if result else (None, None)
-    if match:
-        match_arr = match.split(" ")
-        name = match_arr[0]
-        version = match_arr[-1]
-        software_field_hints.append(("version", version, 80))
-        software_field_hints.append(("name", name, 10))
-        file_details["qilingexec"]["version"] = version
-        file_details["qilingexec"]["name"] = name
-    else:
-        logger.info(f"No version information returned by {args_version} with {version_argument}")
-        if not file_details["qilingexec"]["stdout"]:
+
+    for arg in ver_arg_list:
+        print(arg)
+        args_version = [filename, arg]
+        fd_version = pipe.SimpleStringBuffer()
+        ql_version = Qiling(
+            argv=args_version,
+            rootfs=mountPoint,
+            archtype=arch,
+            ostype=os,
+            verbose=QL_VERBOSE.OFF,
+            multithread=True,
+        )
+        ql_version.os.stdout = fd_version
+        # Emulate executable
+        try:
+            ql_version.run(timeout=timeout)
+        except (UcError, AttributeError) as error:
+            # This error occurs even during normal emulation
+            logger.error(f"qilingexec ran into a(n) {error} exception when trying to run {arg}")
+        except QlErrorBase as error:
+            logger.error(f"qilingexec ran into a(n) {error} exception when trying to run {arg}")
             return None
+        result = parse_stdout(fd_version, regex)
+        (match, file_details["qilingexec"]["stdout"]) = result if result else (None, None)
+        if match:  # pylint: disable=no-else-break
+            match_arr = match.split(" ")
+            name = match_arr[0]
+            version = match_arr[-1]
+            software_field_hints.append(("version", version, 80))
+            software_field_hints.append(("name", name, 10))
+            file_details["qilingexec"]["version"] = version
+            file_details["qilingexec"]["name"] = name
+            break
+        else:
+            logger.info(f'No version information returned by {args_version} with "{arg}"')
+            if not file_details["qilingexec"]["stdout"] and arg == ver_arg_list[-1]:
+                return None
 
     fd_help = pipe.SimpleStringBuffer()
     ql_help = Qiling(
@@ -227,13 +229,9 @@ def extract_file_info(  # pylint: disable=too-many-positional-arguments
         ql_help.run(timeout=timeout)
     except UcError as error:
         # This error occurs even during normal emulation
-        logger.warning(
-            f"qilingexec ran into a(n) {error} exception when trying to run {args_version}"
-        )
+        logger.warning(f"qilingexec ran into a(n) {error} exception when trying to run {args_help}")
     except QlErrorBase as error:
-        logger.warning(
-            f"qilingexec ran into a(n) {error} exception when trying to run {args_version}"
-        )
+        logger.warning(f"qilingexec ran into a(n) {error} exception when trying to run {args_help}")
         return file_details
     file_details["qilingexec"]["help_stdout"] = handle_help(fd_help)
     return file_details
