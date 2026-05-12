@@ -386,7 +386,7 @@ class SBOM:
             # Find installPathSymlinks metadata entry
             symlink_paths = []
             for md in sw.metadata:
-                if isinstance(md, dict) and "installPathSymlinks" in md:
+                if isinstance(md, dict) and isinstance(md.get("installPathSymlinks"), list):
                     symlink_paths = md["installPathSymlinks"]
                     break
 
@@ -399,6 +399,9 @@ class SBOM:
             norm_target = normalize_path(target_path)
 
             for link_path in symlink_paths:
+                if not isinstance(link_path, str):
+                    continue
+
                 norm_link = normalize_path(link_path)
 
                 # Skip if this is already in installPath (not a true alias)
@@ -1274,7 +1277,7 @@ class SBOM:
                     return
                 merged = sorted(values)
                 for md in _sw.metadata:
-                    if isinstance(md, dict) and key in md:
+                    if isinstance(md, dict) and isinstance(md.get(key), list):
                         existing = set(md[key])
                         md[key] = sorted(existing | set(merged))
                         logger.debug(f"[fs_tree] Merged {key} for {_sw.UUID}: {md[key]}")
@@ -1323,7 +1326,7 @@ class SBOM:
         description: Optional[str] = None,
         relationshipAssertion: Optional[str] = None,
         comments: Optional[List[CommentEntry]] = None,
-        metadata: Optional[List[Any]] = None,
+        metadata: Optional[List[object]] = None,
         supplementaryFiles: Optional[List[File]] = None,
     ) -> Software:
         sw = Software(
@@ -1360,12 +1363,6 @@ class SBOM:
                 if existing_sw := self._find_software_entry(
                     uuid=sw.UUID, sha256=sw.sha256, md5=sw.md5, sha1=sw.sha1
                 ):
-                    if Software.check_for_hash_collision(existing_sw, sw):
-                        raise ValueError(
-                            "Refusing to merge software entries with colliding hash data: "
-                            f"{existing_sw.UUID} and {sw.UUID}"
-                        )
-
                     previous_sha256 = existing_sw.sha256
                     u1, u2 = existing_sw.merge(sw)
                     self._refresh_merged_software_state(
@@ -1392,9 +1389,9 @@ class SBOM:
                     # indexes and derived structures stay in sync.
                     self.add_software(sw)
 
-        # Rebuild any symlink edges described in merged metadata after software
-        # entries have been inserted or mutated in place.
-        self._rebuild_fs_tree_from_metadata()
+            # Rebuild any symlink edges described in merged metadata after software
+            # entries have been inserted or mutated in place.
+            self._rebuild_fs_tree_from_metadata()
 
         # 2) Merge relationships from the incoming SBOM's MultiDiGraph
         for src, dst, rel_type, attrs in sbom_m.graph.edges(keys=True, data=True):
