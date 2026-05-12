@@ -1,17 +1,7 @@
-"""Schema-focused tests for CyTRICS captureTime fields.
+"""Schema-focused tests for SBOMs using the CyTRICS format.
 
-These tests validate that Surfactant's captureTime handling remains aligned
+These tests ensure that generated SBOMs and data validation functions remain aligned
 with the checked-in CyTRICS schema at docs/cytrics_schema/schema.json.
-
-Focus areas:
-- Generated timestamps are RFC 3339 date-time strings in UTC
-- Hardware captureTime accepts RFC 3339 strings and null
-- Software captureTime accepts RFC 3339 strings and null
-- File captureTime accepts RFC 3339 strings and rejects null
-- Supplementary filePath is treated as required ahead of the next schema update
-- NameEntry nameValue/nameType values are strings, not null
-- Invalid comment timestamps are caught by schema tests, not runtime constructors
-- Legacy epoch integers are rejected by schema validation
 """
 
 from __future__ import annotations
