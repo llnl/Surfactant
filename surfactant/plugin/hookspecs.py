@@ -47,7 +47,7 @@ def extract_file_info(
     children: List[Software],
     software_field_hints: List[Tuple[str, Any, int]],
     omit_unrecognized_types: bool,
-) -> Optional[Any]:
+) -> object:
     """Extract information from the given file and add it to the given software entry.
 
     Plugins may:
@@ -80,13 +80,13 @@ def extract_file_info(
             default to propagating this value to the new context entries that it creates.
 
     Returns:
-        Optional[Any]: A metadata value to append to ``software.metadata``, or ``None`` to add no metadata.
+        object: A metadata value to append to ``software.metadata``, or ``None`` to add no metadata.
     """
 
 
 @hookspec
 def establish_relationships(
-    sbom: SBOM, software: Software, metadata: Any
+    sbom: SBOM, software: Software, metadata: object
 ) -> Optional[List[Relationship]]:
     """Called to add relationships to an SBOM after information has been gathered.
 
@@ -100,7 +100,7 @@ def establish_relationships(
     Args:
         sbom (SBOM): The SBOM object that the Software is part of.
         software (Software): The Software entry that the metadata value is from.
-        metadata: The metadata value to establish relationships based on.
+        metadata (object): The metadata value to establish relationships based on.
 
     Returns:
         Optional[List[Relationship]]: A list of relationships to add to the SBOM.
