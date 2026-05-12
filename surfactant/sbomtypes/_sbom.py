@@ -1356,7 +1356,7 @@ class SBOM:
         # 1) Merge software
         if sbom_m.software:
             for sw in sbom_m.software:
-                # NOTE: Do we want to pass in teh UUID here? What if we have two different UUIDs for the same file? Should hashes be required?
+                # NOTE: Do we want to pass in the UUID here? What if we have two different UUIDs for the same file? Should hashes be required?
                 if existing_sw := self._find_software_entry(
                     uuid=sw.UUID, sha256=sw.sha256, md5=sw.md5, sha1=sw.sha1
                 ):
