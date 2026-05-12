@@ -27,7 +27,7 @@ class Hardware:
     identifiers: Optional[List[str]] = None
     hardwareType: Optional[List[str]] = None
     comments: Optional[List[CommentEntry]] = None
-    metadata: List[Any] = field(default_factory=list)
+    metadata: Optional[List[object]] = field(default_factory=list)
     supplementaryFiles: Optional[List[File]] = None
     packageType: Optional[str] = None
     boardLocation: List[str] = field(default_factory=list)

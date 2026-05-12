@@ -51,7 +51,7 @@ class Software:
     notHashable: Optional[bool] = None
     relationshipAssertion: Optional["RelationshipAssertion"] = RelationshipAssertion.UNKNOWN
     comments: Optional[List[CommentEntry]] = None
-    metadata: List[Any] = field(default_factory=list)
+    metadata: Optional[List[object]] = field(default_factory=list)
     supplementaryFiles: Optional[List[File]] = None
 
     def validate(self) -> None:
