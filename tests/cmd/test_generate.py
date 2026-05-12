@@ -1,10 +1,13 @@
 import json
+import queue
 from pathlib import Path
+from types import SimpleNamespace
 
 import click
 import pytest
 
-from surfactant.cmd.generate import sbom
+from surfactant.cmd.generate import get_software_entry, sbom
+from surfactant.sbomtypes import SBOM
 from tests.cmd import common
 
 testing_data = Path(Path(__file__).parent.parent, "data")
@@ -99,6 +102,35 @@ def test_generate_with_author(tmp_path):
         }
     ]
 
+def test_get_software_entry_merges_software_type_hints(tmp_path):
+    sample_path = tmp_path / "sample.bin"
+    sample_path.write_bytes(b"sample")
+
+    def extract_file_info(**kwargs):
+        kwargs["software_field_hints"].extend(
+            [
+                ("softwareType", "application", 10),
+                ("softwareType", ["library", "application"], 5),
+                ("softwareType", ("firmware",), 1),
+            ]
+        )
+        return []
+
+    pluginmanager = SimpleNamespace(
+        hook=SimpleNamespace(extract_file_info=extract_file_info)
+    )
+
+    software, children = get_software_entry(
+        queue.Queue(),
+        None,
+        pluginmanager,
+        SBOM(),
+        sample_path.as_posix(),
+        filetype=[],
+    )
+
+    assert children == []
+    assert software.softwareType == ["application", "library", "firmware"]
 
 def test_generate_author_requires_name_and_type(tmp_path):
     extract_path = Path(testing_data, "Windows_dll_test_no1").as_posix()

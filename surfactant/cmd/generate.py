@@ -122,6 +122,31 @@ def _normalize_vendor_hints(value: Any, *, filepath: str) -> List[str]:
     return normalized
 
 
+def _normalize_software_type_hints(value: Any, *, filepath: str) -> List[str]:
+    normalized: List[str] = []
+
+    def _append_software_type(item: Any) -> None:
+        if item is None:
+            return
+
+        if isinstance(item, (list, tuple)):
+            for sub_item in item:
+                _append_software_type(sub_item)
+            return
+
+        if not isinstance(item, str):
+            raise TypeError(
+                f"Invalid softwareType field hint for {filepath}: "
+                f"expected str, got {type(item).__name__}"
+            )
+
+        if item not in normalized:
+            normalized.append(item)
+
+    _append_software_type(value)
+    return normalized
+
+
 def _normalize_author_value(value: Optional[str], option_name: str) -> Optional[str]:
     """Normalize an optional author CLI/config value."""
     if value is None:
@@ -219,6 +244,7 @@ def get_software_entry(
     field_confidence: Dict[str, Tuple[Any, int]] = {}
     name_hints: List[Tuple[Any, int]] = []
     vendor_hints: List[Any] = []
+    software_type_hints: List[Any] = []
     comment_hints: List[Any] = []
 
     for field, value, confidence in sw_field_hints:
@@ -230,6 +256,11 @@ def get_software_entry(
         # vendor values are aggregated across hints rather than confidence-ranked
         if field == "vendor":
             vendor_hints.append(value)
+            continue
+
+        # softwareType values are aggregated across hints rather than confidence-ranked
+        if field == "softwareType":
+            software_type_hints.append(value)
             continue
 
         # comment values are aggregated across hints rather than confidence-ranked
@@ -246,6 +277,9 @@ def get_software_entry(
 
     if vendor_hints:
         field_confidence["vendor"] = (vendor_hints, 0)
+
+    if software_type_hints:
+        field_confidence["softwareType"] = (software_type_hints, 0)
 
     if comment_hints:
         field_confidence["comments"] = (comment_hints, 0)
@@ -277,6 +311,14 @@ def get_software_entry(
                     if vendor not in merged_vendors:
                         merged_vendors.append(vendor)
                 sw_entry.update_field("vendor", merged_vendors)
+        elif field == "softwareType":
+            normalized_software_types = _normalize_software_type_hints(value, filepath=filepath)
+            if normalized_software_types:
+                merged_software_types = [*(sw_entry.softwareType or [])]
+                for software_type in normalized_software_types:
+                    if software_type not in merged_software_types:
+                        merged_software_types.append(software_type)
+                sw_entry.update_field("softwareType", merged_software_types)
         elif field == "description" and not sw_entry.description:
             normalized_description = _normalize_string_hint("description", value, filepath=filepath)
             sw_entry.update_field("description", normalized_description)
