@@ -128,7 +128,7 @@ def test_get_software_entry_merges_software_type_hints(tmp_path):
         filetype=[],
     )
 
-    assert children == []
+    assert not children
     assert software.softwareType == ["application", "library", "firmware"]
 
 
