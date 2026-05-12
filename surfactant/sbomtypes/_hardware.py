@@ -4,7 +4,7 @@
 # SPDX-License-Identifier: MIT
 import uuid
 from dataclasses import dataclass, field
-from typing import Any, List, Optional
+from typing import List, Optional
 
 from ..utils.capture_time import validate_capture_time
 from ._comment import CommentEntry
