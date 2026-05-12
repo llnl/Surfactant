@@ -102,6 +102,7 @@ def test_generate_with_author(tmp_path):
         }
     ]
 
+
 def test_get_software_entry_merges_software_type_hints(tmp_path):
     sample_path = tmp_path / "sample.bin"
     sample_path.write_bytes(b"sample")
@@ -116,9 +117,7 @@ def test_get_software_entry_merges_software_type_hints(tmp_path):
         )
         return []
 
-    pluginmanager = SimpleNamespace(
-        hook=SimpleNamespace(extract_file_info=extract_file_info)
-    )
+    pluginmanager = SimpleNamespace(hook=SimpleNamespace(extract_file_info=extract_file_info))
 
     software, children = get_software_entry(
         queue.Queue(),
@@ -131,6 +130,7 @@ def test_get_software_entry_merges_software_type_hints(tmp_path):
 
     assert children == []
     assert software.softwareType == ["application", "library", "firmware"]
+
 
 def test_generate_author_requires_name_and_type(tmp_path):
     extract_path = Path(testing_data, "Windows_dll_test_no1").as_posix()
