@@ -1,10 +1,12 @@
-A folder containing multiple separate SBOM JSON files can be combined using `merge_sbom.py`
-with a command such the one below that gets a list of files using `ls`, and then uses `xargs`
-to pass the resulting list of files to `merge_sbom.py` as arguments.
+Use the main Surfactant `merge` command for the supported merge workflow. The
+`merge_sbom.py` script remains a direct CyTRICS-only merge helper when the input
+files are already valid CyTRICS SBOM JSON files.
 
-`ls -d ~/Folder_With_SBOMs/Surfactant-* | xargs -d '\n' python3.8 merge_sbom.py --config_file=merge_config.json --sbom_outfile combined_sbom.json`
+`ls -d ~/Folder_With_SBOMs/Surfactant-* | xargs -d '\n' python3.8 merge_sbom.py --sbom_outfile combined_sbom.json`
 
-If the config file option is given, a top-level system entry will be created that all other
-software entries are tied to (directly or indirectly based on other relationships). Specifying
-an empty UUID will make a random UUID get generated for the new system entry, otherwise it will
-use the one provided.
+The current `merge_sbom.py` script requires Surfactant to be importable in the
+Python environment. It only accepts input SBOM paths and `--sbom_outfile`. It
+no longer supports `--config_file`, and it no longer creates a top-level system
+entry. Each input is loaded through `SBOM.from_json(...)`, merged with
+`SBOM.merge(...)`, and written back out as schema-validated CyTRICS JSON using
+`SBOM.to_json(...)`.

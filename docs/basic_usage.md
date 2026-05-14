@@ -32,7 +32,8 @@ $  surfactant generate [OPTIONS] SPECIMEN_CONTEXT SBOM_OUTFILE [INPUT_SBOM]
 **--skip_gather**: (optional) skips the gathering of information on files and adding software entires\
 **--skip_relationships**: (optional) skips the adding of relationships based on metadata\
 **--skip_install_path**: (optional) skips including an install path for the files discovered. This may cause "Uses" relationships to also not be generated\
-**--recorded_institution**: (optional) the name of the institution collecting the SBOM data (default: LLNL)\
+**--author_name**: (optional) the name of the BOM author. Must be supplied together with `--author_type`\
+**--author_type**: (optional) the type of BOM author, such as `name`, `organization`, or `program`. Must be supplied together with `--author_name`\
 **--output_format**: (optional) changes the output format for the SBOM (given as full module name of a surfactant plugin implementing the `write_sbom` hook)\
 **--input_format**: (optional) specifies the format of the input SBOM if one is being used (default: cytrics) (given as full module name of a surfactant plugin implementing the `read_sbom` hook)\
 **--install_prefix**: (optional) specifies a SBOM install prefix\

@@ -25,5 +25,10 @@ def test_a_out_machine_type():
     for file_name, machine_type in _file_to_machine_type.items():
         file_path = os.path.join(data_dir, file_name)
         file_type = identify_file_type(file_path)
-        file_info = extract_file_info(SBOM(), Software(), file_path, file_type)
+        file_info = extract_file_info(
+            SBOM(),
+            Software.create_software_from_file(file_path),
+            file_path,
+            file_type,
+        )
         assert file_info["aoutMachineType"] == machine_type

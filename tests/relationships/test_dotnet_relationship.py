@@ -4,6 +4,19 @@ import pytest
 from surfactant.relationships import dotnet_relationship
 from surfactant.sbomtypes import SBOM, Relationship, Software
 
+SUPPLIER_UUID = "11111111-1111-4111-8111-111111111111"
+CONSUMER_UUID = "22222222-2222-4222-8222-222222222222"
+LIB_UUID = "33333333-3333-4333-8333-333333333333"
+APP_UUID = "44444444-4444-4444-8444-444444444444"
+NATIVE_UUID = "55555555-5555-4555-8555-555555555555"
+LIB1_UUID = "66666666-6666-4666-8666-666666666666"
+LIB2_UUID = "77777777-7777-4777-8777-777777777777"
+LIB3_UUID = "88888888-8888-4888-8888-888888888888"
+LIB_HEUR_UUID = "99999999-9999-4999-8999-999999999999"
+APP_HEUR_UUID = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
+LIB4_UUID = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"
+LIB6_UUID = "cccccccc-cccc-4ccc-8ccc-cccccccccccc"
+
 
 @pytest.fixture
 def sbom_fixture():
@@ -12,17 +25,22 @@ def sbom_fixture():
     - Supplier exports SomeLibrary.dll with version metadata.
     - Consumer references SomeLibrary.dll in its dotnetAssemblyRef.
     """
-    sbom = SBOM()
+    sbom = SBOM(
+        bomFormat="cytrics",
+        specVersion="1.0.1",
+    )
 
     supplier = Software(
-        UUID="uuid-supplier",
+        UUID=SUPPLIER_UUID,
+        notHashable=True,
         fileName=["SomeLibrary.dll"],
         installPath=["/app/bin/SomeLibrary.dll"],
         metadata=[{"dotnetAssembly": {"Name": "SomeLibrary", "Version": "1.0.0.0"}}],
     )
 
     consumer = Software(
-        UUID="uuid-consumer",
+        UUID=CONSUMER_UUID,
+        notHashable=True,
         installPath=["/app/bin/App.exe"],
         metadata=[{"dotnetAssemblyRef": [{"Name": "SomeLibrary", "Version": "1.0.0.0"}]}],
     )
@@ -49,12 +67,21 @@ def test_dotnet_codebase_match():
     Test: codeBase.href resolution from app.config.
     Ensures href is respected as a valid relative match.
     """
-    sbom = SBOM()
+    sbom = SBOM(
+        bomFormat="cytrics",
+        specVersion="1.0.1",
+    )
 
-    supplier = Software(UUID="uuid-lib", fileName=["lib.dll"], installPath=["/app/private/lib.dll"])
+    supplier = Software(
+        UUID=LIB_UUID,
+        notHashable=True,
+        fileName=["lib.dll"],
+        installPath=["/app/private/lib.dll"],
+    )
 
     consumer = Software(
-        UUID="uuid-app",
+        UUID=APP_UUID,
+        notHashable=True,
         installPath=["/app/main.exe"],
         metadata=[
             {
@@ -74,7 +101,7 @@ def test_dotnet_codebase_match():
     sbom.add_software(consumer)
 
     results = dotnet_relationship.establish_relationships(sbom, consumer, consumer.metadata[0])
-    assert results == [Relationship("uuid-app", "uuid-lib", "Uses")]
+    assert results == [Relationship(APP_UUID, LIB_UUID, "Uses")]
 
 
 def test_dotnet_implmap_unmanaged_match():
@@ -82,14 +109,21 @@ def test_dotnet_implmap_unmanaged_match():
     Test: unmanaged import from dotnetImplMap should resolve as native.
     Ensures fallback probing with name variants like native.dll, native.so, etc.
     """
-    sbom = SBOM()
+    sbom = SBOM(
+        bomFormat="cytrics",
+        specVersion="1.0.1",
+    )
 
     supplier = Software(
-        UUID="uuid-native", fileName=["native.so"], installPath=["/app/lib/native.so"]
+        UUID=NATIVE_UUID,
+        notHashable=True,
+        fileName=["native.so"],
+        installPath=["/app/lib/native.so"],
     )
 
     consumer = Software(
-        UUID="uuid-consumer",
+        UUID=CONSUMER_UUID,
+        notHashable=True,
         installPath=["/app/lib/main.exe"],
         metadata=[{"dotnetImplMap": [{"Name": "native"}], "dotnetAssemblyRef": []}],
     )
@@ -98,7 +132,7 @@ def test_dotnet_implmap_unmanaged_match():
     sbom.add_software(consumer)
 
     results = dotnet_relationship.establish_relationships(sbom, consumer, consumer.metadata[0])
-    assert results == [Relationship("uuid-consumer", "uuid-native", "Uses")]
+    assert results == [Relationship(CONSUMER_UUID, NATIVE_UUID, "Uses")]
 
 
 def test_dotnet_same_directory():
@@ -106,12 +140,19 @@ def test_dotnet_same_directory():
     Test: assembly in same directory as consumer should be resolved.
     Covers legacy phase and base probing behavior.
     """
-    sbom = SBOM()
+    sbom = SBOM(
+        bomFormat="cytrics",
+        specVersion="1.0.1",
+    )
     supplier = Software(
-        UUID="lib1", fileName=["samedirlib.dll"], installPath=["/app/samedirlib.dll"]
+        UUID=LIB1_UUID,
+        notHashable=True,
+        fileName=["samedirlib.dll"],
+        installPath=["/app/samedirlib.dll"],
     )
     consumer = Software(
-        UUID="app",
+        UUID=APP_UUID,
+        notHashable=True,
         installPath=["/app/main.exe"],
         metadata=[{"dotnetAssemblyRef": [{"Name": "samedirlib"}]}],
     )
@@ -119,7 +160,7 @@ def test_dotnet_same_directory():
     sbom.add_software(consumer)
 
     results = dotnet_relationship.establish_relationships(sbom, consumer, consumer.metadata[0])
-    assert results == [Relationship("app", "lib1", "Uses")]
+    assert results == [Relationship(APP_UUID, LIB1_UUID, "Uses")]
 
 
 def test_dotnet_subdir():
@@ -127,12 +168,19 @@ def test_dotnet_subdir():
     Test: DLL in legacy-probed subdirectory is found by probing.
     Covers Phase 2 fallback behavior.
     """
-    sbom = SBOM()
+    sbom = SBOM(
+        bomFormat="cytrics",
+        specVersion="1.0.1",
+    )
     supplier = Software(
-        UUID="lib2", fileName=["subdirlib.dll"], installPath=["/app/subdirlib/subdirlib.dll"]
+        UUID=LIB2_UUID,
+        notHashable=True,
+        fileName=["subdirlib.dll"],
+        installPath=["/app/subdirlib/subdirlib.dll"],
     )
     consumer = Software(
-        UUID="app",
+        UUID=APP_UUID,
+        notHashable=True,
         installPath=["/app/main.exe"],
         metadata=[{"dotnetAssemblyRef": [{"Name": "subdirlib"}]}],
     )
@@ -140,7 +188,7 @@ def test_dotnet_subdir():
     sbom.add_software(consumer)
 
     results = dotnet_relationship.establish_relationships(sbom, consumer, consumer.metadata[0])
-    assert results == [Relationship("app", "lib2", "Uses")]
+    assert results == [Relationship(APP_UUID, LIB2_UUID, "Uses")]
 
 
 def test_dotnet_culture_subdir():
@@ -157,12 +205,19 @@ def test_dotnet_culture_subdir():
     This test ensures culture mismatches are excluded and matches are accepted
     only when Culture aligns.
     """
-    sbom = SBOM()
+    sbom = SBOM(
+        bomFormat="cytrics",
+        specVersion="1.0.1",
+    )
     supplier = Software(
-        UUID="lib3", fileName=["culturelib.dll"], installPath=["/app/culture/culturelib.dll"]
+        UUID=LIB3_UUID,
+        notHashable=True,
+        fileName=["culturelib.dll"],
+        installPath=["/app/culture/culturelib.dll"],
     )
     consumer = Software(
-        UUID="app",
+        UUID=APP_UUID,
+        notHashable=True,
         installPath=["/app/main.exe"],
         metadata=[{"dotnetAssemblyRef": [{"Name": "culturelib", "Culture": "culture"}]}],
     )
@@ -170,7 +225,7 @@ def test_dotnet_culture_subdir():
     sbom.add_software(consumer)
 
     results = dotnet_relationship.establish_relationships(sbom, consumer, consumer.metadata[0])
-    assert results == [Relationship("app", "lib3", "Uses")]
+    assert results == [Relationship(APP_UUID, LIB3_UUID, "Uses")]
 
 
 def test_dotnet_no_match_without_exact_basename():
@@ -190,16 +245,21 @@ def test_dotnet_no_match_without_exact_basename():
       - No heuristic "same-directory" fallback is applied, so no relationship
         is created.
     """
-    sbom = SBOM()
+    sbom = SBOM(
+        bomFormat="cytrics",
+        specVersion="1.0.1",
+    )
 
     supplier = Software(
-        UUID="lib-heur",
+        UUID=LIB_HEUR_UUID,
+        notHashable=True,
         fileName=["heur.dll"],
         installPath=["/app/bin/heur.dll.bak"],
     )
 
     consumer = Software(
-        UUID="app-heur",
+        UUID=APP_HEUR_UUID,
+        notHashable=True,
         installPath=["/app/bin/app.exe"],
         metadata=[{"dotnetAssemblyRef": [{"Name": "heur"}]}],
     )
@@ -217,12 +277,19 @@ def test_dotnet_private_path():
     Test: DLL resolved from app.config probing.privatePath directories.
     Ensures private paths are appended to probe set.
     """
-    sbom = SBOM()
+    sbom = SBOM(
+        bomFormat="cytrics",
+        specVersion="1.0.1",
+    )
     supplier = Software(
-        UUID="lib4", fileName=["pvtlib.dll"], installPath=["/app/bin/custom/pvtlib.dll"]
+        UUID=LIB4_UUID,
+        notHashable=True,
+        fileName=["pvtlib.dll"],
+        installPath=["/app/bin/custom/pvtlib.dll"],
     )
     consumer = Software(
-        UUID="app",
+        UUID=APP_UUID,
+        notHashable=True,
         installPath=["/app/bin/app.exe"],
         metadata=[
             {
@@ -237,22 +304,27 @@ def test_dotnet_private_path():
     sbom.add_software(consumer)
 
     results = dotnet_relationship.establish_relationships(sbom, consumer, consumer.metadata[0])
-    assert results == [Relationship("app", "lib4", "Uses")]
+    assert results == [Relationship(APP_UUID, LIB4_UUID, "Uses")]
 
 
 # def test_dotnet_version_mismatch_filtered():
 #     """
 #     Test: supplier has wrong version; should be filtered out by version check.
 #     """
-#     sbom = SBOM()
+#     sbom = SBOM(
+#       bomFormat="cytrics",
+#       specVersion="1.0.1",
+#   )
 #     supplier = Software(
-#         UUID="lib5",
+#         UUID="dddddddd-dddd-4ddd-8ddd-dddddddddddd",
+#         notHashable=True,
 #         fileName=["wrong.dll"],
 #         installPath=["/lib/wrong.dll"],
 #         metadata=[{"dotnetAssembly": {"Name": "wrong", "Version": "2.0.0.0"}}],
 #     )
 #     consumer = Software(
-#         UUID="app",
+#         UUID=APP_UUID,
+#         notHashable=True,
 #         installPath=["/lib/app.exe"],
 #         metadata=[{"dotnetAssemblyRef": [{"Name": "wrong", "Version": "1.0.0.0"}]}],
 #     )
@@ -267,15 +339,20 @@ def test_dotnet_culture_mismatch_filtered():
     """
     Test: supplier has wrong culture; should be filtered out by culture check.
     """
-    sbom = SBOM()
+    sbom = SBOM(
+        bomFormat="cytrics",
+        specVersion="1.0.1",
+    )
     supplier = Software(
-        UUID="lib6",
+        UUID=LIB6_UUID,
+        notHashable=True,
         fileName=["wrongcult.dll"],
         installPath=["/lib/wrongcult.dll"],
         metadata=[{"dotnetAssembly": {"Name": "wrongcult", "Culture": "xx"}}],
     )
     consumer = Software(
-        UUID="app",
+        UUID=APP_UUID,
+        notHashable=True,
         installPath=["/lib/app.exe"],
         metadata=[{"dotnetAssemblyRef": [{"Name": "wrongcult", "Culture": "yy"}]}],
     )

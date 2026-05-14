@@ -20,7 +20,8 @@ Here is an example of what the configuration file might look like:
 
 ```toml
 [core]
-recorded_institution = "LLNL"
+author_name = "LLNL"
+author_type = "organization"
 ```
 
 ### Initialization

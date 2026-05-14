@@ -9,18 +9,20 @@ Surfactant settings can be changed using the `surfactant config` subcommand, or 
 
 ### Command Line
 
-Using `surfactant config` is very similar to the basic use of `git config`. The key whose value is being accessed will be in the form `section.option` where `section` is typically a plugin name or `core`, and `option` is the option to set. As an example, the `core.recorded_institution` option can be used to configure the recorded institution used to identify who the creator of a generated SBOM was.
+Using `surfactant config` is very similar to the basic use of `git config`. The key whose value is being accessed will be in the form `section.option` where `section` is typically a plugin name or `core`, and `option` is the option to set. As an example, the `core.author_name` and `core.author_type` options can be used to configure the author recorded in generated SBOMs.
 
-Setting this option to `LLNL` could be done with the following command:
+Setting these options for LLNL as an organization could be done with the following commands:
 
 ```bash
-surfactant config core.recorded_institution LLNL
+surfactant config core.author_name LLNL
+surfactant config core.author_type organization
 ```
 
-Getting the currently set value for the option would then be done with:
+Getting the currently set values for the options would then be done with:
 
 ```bash
-surfactant config core.recorded_institution
+surfactant config core.author_name
+surfactant config core.author_type
 ```
 
 Another example of a setting you might want to change is `docker.enable_docker_scout`, which controls whether Docker Scout is enabled. To disable Docker Scout (which also suppresses the warning message about installing Docker Scout), set this option to `false`:
@@ -36,11 +38,12 @@ On Unix-like platforms (including macOS), the XDG directory specification is fol
 `${XDG_CONFIG_HOME}/surfactant/config.toml`. If the `XDG_CONFIG_HOME` environment variable is not set, the location defaults
 to `~/.config`. On Windows, the file is stored in the Roaming AppData folder at `%APPDATA%\\surfactant\\config.toml`.
 
-The file itself is a TOML file, and for the previously mentioned example plugin may look something like this:
+The file itself is a TOML file, and for the previously mentioned author settings may look something like this:
 
 ```toml
 [core]
-recorded_institution = "LLNL"
+author_name = "LLNL"
+author_type = "organization"
 ```
 
 ## Specimen Context File
