@@ -49,11 +49,11 @@ dependencies = [
     "defusedxml==0.7.*",
     "spdx-tools==0.8.*",
     # Pinned to specific version for potential breaking changes
-    "cyclonedx-python-lib==11.6.0",
+    "cyclonedx-python-lib==11.7.0",
     "pluggy==1.*",
     "click==8.*",
     "loguru==0.7.*",
-    "tomlkit>=0.13,<0.15",
+    "tomlkit>=0.13,<0.16",
     "textual>=8,<9",
     "requests>=2.32.3",
     "rarfile==4.2.*",
@@ -62,19 +62,19 @@ dependencies = [
     # Pinned to specific version for potential breaking changes
     "python-msi==0.0.0b3",
     # Pinned to specific version for potential breaking changes
-    "rpmfile==2.1.0",
+    "rpmfile==2.2.1",
 ]
 dynamic = ["version"]
 
 [dependency-groups]
-test = ["pytest"]
+test = ["pytest", "pytest-asyncio", "jsonschema[format-nongpl]", "freezegun"]
 dev = ["build", "pre-commit"]
 docs = ["sphinx", "myst-parser", "furo>=2025.9.25", "sphinx-copybutton>=0.5.2"]
 
 [project.optional-dependencies]
-macho = ["lief==0.17.3"]
+macho = ["lief==0.17.6"]
 java = ["javatools>=1.6,==1.*"]
-test = ["pytest", "pytest-asyncio"]
+test = ["pytest", "pytest-asyncio", "jsonschema[format-nongpl]", "freezegun"]
 dev = ["build", "pre-commit"]
 docs = ["sphinx", "myst-parser", "furo>=2025.9.25", "sphinx-copybutton>=0.5.2"]
 

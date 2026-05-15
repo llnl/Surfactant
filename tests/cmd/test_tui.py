@@ -49,11 +49,11 @@ async def test_merge(tmp_path):
     async with tui.run_test() as pilot:
         # This is the only way I could figure out how to change tabs
         await pilot.press("right")
-        # Add two merge paths (I don't know why the pauses are needed)
+        # Add two merge paths
         await pilot.click("#add_input_path")
-        await pilot.pause(0.5)
+        await pilot.pause(0.2)
         await pilot.click("#add_input_path")
-        await pilot.pause(0.5)
+        await pilot.pause(0.2)
         # Set the merge paths
         for i, p in enumerate(tui.merge_tab.merge_paths.input_paths):
             p.path_selector.input_path = (tmp_path / f"sbom{i}.json").as_posix()
@@ -92,13 +92,16 @@ async def test_context_roundtrip(tmp_path):
     async with tui.run_test() as pilot:
         # Change to context tab
         await pilot.press(*("right", "right"))
+        await pilot.pause(0.1)
         # Load an existing context file
         tui.context_tab.context_input.input_path = tmp_path.as_posix()
         tui.context_tab.context_name.value = "test_input.json"
         await pilot.click(tui.context_tab.load_btn)
+        await pilot.pause(0.1)
         # Save it to a new file
         tui.context_tab.context_name.value = "test_output.json"
         await pilot.click(tui.context_tab.save_btn)
+        await pilot.pause(0.1)
     # Compare the two JSON files
     with open(tmp_path / "test_input.json") as f:
         inp = json.load(f)

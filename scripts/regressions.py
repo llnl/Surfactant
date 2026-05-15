@@ -11,7 +11,6 @@ import json
 import os
 import random
 import sys
-import time
 import traceback
 import uuid
 from contextlib import contextmanager
@@ -20,6 +19,7 @@ from typing import Optional
 from unittest.mock import patch
 
 import click
+from freezegun import freeze_time
 from loguru import logger
 
 from surfactant.cmd.generate import sbom
@@ -49,16 +49,6 @@ def deterministic_json_dump(*args, **kwargs):
     return _json_dump(*args, **kwargs)
 
 
-class FixedDateTime(datetime.datetime):
-    @classmethod
-    def now(cls, tz=None):
-        return cls.fromtimestamp(time.time(), tz)
-
-    @classmethod
-    def utcnow(cls):
-        return cls.fromtimestamp(time.time(), datetime.timezone.utc)
-
-
 @contextmanager
 def deterministic_context(enabled: bool = True):
     """Context manager to optionally patch time-related and random functions for deterministic output.
@@ -67,10 +57,13 @@ def deterministic_context(enabled: bool = True):
         enabled (bool): If True, applies patches for deterministic behavior. If False, no patches are applied.
     """
     if enabled:
+        # Calculate the frozen time
+        frozen_time = datetime.datetime.fromtimestamp(
+            deterministic_time(), tz=datetime.timezone.utc
+        )
         with (
+            freeze_time(frozen_time),
             patch("uuid.uuid4", side_effect=deterministic_uuid4),
-            patch("datetime.datetime", FixedDateTime),
-            patch("time.time", side_effect=deterministic_time),
             patch("json.dumps", side_effect=deterministic_json_dumps),
             patch("json.dump", side_effect=deterministic_json_dump),
         ):

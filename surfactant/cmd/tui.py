@@ -155,7 +155,8 @@ class GenerateTab(textual.widgets.Static):
         self.skip_relationships = textual.widgets.Checkbox("Skip Relationships")
         self.input_format = textual.widgets.Select([("CyTRICS", "CyTRICS")], allow_blank=False)
         self.skip_install_path = textual.widgets.Checkbox("Skip Install Path")
-        self.recorded_institution = textual.widgets.Input(placeholder="Recorded Institution")
+        self.author_name = textual.widgets.Input(placeholder="Author Name")
+        self.author_type = textual.widgets.Input(placeholder="Author Type")
         self.output_format = textual.widgets.Select(
             [("CyTRICS", "CyTRICS"), ("SPDX", "SPDX"), ("CSV", "CSV")], allow_blank=False
         )
@@ -176,7 +177,10 @@ class GenerateTab(textual.widgets.Static):
         )
         yield self.skip_install_path
         yield textual.containers.HorizontalGroup(
-            textual.widgets.Label("Recorded Institution: "), self.recorded_institution
+            textual.widgets.Label("Author Name: "), self.author_name
+        )
+        yield textual.containers.HorizontalGroup(
+            textual.widgets.Label("Author Type: "), self.author_type
         )
         yield textual.containers.HorizontalGroup(
             textual.widgets.Label("Output Format: "), self.output_format
@@ -209,6 +213,16 @@ class GenerateTab(textual.widgets.Static):
             args.append(self.input_format.value)
         if self.skip_install_path.value:
             args.append("--skip_install_path")
+        author_name = self.author_name.value.strip()
+        author_type = self.author_type.value.strip()
+        if author_name or author_type:
+            if not author_name or not author_type:
+                self.app.notify("Author name and author type must both be supplied")
+                return
+            args.append("--author_name")
+            args.append(author_name)
+            args.append("--author_type")
+            args.append(author_type)
         args.append("--input_format")
         args.append(self.input_format.value)
         args.append("--output_format")
@@ -517,7 +531,13 @@ class PluginSettingsTab(textual.widgets.Static):
             "SBOM output format, see 'surfactant generate --list_output_formats' for list of options",
             "CyTRICS",
         ),
-        __setting("recorded_institution", "str", "Name of user's institution.", ""),
+        __setting("author_name", "str", "Name of the BOM author.", ""),
+        __setting(
+            "author_type",
+            "str",
+            "Type of the BOM author, such as name, organization, or program.",
+            "",
+        ),
         __setting(
             "include_all_files",
             "bool",

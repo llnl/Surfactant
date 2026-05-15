@@ -7,10 +7,11 @@ import pathlib
 import queue
 import re
 import sys
-from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import click
 from loguru import logger
+from networkx.exception import NetworkXError
 
 from surfactant import ContextEntry
 from surfactant.cmd.internal.generate_utils import SpecimenContextParamType
@@ -18,7 +19,9 @@ from surfactant.configmanager import ConfigManager
 from surfactant.fileinfo import sha256sum
 from surfactant.plugin.manager import call_init_hooks, find_io_plugin, get_plugin_manager
 from surfactant.relationships import parse_relationships
-from surfactant.sbomtypes import SBOM, Software
+from surfactant.sbomtypes import SBOM, Author, Software
+from surfactant.sbomtypes._comment import CommentEntry
+from surfactant.sbomtypes._name import NameEntry
 
 
 # Converts from a true path to an install path
@@ -29,6 +32,153 @@ def real_path_to_install_path(root_path: str, install_path: str, filepath: str) 
     return re.sub("^" + root_path, install_path, filepath)
 
 
+def _normalize_filetypes(value: Any, *, filepath: str) -> List[str]:
+    if value is None:
+        return []
+
+    if isinstance(value, str):
+        return [value]
+
+    if isinstance(value, (list, tuple)):
+        normalized: List[str] = []
+        for item in value:
+            if not isinstance(item, str):
+                raise TypeError(
+                    f"Invalid identify_file_type result for {filepath}: "
+                    f"expected str items, got {type(item).__name__}"
+                )
+            if item not in normalized:
+                normalized.append(item)
+        return normalized
+
+    raise TypeError(
+        f"Invalid identify_file_type result for {filepath}: "
+        f"expected str, list[str], or None; got {type(value).__name__}"
+    )
+
+
+def _normalize_name_hints(value: Any, *, filepath: str) -> List[NameEntry]:
+    raw_items = value if isinstance(value, (list, tuple)) else [value]
+    normalized: List[NameEntry] = []
+
+    for item in raw_items:
+        if item is None:
+            continue
+
+        try:
+            normalized.append(NameEntry.from_hint(item))
+        except (TypeError, ValueError) as err:
+            raise TypeError(f"Invalid name field hint for {filepath}: {err}") from err
+
+    return normalized
+
+
+def _normalize_comment_hints(value: Any, *, filepath: str) -> List[CommentEntry]:
+    raw_items = value if isinstance(value, (list, tuple)) else [value]
+    normalized: List[CommentEntry] = []
+
+    for item in raw_items:
+        if item is None:
+            continue
+
+        try:
+            normalized.append(CommentEntry.from_hint(item))
+        except (TypeError, ValueError) as err:
+            raise TypeError(f"Invalid comment field hint for {filepath}: {err}") from err
+
+    return normalized
+
+
+def _normalize_string_hint(field_name: str, value: Any, *, filepath: str) -> str:
+    if not isinstance(value, str):
+        raise TypeError(
+            f"Invalid {field_name} field hint for {filepath}: "
+            f"expected str, got {type(value).__name__}"
+        )
+    return value
+
+
+def _normalize_vendor_hints(value: Any, *, filepath: str) -> List[str]:
+    normalized: List[str] = []
+
+    def _append_vendor(item: Any) -> None:
+        if item is None:
+            return
+
+        if isinstance(item, (list, tuple)):
+            for sub_item in item:
+                _append_vendor(sub_item)
+            return
+
+        if not isinstance(item, str):
+            raise TypeError(
+                f"Invalid vendor field hint for {filepath}: expected str, got {type(item).__name__}"
+            )
+
+        if item not in normalized:
+            normalized.append(item)
+
+    _append_vendor(value)
+    return normalized
+
+
+def _normalize_software_type_hints(value: Any, *, filepath: str) -> List[str]:
+    normalized: List[str] = []
+
+    def _append_software_type(item: Any) -> None:
+        if item is None:
+            return
+
+        if isinstance(item, (list, tuple)):
+            for sub_item in item:
+                _append_software_type(sub_item)
+            return
+
+        if not isinstance(item, str):
+            raise TypeError(
+                f"Invalid softwareType field hint for {filepath}: "
+                f"expected str, got {type(item).__name__}"
+            )
+
+        if item not in normalized:
+            normalized.append(item)
+
+    _append_software_type(value)
+    return normalized
+
+
+def _normalize_author_value(value: Optional[str], option_name: str) -> Optional[str]:
+    """Normalize an optional author CLI/config value."""
+    if value is None:
+        return None
+
+    if not isinstance(value, str):
+        raise click.ClickException(f"{option_name} must be a string")
+
+    value = value.strip()
+    return value or None
+
+
+# pylint: disable-next=redefined-outer-name
+def _set_sbom_author(sbom: SBOM, author_name: Optional[str], author_type: Optional[str]) -> None:
+    """Set a generated SBOM author from CLI/config values."""
+    author_name = _normalize_author_value(author_name, "--author_name")
+    author_type = _normalize_author_value(author_type, "--author_type")
+
+    if author_name is None and author_type is None:
+        return
+
+    if author_name is None or author_type is None:
+        raise click.ClickException("--author_name and --author_type must be provided together")
+
+    author = Author(authorType=author_type, authorName=author_name)
+    if sbom.authors is None:
+        sbom.authors = []
+
+    if author not in sbom.authors:
+        sbom.authors.append(author)
+
+
 def get_software_entry(
     context_queue,
     current_context,
@@ -36,16 +186,16 @@ def get_software_entry(
     parent_sbom: SBOM,
     filepath,
     *,  # arguments past this point are keyword-only
-    filetype=None,
+    filetype: Optional[Union[str, List[str]]] = None,
     container_uuid=None,
     root_path=None,
     install_path=None,
-    user_institution_name="",
     omit_unrecognized_types=False,
     skip_extraction=False,
     container_prefix=None,
 ) -> Tuple[Software, List[Software]]:
     sw_entry = Software.create_software_from_file(filepath)
+    normalized_filetypes = _normalize_filetypes(filetype, filepath=filepath)
     if root_path is not None and install_path is not None:
         sw_entry.installPath = [real_path_to_install_path(root_path, install_path, filepath)]
     if root_path is not None and container_uuid is not None:
@@ -58,18 +208,17 @@ def get_software_entry(
             sw_entry.containerPath = [
                 re.sub("^" + root_path, container_uuid + container_prefix + "/", filepath)
             ]
-    sw_entry.recordedInstitution = user_institution_name
     sw_children: List[Software] = []
     sw_field_hints: List[Tuple[str, Any, int]] = []
 
     # for unsupported file types, details are just empty; this is the case for archive files (e.g. zip, tar, iso)
     # as well as intel hex or motorola s-rec files
-    extracted_info_results: List[object] = (
+    extracted_info_results: List[Any] = (
         pluginmanager.hook.extract_file_info(
             sbom=parent_sbom,
             software=sw_entry,
             filename=filepath,
-            filetype=filetype,
+            filetype=normalized_filetypes,
             context_queue=context_queue,
             current_context=current_context,
             children=sw_children,
@@ -80,46 +229,108 @@ def get_software_entry(
         else []
     )
     # add metadata extracted from the file
+    validated_metadata: List[Any] = []
     for file_details in extracted_info_results:
         # None as details doesn't add any useful info...
         if file_details is None:
             continue
 
-        # ensure metadata exists for the software entry
-        if sw_entry.metadata is None:
-            sw_entry.metadata = []
-        sw_entry.metadata.append(file_details)
+        validated_metadata.append(file_details)
+
+    if validated_metadata:
+        sw_entry.update_field("metadata", [*(sw_entry.metadata or []), *validated_metadata])
 
     # set SBOM fields based on sw_field_hints
     field_confidence: Dict[str, Tuple[Any, int]] = {}
+    name_hints: List[Tuple[Any, int]] = []
+    vendor_hints: List[Any] = []
+    software_type_hints: List[Any] = []
+    comment_hints: List[Any] = []
+
     for field, value, confidence in sw_field_hints:
-        # special case since vendor can list multiple values
+        # name values are confidence-ranked separately for each name type
+        if field == "name":
+            name_hints.append((value, confidence))
+            continue
+
+        # vendor values are aggregated across hints rather than confidence-ranked
         if field == "vendor":
-            if field not in field_confidence:
-                field_confidence[field] = ([], 0)
-            field_confidence[field][0].append(value)
-        # otherwise, find the value for each field with the highest confidence
-        elif field not in field_confidence or confidence > field_confidence[field][1]:
+            vendor_hints.append(value)
+            continue
+
+        # softwareType values are aggregated across hints rather than confidence-ranked
+        if field == "softwareType":
+            software_type_hints.append(value)
+            continue
+
+        # comment values are aggregated across hints rather than confidence-ranked
+        if field == "comments":
+            comment_hints.append(value)
+            continue
+
+        # for all other fields, keep only the value with the highest confidence
+        if field not in field_confidence or confidence > field_confidence[field][1]:
             field_confidence[field] = (value, confidence)
+
+    if name_hints:
+        field_confidence["name"] = (name_hints, 0)
+
+    if vendor_hints:
+        field_confidence["vendor"] = (vendor_hints, 0)
+
+    if software_type_hints:
+        field_confidence["softwareType"] = (software_type_hints, 0)
+
+    if comment_hints:
+        field_confidence["comments"] = (comment_hints, 0)
 
     # set any fields that haven't been set yet (user/previously set fields take precedence)
     for field, (value, _) in field_confidence.items():
         if field == "name" and not sw_entry.name:
-            sw_entry.name = value
+            selected_names: Dict[str, Tuple[NameEntry, int]] = {}
+            for name_value, name_confidence in value:
+                for name_entry in _normalize_name_hints(name_value, filepath=filepath):
+                    name_type = name_entry.nameType if isinstance(name_entry.nameType, str) else ""
+                    if (
+                        name_type not in selected_names
+                        or name_confidence > selected_names[name_type][1]
+                    ):
+                        selected_names[name_type] = (name_entry, name_confidence)
+
+            normalized_names = [name_entry for name_entry, _ in selected_names.values()]
+            if normalized_names:
+                sw_entry.update_field("name", normalized_names)
         elif field == "version" and not sw_entry.version:
-            sw_entry.version = value
+            normalized_version = _normalize_string_hint("version", value, filepath=filepath)
+            sw_entry.update_field("version", normalized_version)
         elif field == "vendor":
-            # make sure the vendor field is initialized
-            if sw_entry.vendor is None:
-                sw_entry.vendor = []
-            # add any new vendors detected to the list
-            for vendor in value:
-                if vendor not in sw_entry.vendor:
-                    sw_entry.vendor.append(vendor)
+            normalized_vendors = _normalize_vendor_hints(value, filepath=filepath)
+            if normalized_vendors:
+                merged_vendors = [*(sw_entry.vendor or [])]
+                for vendor in normalized_vendors:
+                    if vendor not in merged_vendors:
+                        merged_vendors.append(vendor)
+                sw_entry.update_field("vendor", merged_vendors)
+        elif field == "softwareType":
+            normalized_software_types = _normalize_software_type_hints(value, filepath=filepath)
+            if normalized_software_types:
+                merged_software_types = [*(sw_entry.softwareType or [])]
+                for software_type in normalized_software_types:
+                    if software_type not in merged_software_types:
+                        merged_software_types.append(software_type)
+                sw_entry.update_field("softwareType", merged_software_types)
         elif field == "description" and not sw_entry.description:
-            sw_entry.description = value
-        elif field == "comments" and not sw_entry.comments:
-            sw_entry.comments = value
+            normalized_description = _normalize_string_hint("description", value, filepath=filepath)
+            sw_entry.update_field("description", normalized_description)
+        elif field == "comments":
+            merged_comments = [*(sw_entry.comments or [])]
+            for comment_value in value:
+                for comment in _normalize_comment_hints(comment_value, filepath=filepath):
+                    if comment not in merged_comments:
+                        merged_comments.append(comment)
+
+            if merged_comments != (sw_entry.comments or []):
+                sw_entry.update_field("comments", merged_comments)
     return (sw_entry, sw_children)
 
 
@@ -225,12 +436,6 @@ def get_default_from_config(option: str, fallback: Optional[Any] = None) -> Any:
     help="Skip including install path information if not given by configuration",
 )
 @click.option(
-    "--recorded_institution",
-    is_flag=False,
-    default=get_default_from_config("recorded_institution"),
-    help="Name of user's institution",
-)
-@click.option(
     "--output_format",
     is_flag=False,
     default=get_default_from_config("output_format", fallback="surfactant.output.cytrics_writer"),
@@ -249,6 +454,18 @@ def get_default_from_config(option: str, fallback: Optional[Any] = None) -> Any:
     is_flag=False,
     default="surfactant.input_readers.cytrics_reader",
     help="Input SBOM format, see --list-input-formats for list of options; default is CyTRICS",
+)
+@click.option(
+    "--author_name",
+    is_flag=False,
+    default=get_default_from_config("author_name"),
+    help="Name of the BOM author.",
+)
+@click.option(
+    "--author_type",
+    is_flag=False,
+    default=get_default_from_config("author_type"),
+    help="Type of the BOM author, such as name, organization, or program.",
 )
 @click.option(
     "--list_input_formats",
@@ -282,9 +499,10 @@ def sbom(
     skip_gather: bool,
     skip_relationships: bool,
     skip_install_path: bool,
-    recorded_institution: str,
     output_format: str,
     input_format: str,
+    author_name: Optional[str],
+    author_type: Optional[str],
     omit_unrecognized_types: bool,
     install_prefix_arg: str,
 ):
@@ -313,6 +531,8 @@ def sbom(
     else:
         new_sbom = input_reader.read_sbom(input_sbom)
 
+    _set_sbom_author(new_sbom, author_name, author_type)
+
     # gather metadata for files and add/augment software entries in the sbom
     if not skip_gather:
         # List of directory symlinks; 2-sized tuples with (source, dest)
@@ -324,7 +544,7 @@ def sbom(
         while not contextQ.empty():
             entry: ContextEntry = contextQ.get()
             if entry.archive:
-                logger.info("Processing parent container " + str(entry.archive))
+                logger.info(f"Processing parent container {entry.archive}")
                 # TODO: if the parent archive has an info extractor that does unpacking interally, should the children be added to the SBOM?
                 # current thoughts are (Syft) doesn't provide hash information for a proper SBOM software entry, so exclude these
                 # extractor plugins meant to unpack files could be okay when used on an "archive", but then extractPaths should be empty
@@ -336,7 +556,6 @@ def sbom(
                     entry.archive,
                     filetype=pm.hook.identify_file_type(filepath=entry.archive, context=entry)
                     or [],
-                    user_institution_name=recorded_institution,
                     skip_extraction=entry.skipProcessingArchive,
                     container_prefix=entry.containerPrefix,
                 )
@@ -416,20 +635,42 @@ def sbom(
                             root_path=epath.parent.as_posix() if len(epath.parts) > 1 else "",
                             container_uuid=parent_uuid,
                             install_path=install_prefix,
-                            user_institution_name=recorded_institution,
                             container_prefix=entry.containerPrefix,
                         )
-                    except Exception as e:
+                    except Exception as e:  # pylint: disable=broad-exception-caught
                         raise RuntimeError(f"Unable to process: {filepath}") from e
                     entries.append(sw_parent)
                     entries.extend(sw_children if sw_children else [])
+                    # ------------------------------------------------------------------------
+                    # (Optional - Early Injection) Inject symlink paths into each Software entry so SBOM helper handles them
+                    # ------------------------------------------------------------------------
+                    # Early injection: add symlinks gathered so far so fs_tree sees them
+                    for sw in entries:
+                        if sw.fileName is None:
+                            sw.fileName = []
+                        if sw.installPath is None:
+                            sw.installPath = []
+                        # Filename symlinks
+                        for link in filename_symlinks.get(sw.sha256, []):
+                            if link not in sw.fileName:
+                                logger.debug(
+                                    f"Injecting filename symlink '{link}' for SHA {sw.sha256}"
+                                )
+                                sw.fileName.append(link)
+                        # Install-path symlinks
+                        for link in file_symlinks.get(sw.sha256, []):
+                            if link not in sw.installPath:
+                                logger.debug(
+                                    f"Injecting install-path symlink '{link}' for SHA {sw.sha256}"
+                                )
+                                sw.installPath.append(link)
                     new_sbom.add_software_entries(entries, parent_entry=parent_entry)
                     # epath was a file, no need to walk the directory tree
                     continue
 
                 # epath is a directory, walk it
                 for cdir, dirs, files in os.walk(epath):
-                    logger.info("Processing " + str(cdir))
+                    logger.info(f"Processing {cdir}")
 
                     if entry.installPrefix:
                         for dir_ in dirs:
@@ -446,8 +687,20 @@ def sbom(
                                         epath.as_posix(), entry.installPrefix, dest
                                     )
                                     dir_symlinks.append((install_source, install_dest))
+                                    # Reflect in fs_tree immediately
+                                    try:
+                                        new_sbom.record_symlink(
+                                            install_source, install_dest, subtype="directory"
+                                        )
+                                        logger.debug(
+                                            f"[fs_tree] (dir) {install_source} -> {install_dest}"
+                                        )
+                                    except (NetworkXError, ValueError) as e:
+                                        logger.warning(
+                                            f"Failed to record directory symlink in fs_tree: {install_source} -> {install_dest}: {e}"
+                                        )
 
-                    entries = []
+                    entries: List[Software] = []
                     for file in files:
                         # os.path.join will insert an OS specific separator between cdir and f
                         # need to make sure that separator is a / and not a \ on windows
@@ -463,6 +716,7 @@ def sbom(
                             # Dead/infinite links will error so skip them
                             if true_filepath is None:
                                 continue
+
                             # Compute sha256 hash of the file; skip if the file pointed by the symlink can't be opened
                             try:
                                 true_file_sha256 = sha256sum(true_filepath)
@@ -471,6 +725,26 @@ def sbom(
                                     f"Unable to open symlink {filepath} pointing to {true_filepath}"
                                 )
                                 continue
+
+                            # Record both source and target paths under the same hash node
+                            install_filepath = real_path_to_install_path(
+                                epath.as_posix(), entry.installPrefix, filepath
+                            )
+                            install_dest = real_path_to_install_path(
+                                epath.as_posix(), entry.installPrefix, true_filepath
+                            )
+
+                            try:
+                                new_sbom.record_hash_node(install_filepath, true_file_sha256)
+                                new_sbom.record_hash_node(install_dest, true_file_sha256)
+                                logger.debug(
+                                    f"[fs_tree] Linked symlink + target by hash: {install_filepath} <-> {install_dest}"
+                                )
+                            except Exception as e:  # pylint: disable=broad-exception-caught
+                                logger.warning(
+                                    f"[fs_tree] Failed to link symlink + target by hash for {filepath}: {e}"
+                                )
+
                             # Record the symlink name to be added as a file name
                             # Dead links would appear as a file, so need to check the true path to see
                             # if the thing pointed to is a file or a directory
@@ -496,6 +770,22 @@ def sbom(
                                     file_symlinks[true_file_sha256].append(install_filepath)
                                 else:
                                     dir_symlinks.append((install_filepath, install_dest))
+
+                                # Reflect this symlink in fs_tree immediately
+                                try:
+                                    subtype = (
+                                        "file" if os.path.isfile(true_filepath) else "directory"
+                                    )
+                                    new_sbom.record_symlink(
+                                        install_filepath, install_dest, subtype=subtype
+                                    )
+                                    logger.debug(
+                                        f"[fs_tree] ({subtype}) {install_filepath} -> {install_dest}"
+                                    )
+                                except (NetworkXError, ValueError) as e:
+                                    logger.warning(
+                                        f"Failed to record symlink in fs_tree: {install_filepath} -> {install_dest}: {e}"
+                                    )
                             # NOTE Two cases that don't get recorded (but maybe should?) are:
                             # 1. If the file pointed to is outside the extract paths, it won't
                             # appear in the SBOM at all -- is that desirable? If it were included,
@@ -509,6 +799,8 @@ def sbom(
                                 entry.includeFileExts = []
                             if not entry.excludeFileExts:
                                 entry.excludeFileExts = []
+
+                            # file-type identification and SBOM entry creation
                             if (
                                 (
                                     ftype := pm.hook.identify_file_type(
@@ -534,74 +826,56 @@ def sbom(
                                         root_path=epath.as_posix(),
                                         container_uuid=parent_uuid,
                                         install_path=install_prefix,
-                                        user_institution_name=recorded_institution,
                                         omit_unrecognized_types=omit_unrecognized_types
                                         or entry.omitUnrecognizedTypes,
                                         container_prefix=entry.containerPrefix,
                                     )
-                                except Exception as e:
+                                except Exception as e:  # pylint: disable=broad-exception-caught
                                     raise RuntimeError(f"Unable to process: {filepath}") from e
 
                                 entries.append(sw_parent)
                                 entries.extend(sw_children if sw_children else [])
+                    # ------------------------------------------------------------------------
+                    # (Optional - Early Injection) Inject symlink paths into each Software entry so SBOM helper handles them
+                    # ------------------------------------------------------------------------
+                    # Early injection for batch (so fs_tree captures aliases)
+                    for sw in entries:
+                        if sw.fileName is None:
+                            sw.fileName = []
+                        if sw.installPath is None:
+                            sw.installPath = []
+                        # Filename symlinks
+                        for link in filename_symlinks.get(sw.sha256, []):
+                            if link not in sw.fileName:
+                                logger.debug(
+                                    f"Injecting filename symlink '{link}' for SHA {sw.sha256}"
+                                )
+                                sw.fileName.append(link)
+                        # Install-path symlinks
+                        for link in file_symlinks.get(sw.sha256, []):
+                            if link not in sw.installPath:
+                                logger.debug(
+                                    f"Injecting install-path symlink '{link}' for SHA {sw.sha256}"
+                                )
+                                sw.installPath.append(link)
                     new_sbom.add_software_entries(entries, parent_entry=parent_entry)
 
-        # Add symlinks to install paths and file names
-        for software in new_sbom.software:
-            # ensure fileName, installPath, and metadata lists for the software entry have been created
-            # for a user supplied input SBOM, there are no guarantees
-            if software.fileName is None:
-                software.fileName = []
-            if software.installPath is None:
-                software.installPath = []
-            if software.metadata is None:
-                software.metadata = []
-            if software.sha256 in filename_symlinks:
-                filename_symlinks_added = []
-                for filename in filename_symlinks[software.sha256]:
-                    if filename not in software.fileName:
-                        software.fileName.append(filename)
-                        filename_symlinks_added.append(filename)
-                if filename_symlinks_added:
-                    # Store information on which file names are symlinks
-                    software.metadata.append({"fileNameSymlinks": filename_symlinks_added})
-            if software.sha256 in file_symlinks:
-                symlinks_added = []
-                for full_path in file_symlinks[software.sha256]:
-                    if full_path not in software.installPath:
-                        software.installPath.append(full_path)
-                        symlinks_added.append(full_path)
-                if symlinks_added:
-                    # Store information on which install paths are symlinks
-                    software.metadata.append({"installPathSymlinks": symlinks_added})
+        # ------------------------------------------------------------------
+        # Expand deferred directory symlinks once fs_tree is fully populated
+        # ------------------------------------------------------------------
+        new_sbom.expand_pending_dir_symlinks()
 
-        # Add directory symlink destinations to extract/install paths
-        for software in new_sbom.software:
-            # NOTE: this probably doesn't actually add any containerPath symlinks
-            for paths in (software.containerPath, software.installPath):
-                if paths is None:
-                    continue
-                paths_to_add = []
-                for path in paths:
-                    for link_source, link_dest in dir_symlinks:
-                        if path.startswith(link_dest):
-                            # Replace the matching start with the symlink instead
-                            # We can't use os.path.join here because we end up with absolute paths after
-                            # removing the common start.
-                            paths_to_add.append(path.replace(link_dest, link_source, 1))
-                if paths_to_add:
-                    found_md_installpathsymlinks = False
-                    # make sure software.metadata list has been initialized
-                    if software.metadata is None:
-                        software.metadata = []
-                    if isinstance(software.metadata, Iterable):
-                        for md in software.metadata:
-                            if isinstance(md, Dict) and "installPathSymlinks" in md:
-                                found_md_installpathsymlinks = True
-                                md["installPathSymlinks"] += paths_to_add
-                    if not found_md_installpathsymlinks:
-                        software.metadata.append({"installPathSymlinks": paths_to_add})
-                    paths += paths_to_add
+        # ------------------------------------------------------------------
+        # Expand deferred file symlinks after all installPath nodes are added
+        # ------------------------------------------------------------------
+        new_sbom.expand_pending_file_symlinks()
+
+        # ------------------------------------------------------------------
+        # Inject legacy-style symlink metadata (fileNameSymlinks and
+        # installPathSymlinks) derived from fs_tree relationships
+        # ------------------------------------------------------------------
+        new_sbom.inject_symlink_metadata()
+
     else:
         logger.info("Skipping gathering file metadata and adding software entries")
 
