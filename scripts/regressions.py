@@ -14,12 +14,12 @@ import sys
 import traceback
 import uuid
 from contextlib import contextmanager
-from freezegun import freeze_time
 from pathlib import Path
 from typing import Optional
 from unittest.mock import patch
 
 import click
+from freezegun import freeze_time
 from loguru import logger
 
 from surfactant.cmd.generate import sbom
@@ -58,7 +58,9 @@ def deterministic_context(enabled: bool = True):
     """
     if enabled:
         # Calculate the frozen time
-        frozen_time = datetime.datetime.fromtimestamp(deterministic_time(), tz=datetime.timezone.utc)
+        frozen_time = datetime.datetime.fromtimestamp(
+            deterministic_time(), tz=datetime.timezone.utc
+        )
         with (
             freeze_time(frozen_time),
             patch("uuid.uuid4", side_effect=deterministic_uuid4),
