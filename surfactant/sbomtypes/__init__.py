@@ -13,13 +13,13 @@ from ._software import Software
 from ._tool import Tool
 
 __all__ = [
+    "SBOM",
     "Author",
     "CommentEntry",
     "File",
     "Hardware",
     "NameEntry",
     "Relationship",
-    "SBOM",
     "Software",
     "Tool",
 ]

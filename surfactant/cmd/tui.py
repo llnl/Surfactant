@@ -4,9 +4,7 @@
 # SPDX-License-Identifier: MIT
 
 import json
-import os
 import pathlib
-from typing import Optional
 
 import click
 import textual.app
@@ -72,7 +70,7 @@ class SelectFileButtons(textual.widgets.Static):
             yield textual.widgets.Button("Select directory", id="select_dir")
 
 
-class SelectFile(textual.screen.ModalScreen[Optional[textual.widgets.DirectoryTree.FileSelected]]):
+class SelectFile(textual.screen.ModalScreen[textual.widgets.DirectoryTree.FileSelected | None]):
     """Pop-up to select a file"""
 
     def __init__(self, allow_folder_selection: bool, start_path: str):
@@ -111,7 +109,7 @@ class SelectFile(textual.screen.ModalScreen[Optional[textual.widgets.DirectoryTr
 
 class FileInput(textual.widgets.Static):
     def __init__(
-        self, label: str, allow_folder_selection: bool, file_input: Optional[textual.widgets.Input]
+        self, label: str, allow_folder_selection: bool, file_input: textual.widgets.Input | None
     ):
         super().__init__()
         self.label = label
@@ -126,20 +124,20 @@ class FileInput(textual.widgets.Static):
             yield textual.widgets.Label(f"{self.label} {self.input_path}")
 
     def on_click(self):
-        def set_path(path: Optional[pathlib.Path]):
+        def set_path(path: pathlib.Path | None):
             if path:
-                if self.file_input and not os.path.isdir(path):
+                if self.file_input and not path.is_dir():
                     # Set the directory and the file separately
-                    self.input_path = os.path.dirname(path)
-                    self.file_input.value = os.path.basename(path)
+                    self.input_path = path.parent
+                    self.file_input.value = path.name
                 else:
                     # Just set the path
                     self.input_path = path
                 self.query_one(textual.widgets.Label).update(f"{self.label} {self.input_path}")
 
         base_dir = "./"
-        if os.path.isfile(self.input_path):
-            base_dir = os.path.dirname(self.input_path)
+        if pathlib.Path(self.input_path).is_file():
+            base_dir = pathlib.Path(self.input_path).parent
         self.app.push_screen(SelectFile(self.allow_folder_selection, base_dir), set_path)
 
 
@@ -377,7 +375,7 @@ class ContextEntry(textual.widgets.Static):
 
     @textual.on(textual.widgets.Button.Pressed, "#delete_entry")
     def delete_entry(self):
-        def delete_self(do_it: Optional[bool]):
+        def delete_self(do_it: bool | None):
             if do_it:
                 self.remove()
                 self.active = False
@@ -438,7 +436,7 @@ class ContextTab(textual.widgets.Static):
                 write_to["containerPrefix"] = container_prefix
         file_to_save = self.context_input.input_path + "/" + self.context_name.value
         try:
-            with open(file_to_save, "w") as f:
+            with pathlib.Path(file_to_save).open("w") as f:
                 f.write(json.dumps(to_save, indent=2))
         except IsADirectoryError:
             self.app.notify(f"Could not write to {file_to_save}")
@@ -449,7 +447,7 @@ class ContextTab(textual.widgets.Static):
     def load(self):
         file_to_load = self.context_input.input_path + "/" + self.context_name.value
         try:
-            with open(file_to_load, "r") as config_file:
+            with pathlib.Path(file_to_load).open() as config_file:
                 js = json.load(config_file)
         except (FileNotFoundError, IsADirectoryError):
             self.app.notify(f"Could not find file {file_to_load}")

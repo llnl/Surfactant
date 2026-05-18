@@ -10,7 +10,7 @@ import platform
 import uuid
 from dataclasses import dataclass, field, fields
 from enum import Enum
-from typing import Any, List, Optional
+from typing import Any
 
 from dataclasses_json import dataclass_json
 
@@ -35,24 +35,24 @@ class RelationshipAssertion(str, Enum):
 @dataclass
 class Software:
     UUID: str = field(default_factory=lambda: str(uuid.uuid4()))
-    softwareType: Optional[List[str]] = None
-    name: Optional[List[NameEntry]] = None
-    size: Optional[int] = None
-    fileName: Optional[List[str]] = None
-    installPath: Optional[List[str]] = None
-    containerPath: Optional[List[str]] = None
-    captureTime: Optional[str] = None
-    version: Optional[str] = None
-    vendor: Optional[List[str]] = None
-    description: Optional[str] = None
-    sha1: Optional[str] = None
-    sha256: Optional[str] = None
-    md5: Optional[str] = None
-    notHashable: Optional[bool] = None
-    relationshipAssertion: Optional["RelationshipAssertion"] = RelationshipAssertion.UNKNOWN
-    comments: Optional[List[CommentEntry]] = None
-    metadata: Optional[List[object]] = field(default_factory=list)
-    supplementaryFiles: Optional[List[File]] = None
+    softwareType: list[str] | None = None
+    name: list[NameEntry] | None = None
+    size: int | None = None
+    fileName: list[str] | None = None
+    installPath: list[str] | None = None
+    containerPath: list[str] | None = None
+    captureTime: str | None = None
+    version: str | None = None
+    vendor: list[str] | None = None
+    description: str | None = None
+    sha1: str | None = None
+    sha256: str | None = None
+    md5: str | None = None
+    notHashable: bool | None = None
+    relationshipAssertion: RelationshipAssertion | None = RelationshipAssertion.UNKNOWN
+    comments: list[CommentEntry] | None = None
+    metadata: list[object] | None = field(default_factory=list)
+    supplementaryFiles: list[File] | None = None
 
     def validate(self) -> None:
         """Validate this software entry against the CyTRICS field constraints."""
@@ -180,7 +180,7 @@ class Software:
             },
         }
 
-        sw = Software(
+        return Software(
             sha1=file_hashes["sha1"],
             sha256=file_hashes["sha256"],
             md5=file_hashes["md5"],
@@ -196,7 +196,6 @@ class Software:
             metadata=[collection_info],
             supplementaryFiles=[],
         )
-        return sw
 
     # TODO: figure out how to handle merging an SBOM with manual additions
     def merge(self, sw: Software):
@@ -253,7 +252,7 @@ class Software:
         return self.UUID, sw.UUID
 
     @staticmethod
-    def check_for_hash_collision(soft1: Optional[Software], soft2: Optional[Software]) -> bool:
+    def check_for_hash_collision(soft1: Software | None, soft2: Software | None) -> bool:
         if not soft1 or not soft2:
             return False
         # A hash collision occurs if one or more but less than all hashes match or

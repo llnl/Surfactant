@@ -2,7 +2,6 @@
 # See the top-level LICENSE file for details.
 #
 # SPDX-License-Identifier: MIT
-from typing import List, Optional
 
 from loguru import logger
 
@@ -18,13 +17,11 @@ def has_required_fields(metadata) -> bool:
 
 
 @surfactant.plugin.hookimpl
-def establish_relationships(
-    sbom: SBOM, software: Software, metadata
-) -> Optional[List[Relationship]]:
+def establish_relationships(sbom: SBOM, software: Software, metadata) -> list[Relationship] | None:
     if not has_required_fields(metadata):
         return None
     # Current file is a RPM package with associated_files and file_algo sections
-    relationships: List[Relationship] = []
+    relationships: list[Relationship] = []
     parent_uuid = software.UUID
     # Check what kind of hash the RPM uses for its associated files and act accordingly. If the hash doesn't match the implemented hash algorithms then print a warning
     if "sha256" == metadata["rpm"]["file_algo"]:
@@ -50,7 +47,7 @@ def establish_relationships(
     return relationships
 
 
-def find_md5_match(search_md5: str, sList: List[Software]) -> Optional[str]:
+def find_md5_match(search_md5: str, sList: list[Software]) -> str | None:
     """Searches through the SBOM software db for md5 hash matches
 
     Args:

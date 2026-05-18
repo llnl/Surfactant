@@ -3,7 +3,7 @@
 #
 # SPDX-License-Identifier: MIT
 
-from typing import Any, Dict, List, Union
+from typing import Any
 
 from surfactant.utils.regex import extract_fixed_literals
 
@@ -29,7 +29,7 @@ class AhoCorasick:
         self.pattern_prefixes = {}  # Maps pattern_id -> prefix used
         self.encoding = encoding  # Encoding to use for string/bytes conversion
 
-    def add_pattern(self, pattern: Union[str, bytes], pattern_id: Any, prefix: str) -> None:
+    def add_pattern(self, pattern: str | bytes, pattern_id: Any, prefix: str) -> None:
         """
         Add a pattern to the trie.
 
@@ -81,7 +81,7 @@ class AhoCorasick:
 
         self.built = True
 
-    def search(self, text: Union[str, bytes]) -> Dict[Any, List[int]]:
+    def search(self, text: str | bytes) -> dict[Any, list[int]]:
         """
         Search for patterns in the text and return matching pattern IDs with their positions.
 
@@ -131,7 +131,7 @@ class AhoCorasick:
 
 
 def build_regex_literal_matcher(
-    patterns_dict: Dict[Any, str],
+    patterns_dict: dict[Any, str],
     is_bytes: bool = False,
     encoding: str = "utf-8",
     is_literal: bool = False,

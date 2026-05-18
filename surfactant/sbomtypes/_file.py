@@ -3,7 +3,6 @@
 #
 # SPDX-License-Identifier: MIT
 from dataclasses import dataclass
-from typing import List, Optional
 
 from ..utils.capture_time import validate_capture_time
 
@@ -13,12 +12,12 @@ from ..utils.capture_time import validate_capture_time
 @dataclass
 class File:
     filePath: str = ""
-    captureTime: Optional[str] = None
+    captureTime: str | None = None
     description: str = ""
     category: str = ""
     capturedBy: str = ""
     source: str = ""
-    methodOfAcquisition: Optional[List[str]] = None
+    methodOfAcquisition: list[str] | None = None
 
     def validate(self) -> None:
         """Validate this file entry against the CyTRICS field constraints."""

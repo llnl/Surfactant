@@ -2,10 +2,10 @@ import gzip
 import importlib.util
 import json
 import logging
-import os
 import shutil
 import subprocess
 import sys
+from pathlib import Path
 from shutil import which
 
 import docker
@@ -163,9 +163,9 @@ def create_config_and_tarball_fixture(tmp_path_factory):
     logging.info("Successfully pulled Docker image: '%s':latest", DOCKER_IMAGE)
 
     # Save Docker image to tar file
-    temp_tar_file = temp_dir / "myimage_latest.tar"
+    temp_tar_file = Path(temp_dir / "myimage_latest.tar")
     logging.info("Saving Docker image to file: '%s'", temp_tar_file)
-    with open(temp_tar_file, "wb") as f:
+    with temp_tar_file.open("wb") as f:
         bytes_written = 0
         for chunk in docker_client.images.get(f"{DOCKER_IMAGE}:latest").save(named=True):
             f.write(chunk)
@@ -175,20 +175,19 @@ def create_config_and_tarball_fixture(tmp_path_factory):
     )
 
     # Change ownership of the file to the current user
-    os.chmod(temp_tar_file, 0o644)
-
+    Path.chmod(temp_tar_file, 0o644)
     # Export the container's filesystem to a tarball
-    tarball_file = temp_dir / "myimage_latest.tar.gz"
+    tarball_file = Path(temp_dir / "myimage_latest.tar.gz")
 
     # Compress the docker image and save to file
-    with open(temp_tar_file, "rb") as f_in:
+    with temp_tar_file.open("rb") as f_in:
         logging.info("Compressing Docker image tar file with gzip...")
         with gzip.open(tarball_file, "wb") as f_out:
             shutil.copyfileobj(f_in, f_out)
 
     # Remove the temporary tar file
     try:
-        os.remove(temp_tar_file)
+        temp_tar_file.unlink()
         logging.info("Temporary tar file removed")
     except OSError as e:
         logging.warning("Failed to remove temporary tar file: '%s'", e)
@@ -201,7 +200,7 @@ def create_config_and_tarball_fixture(tmp_path_factory):
     # Create the configuration file
     config_data = [{"extractPaths": [str(tarball_file)], "installPrefix": "/usr/"}]
     config_file = temp_dir / "config_dockertball.json"
-    with open(config_file, "w", encoding="utf-8") as f:
+    with Path(config_file).open("w", encoding="utf-8") as f:
         json.dump(config_data, f, indent=4)
     logging.info("Configuration file created: '%s'", config_file)
 
@@ -239,9 +238,9 @@ def test_surfactant_generate(config_and_tarball_fixture, tmp_path_factory):
     enable_plugin(PLUGIN_NAME)
 
     # Run the Surfactant generate command (with Grype enabled)
-    output_enabled_sbom = temp_dir / "docker_tball_grype-enabled_sbom.json"
+    output_enabled_sbom = Path(temp_dir / "docker_tball_grype-enabled_sbom.json")
     logging.info(config_file)
-    with open(config_file, "r", encoding="utf-8") as f:
+    with config_file.open(encoding="utf-8") as f:
         config_out = json.load(f)
     logging.info(json.dumps(config_out, indent=4))
     logging.info("Running surfactant generate via API for: '%s'", output_enabled_sbom)
@@ -251,7 +250,7 @@ def test_surfactant_generate(config_and_tarball_fixture, tmp_path_factory):
     assert output_enabled_sbom.exists(), f"SBOM file not created: {output_enabled_sbom}"
 
     # Read and parse the SBOM
-    with open(output_enabled_sbom, "r", encoding="utf-8") as f:
+    with Path(output_enabled_sbom).open(encoding="utf-8") as f:
         sbom_enabled = json.load(f)
 
     # Assert that the Grype output is present
@@ -276,7 +275,7 @@ def test_surfactant_generate(config_and_tarball_fixture, tmp_path_factory):
     disable_plugin(PLUGIN_NAME)
 
     # Disable the Grype plugin and verify the plugin is disabled
-    output_disabled_sbom = temp_dir / "docker_tball_grype-disabled_sbom.json"
+    output_disabled_sbom = Path(temp_dir / "docker_tball_grype-disabled_sbom.json")
     logging.info("Running surfactant generate via API for: '%s'", output_disabled_sbom)
     run_surfactant_generate(config_file, output_disabled_sbom)
 
@@ -284,7 +283,7 @@ def test_surfactant_generate(config_and_tarball_fixture, tmp_path_factory):
     assert output_disabled_sbom.exists(), f"SBOM file not created: {output_disabled_sbom}"
 
     # Read and parse the SBOM
-    with open(output_disabled_sbom, "r", encoding="utf-8") as f:
+    with output_disabled_sbom.open(encoding="utf-8") as f:
         sbom_disabled = json.load(f)
 
     # Assert that the Grype output is not present

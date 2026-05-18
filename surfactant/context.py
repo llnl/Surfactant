@@ -5,7 +5,7 @@
 from dataclasses import dataclass
 
 # from inspect import getframeinfo, stack
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from loguru import logger
 
@@ -38,17 +38,17 @@ class ContextEntry:
             See plugin docstrings or documentation for configuration details.
     """
 
-    extractPaths: List[str]
-    archive: Optional[str] = None
-    installPrefix: Optional[str] = None
-    omitUnrecognizedTypes: Optional[bool] = None
-    includeFileExts: Optional[List[str]] = None
-    excludeFileExts: Optional[List[str]] = None
-    skipProcessingArchive: Optional[bool] = False
-    containerPrefix: Optional[str] = None
-    pluginConf: Optional[Dict[str, Any]] = None
+    extractPaths: list[str]
+    archive: str | None = None
+    installPrefix: str | None = None
+    omitUnrecognizedTypes: bool | None = None
+    includeFileExts: list[str] | None = None
+    excludeFileExts: list[str] | None = None
+    skipProcessingArchive: bool | None = False
+    containerPrefix: str | None = None
+    pluginConf: dict[str, Any] | None = None
 
-    def get_pconf(self, name: str, conf_key: str, default: Optional[Any]) -> Optional[Any]:
+    def get_pconf(self, name: str, conf_key: str, default: Any | None) -> Any | None:
         """
         Get the value of a plugin's configuration
 

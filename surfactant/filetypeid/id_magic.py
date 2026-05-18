@@ -7,7 +7,6 @@ import os
 import pathlib
 import tarfile
 from enum import Enum, auto
-from typing import List, Optional
 
 import surfactant.plugin
 from surfactant import ContextEntry
@@ -51,12 +50,10 @@ def is_docker_archive(filepath: str) -> bool:
 
 
 @surfactant.plugin.hookimpl(tryfirst=True)
-def identify_file_type(
-    filepath: str, context: Optional[ContextEntry] = None
-) -> Optional[List[str]]:
+def identify_file_type(filepath: str, context: ContextEntry | None = None) -> list[str] | None:
     filetype_matches = []
     try:
-        with open(filepath, "rb") as f:
+        with pathlib.Path(filepath).open("rb") as f:
             magic_bytes = f.read(265)
             if magic_bytes[:4] == b"\x7fELF":
                 filetype_matches.append("ELF")
@@ -255,4 +252,4 @@ def identify_file_type(
     except (FileNotFoundError, PermissionError):
         return None
 
-    return filetype_matches if filetype_matches else None
+    return filetype_matches or None

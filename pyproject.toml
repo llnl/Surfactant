@@ -104,14 +104,45 @@ indent-width = 4
 
 [tool.ruff.lint]
 # ruff defaults: E4, E7, E9, F
-select = ["E", "F", "B", "I"]
-ignore = ["E501", "F841"]
+select = [
+    "B",
+    "C4",     # flake8-comprehensions (C4) (https://docs.astral.sh/ruff/rules/#flake8-comprehensions-c4)
+    "E",
+    "F",
+    "FURB",   # refurb (https://docs.astral.sh/ruff/rules/#refurb-furb)
+    "I",
+    "PIE",    # flake8-pie (PIE) https://docs.astral.sh/ruff/rules/#flake8-pie-pie
+    "PTH",    # flake8-use-pathlib (PTH)[https://docs.astral.sh/ruff/rules/#flake8-use-pathlib-pth]
+    "PYI",    # flake8-PYI https://docs.astral.sh/ruff/rules/#flake8-pyi-pyi
+    "Q",      # flake8-quotes (Q) https://docs.astral.sh/ruff/rules/#flake8-quotes
+    "RET",    # flake8-return (RET) (https://docs.astral.sh/ruff/rules/#flake8-raise-rse)
+    "RUF010", #
+    "RUF013", # PEP 484 prohibits implicit `Optional`
+    "RUF019", # [*] Unnecessary key check before dictionary access",
+    "RUF022", #`__all__` is not sorted
+    "TC",     # flake8-type-checking (TC) (https://docs.astral.sh/ruff/rules/#flake8-type-checking-tc)
+    "UP",     # pyupgrade (https://docs.astral.sh/ruff/rules/#pyupgrade-up)
+    "W",
+]
+
+
+
+ignore = [
+  "F841",
+  "E501",   # line-too-long
+]
+
 # don't fix flake8-bugbear (`B`) violations
 unfixable = ["B"]
 
 # Ignore `E402` import violations in plugin manager
 [tool.ruff.lint.per-file-ignores]
-"surfactant/plugin/manager.py" = ["E402"]
+"surfactant/plugin/manager.py" = [
+    "E402",
+    "PLC0415" # `import` should be at the top-level of a file
+    ]
+"tests/*" = ["PLR2004"]
+"surfactant/plugin" = []
 
 [tool.pylint.messages_control]
 max-line-length = "100"

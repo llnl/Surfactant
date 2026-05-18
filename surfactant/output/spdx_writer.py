@@ -10,7 +10,6 @@ import sys
 import uuid
 from collections.abc import Iterable
 from datetime import datetime, timezone
-from typing import Dict, List, Optional, Tuple
 
 import spdx_tools.spdx.writer.json.json_writer as jsonwriter
 import spdx_tools.spdx.writer.tagvalue.tagvalue_writer as tvwriter
@@ -46,10 +45,10 @@ def write_sbom(sbom: SBOM, outfile) -> None:
     spdx_doc = create_spdx_doc()
 
     # Build UUID → SPDX ID map
-    uuid_to_spdxid: Dict[str, List[str]] = {}
+    uuid_to_spdxid: dict[str, list[str]] = {}
 
     # Track container paths for files
-    container_path_relationships: Dict[str, str] = {}
+    container_path_relationships: dict[str, str] = {}
 
     # Add software as packages or files
     for software in sbom.software:
@@ -150,11 +149,11 @@ def write_sbom(sbom: SBOM, outfile) -> None:
 
 
 @surfactant.plugin.hookimpl
-def short_name() -> Optional[str]:
+def short_name() -> str | None:
     return "spdx"
 
 
-def convert_software_to_spdx_packages(software: Software) -> Tuple[str, List[Package]]:
+def convert_software_to_spdx_packages(software: Software) -> tuple[str, list[Package]]:
     """Converts a software entry in the SBOM to one or more SPDX Packages.
 
     A SPDX Package is created for each file name that the software can have. If
@@ -168,7 +167,7 @@ def convert_software_to_spdx_packages(software: Software) -> Tuple[str, List[Pac
         Tuple[str, List[Package]]: A tuple containing the UUID of the software that was
         converted into Packages, and a list of the SPDX Package objects that were created.
     """
-    packages: List[Package] = []
+    packages: list[Package] = []
     for fname in software.fileName:
         name = software.name
         if not name:
@@ -194,7 +193,7 @@ def convert_software_to_spdx_packages(software: Software) -> Tuple[str, List[Pac
     return software.UUID, packages
 
 
-def convert_software_to_spdx_files(software: Software) -> List[Tuple[str, str, File]]:
+def convert_software_to_spdx_files(software: Software) -> list[tuple[str, str, File]]:
     """Converts a software entry in the SBOM to one or more SPDX Files.
 
     A SPDX File is created for each unique container path that the software has. If
@@ -211,7 +210,7 @@ def convert_software_to_spdx_files(software: Software) -> List[Tuple[str, str, F
         software entry that was converted into a SPDX File, and the resulting SPDX File that
         was created.
     """
-    files: List[Tuple[str, str, File]] = []
+    files: list[tuple[str, str, File]] = []
     for cpathstr in software.containerPath:
         cpath = pathlib.PurePath(cpathstr)
         # Less than 2 parts would just be the container path uuid, or a file name
@@ -247,7 +246,7 @@ def create_spdx_doc() -> Document:
         spdx_version="SPDX-2.3",
         spdx_id="SPDXRef-DOCUMENT",
         name=doc_name,
-        document_namespace=f"https://spdx.org/spdxdocs/{doc_name}-{str(uuid.uuid4())}",  # unique URI for this SPDX Document
+        document_namespace=f"https://spdx.org/spdxdocs/{doc_name}-{uuid.uuid4()!s}",  # unique URI for this SPDX Document
         creators=[
             Actor(name=f"Surfactant-{surfactant_version}", actor_type=ActorType.TOOL)
         ],  # Organization or Person can also be added as creators (may use "anonymous")
@@ -255,8 +254,7 @@ def create_spdx_doc() -> Document:
         creator_comment="This SPDX document was created by using Surfactant.",
         document_comment="This is a DRAFT SPDX document, and is incomplete.",
     )
-    spdx_doc = Document(creation_info=spdx_creationinfo)
-    return spdx_doc
+    return Document(creation_info=spdx_creationinfo)
 
 
 def create_spdx_file(idstring: str, file_path: str, software: Software) -> File:
@@ -286,7 +284,7 @@ def create_spdx_file(idstring: str, file_path: str, software: Software) -> File:
     if cr_text := get_fileinfo_metadata(software, "LegalCopyright"):
         sw_copyright = cr_text  # free-form text field extracted from actual file identifying copyright holder and any dates present
 
-    file = File(
+    return File(
         name=file_path,
         spdx_id=f"SPDXRef-{idstring}",
         checksums=sw_checksums,
@@ -300,19 +298,17 @@ def create_spdx_file(idstring: str, file_path: str, software: Software) -> File:
         copyright_text=sw_copyright,
     )
 
-    return file
-
 
 def create_spdx_package(
     name: str,
     summary,
     supplier,
     *,  # all remaining arguments are keyword-only
-    file_name: Optional[str] = None,
-    version: Optional[str] = None,
-    sha1: Optional[str] = None,
-    sha256: Optional[str] = None,
-    md5: Optional[str] = None,
+    file_name: str | None = None,
+    version: str | None = None,
+    sha1: str | None = None,
+    sha256: str | None = None,
+    md5: str | None = None,
 ) -> Package:
     """Creates a SPDX Package from the provided information.
 
@@ -340,7 +336,8 @@ def create_spdx_package(
         pkg_checksums.append(Checksum(ChecksumAlgorithm.MD5, md5.lower()))
 
     idstring = generate_package_idstring(name, version, file_name)
-    pkg = Package(
+
+    return Package(
         spdx_id=f"SPDXRef-{idstring}",
         name=name,
         download_location=SpdxNoAssertion(),  # SPDXNone if there is no location whatsoever, not just that we "failed" or didn't try to locate one
@@ -350,24 +347,22 @@ def create_spdx_package(
             SpdxNoAssertion()
         ],  # SPDXNone if no license info detected, SpdxNoAssertion if didn't try to determine
         copyright_text=SpdxNoAssertion(),  # SPDXNone if no copyright info, SpdxNoAssertion if didn't try to determine; use any Cr text even if incomplete
-        version=version if version else None,
+        version=version or None,
         file_name=(
-            file_name if file_name else None
+            file_name or None
         ),  # actual file name, or path to directory treated as package (subdirectory is denoted with ./)
         supplier=(
-            supplier if supplier else SpdxNoAssertion()
+            supplier or SpdxNoAssertion()
         ),  # SpdxNoAssertion if can't determine (SPDX can't handle multiple vendors)
         originator=SpdxNoAssertion(),  # 3rd party who distributed package is different than the supplier/vendor
         checksums=pkg_checksums,
         summary=(
-            summary if summary else None
+            summary or None
         ),  # concise info on the function or use of package, without having to parse source code
         homepage=SpdxNoAssertion(),  # SPDXNone if none exists, SpdxNoAssertion if didn't try to find a homepage
     )
     # primary_package_purpose can be: APPLICATION | FRAMEWORK | LIBRARY | CONTAINER | OPERATING - SYSTEM |
     # DEVICE | FIRMWARE | SOURCE | ARCHIVE | FILE | INSTALL | OTHER
-
-    return pkg
 
 
 def generate_random_idstring(num_chars: int = 5) -> str:
@@ -446,7 +441,7 @@ def generate_package_idstring(name: str, version: str, file_name: str) -> str:
     return "-".join(x for x in [idname, idversion, idfilename, generate_random_idstring()] if x)
 
 
-def get_fileinfo_metadata(software: Software, field: str) -> Optional[str]:
+def get_fileinfo_metadata(software: Software, field: str) -> str | None:
     """Retrieves the value for a field in a 'FileInfo' metadata object in a software entry.
 
     Args:
@@ -488,7 +483,7 @@ def get_software_field(software: Software, field: str):
     return None
 
 
-def java_generate_package_verification_code(software: List[Software]) -> Tuple[str, List[str]]:
+def java_generate_package_verification_code(software: list[Software]) -> tuple[str, list[str]]:
     """Generate a SPDX package verif_code according to the method used by the Java SPDX Tools.
 
     This is not the algorithm defined in the SPDX specification. The implementation here is provided
@@ -502,8 +497,8 @@ def java_generate_package_verification_code(software: List[Software]) -> Tuple[s
         Tuple[str, List[str]]: A tuple consisting of the generated package verification code, and a list of
         skipped file names.
     """
-    skippedFileNames: List[str] = []
-    fileNameAndChecksums: List[str] = collect_file_data(software)
+    skippedFileNames: list[str] = []
+    fileNameAndChecksums: list[str] = collect_file_data(software)
     fileNameAndChecksums.sort()
     m = hashlib.sha1()
     for entry in fileNameAndChecksums:
@@ -511,7 +506,7 @@ def java_generate_package_verification_code(software: List[Software]) -> Tuple[s
     return m.hexdigest, skippedFileNames
 
 
-def collect_file_data(software: List[Software]) -> List[str]:
+def collect_file_data(software: list[Software]) -> list[str]:
     """Collect file checksums and paths as done by the Java SPDX Tools.
 
     Args:
@@ -520,7 +515,7 @@ def collect_file_data(software: List[Software]) -> List[str]:
     Returns:
         List[str]: A list of checksums and file paths, in the form "<checksum>||<filepath>".
     """
-    file_data: List[str] = []
+    file_data: list[str] = []
     for sw in software:
         # lower case sha1 hash without a leading 0x prefix
         checksum = sw.sha1.lower()
@@ -560,5 +555,4 @@ def normalize_file_path(nonNormalizedFilePath: str) -> str:
             else:
                 normalizedFilePathParts.append(part)
         filePath = "/".join(normalizedFilePathParts)
-    filePath = "./" + filePath
-    return filePath
+    return "./" + filePath

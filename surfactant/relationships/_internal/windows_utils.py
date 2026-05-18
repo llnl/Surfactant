@@ -4,7 +4,7 @@
 # SPDX-License-Identifier: MIT
 import pathlib
 from collections.abc import Iterable
-from typing import Any, List, Union
+from typing import Any
 
 from surfactant.sbomtypes import SBOM, Software
 
@@ -16,8 +16,8 @@ from surfactant.sbomtypes import SBOM, Software
 # file (due to app config files pointing to different assemblies despite DLL having same hash)
 # culture information to find the right assembly from app config file is likely to vary (though almost always neutral/none)
 def find_installed_software(
-    sbom: SBOM, probedirs: List[Any], filename: Union[str, List[str]]
-) -> List[Software]:
+    sbom: SBOM, probedirs: list[Any], filename: str | list[str]
+) -> list[Software]:
     possible_matches = []
     # iterate through all sbom entries
     for e in sbom.software:

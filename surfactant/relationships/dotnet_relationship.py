@@ -1,6 +1,5 @@
 import pathlib
 from collections.abc import Iterable
-from typing import List, Optional
 
 from loguru import logger
 
@@ -243,9 +242,7 @@ def is_absolute_path(fname: str) -> bool:
 
 
 @surfactant.plugin.hookimpl
-def establish_relationships(
-    sbom: SBOM, software: Software, metadata
-) -> Optional[List[Relationship]]:
+def establish_relationships(sbom: SBOM, software: Software, metadata) -> list[Relationship] | None:
     """
     Establish 'Uses' relationships for .NET assembly dependencies.
 
@@ -293,7 +290,7 @@ def establish_relationships(
         logger.debug(f"[.NET] Skipping: No usable .NET metadata for {software.UUID}")
         return None
 
-    relationships: List[Relationship] = []
+    relationships: list[Relationship] = []
     dependent_uuid = software.UUID
 
     # The following variables declared in legacy but never used and are kept for potential future use
@@ -402,7 +399,7 @@ def establish_relationships(
             # Refer to Issue #80 - Need to verify that this conforms with cross-platform behavior
             logger.debug(f"[.NET][unmanaged] resolving import: {refName}")
             combinations = [refName]
-            if not (refName.endswith(".dll") or refName.endswith(".exe")):
+            if not refName.endswith((".dll", ".exe")):
                 combinations.append(f"{refName}.dll")
             combinations.extend(
                 [
@@ -459,11 +456,7 @@ def establish_relationships(
                         if "href" in depAsm["codeBase"]:
                             codebase_href = depAsm["codeBase"]["href"]
                             # strong named assembly can be anywhere on intranet or Internet
-                            if (
-                                codebase_href.startswith("http://")
-                                or codebase_href.startswith("https://")
-                                or codebase_href.startswith("file://")
-                            ):
+                            if codebase_href.startswith(("http://", "https://", "file://")):
                                 # codebase references a url; interesting for manual analysis/gathering additional files, but not supported by surfactant yet
                                 pass
                             else:

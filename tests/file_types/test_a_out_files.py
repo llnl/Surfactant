@@ -2,7 +2,6 @@
 # See the top-level LICENSE file for details.
 #
 # SPDX-License-Identifier: MIT
-import os
 import pathlib
 
 from surfactant.filetypeid.id_magic import identify_file_type
@@ -21,9 +20,10 @@ _file_to_machine_type = {
 
 def test_a_out_machine_type():
     base_path = pathlib.Path(__file__).parent.absolute()
-    data_dir = os.path.join(base_path, "..", "data", "a_out_files")
+    data_dir = base_path.parent / "data" / "a_out_files"
+
     for file_name, machine_type in _file_to_machine_type.items():
-        file_path = os.path.join(data_dir, file_name)
+        file_path = data_dir / file_name
         file_type = identify_file_type(file_path)
         file_info = extract_file_info(
             SBOM(),

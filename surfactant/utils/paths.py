@@ -1,8 +1,7 @@
 import pathlib
-from typing import Union
 
 
-def normalize_path(*path_parts: Union[str, pathlib.PurePosixPath]) -> str:
+def normalize_path(*path_parts: str | pathlib.PurePosixPath) -> str:
     """
     Normalize one or more path parts into a single POSIX-style path string.
 
@@ -40,7 +39,7 @@ def normalize_path(*path_parts: Union[str, pathlib.PurePosixPath]) -> str:
     return pathlib.PurePosixPath(*cleaned_parts).as_posix()
 
 
-def basename_posix(path: Union[str, pathlib.PurePath]) -> str:
+def basename_posix(path: str | pathlib.PurePath) -> str:
     """
     Return the POSIX-style basename of a path. Never raises for string inputs.
     - Uses normalize_path for consistent slash handling.

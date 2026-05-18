@@ -4,7 +4,6 @@
 # SPDX-License-Identifier: MIT
 import json
 from pathlib import Path
-from typing import List
 
 import binary2strings as b2s
 from loguru import logger
@@ -14,7 +13,7 @@ from surfactant.sbomtypes import SBOM, Software
 
 
 @surfactant.plugin.hookimpl(specname="extract_file_info")
-def extract_strings(sbom: SBOM, software: Software, filename: str, filetype: List[str]):
+def extract_strings(sbom: SBOM, software: Software, filename: str, filetype: list[str]):
     """
     Extract ASCII strings from a binary file using binary2strings.
     :param sbom(SBOM): The SBOM that the software entry/file is being added to. Can be used to add observations or analysis data.
@@ -41,7 +40,7 @@ def extract_strings(sbom: SBOM, software: Software, filename: str, filetype: Lis
             output_name = f
 
     if existing_json:
-        with open(existing_json, "r") as json_file:
+        with Path(existing_json).open() as json_file:
             existing_data = json.load(json_file)
         if "strings" in existing_data:
             logger.info(f"Already extracted {filename.name}")
@@ -55,7 +54,7 @@ def extract_strings(sbom: SBOM, software: Software, filename: str, filetype: Lis
 
             existing_data["strings"] = []
             # Extract and write strings using binary2strings
-            with open(filename, "rb") as f_bin:
+            with Path(filename).open("rb") as f_bin:
                 data = f_bin.read()
                 for string, _encoding, _span, _is_interesting in b2s.extract_all_strings(
                     data, only_interesting=True
@@ -63,7 +62,7 @@ def extract_strings(sbom: SBOM, software: Software, filename: str, filetype: Lis
                     if len(string) >= min_len:
                         existing_data["strings"].append(string)
             # Write the string_dict to the output JSON file
-            with open(output_name, "w") as json_file:
+            with Path(output_name).open("w") as json_file:
                 json.dump(existing_data, json_file, indent=4)
 
     else:
@@ -79,7 +78,7 @@ def extract_strings(sbom: SBOM, software: Software, filename: str, filetype: Lis
         string_dict["strings"] = []
 
         # Extract and write strings using binary2strings
-        with open(filename, "rb") as f_bin:
+        with Path(filename).open("rb") as f_bin:
             data = f_bin.read()
             for string, _encoding, _span, _is_interesting in b2s.extract_all_strings(
                 data, only_interesting=True
@@ -89,7 +88,7 @@ def extract_strings(sbom: SBOM, software: Software, filename: str, filetype: Lis
                     string_dict["strings"].append(string)
 
         # Write the string_dict to the output JSON file
-        with open(output_path, "w") as json_file:
+        with Path(output_path).open("w") as json_file:
             json.dump(string_dict, json_file, indent=4)
 
         logger.info(f"Data written to {output_path}")

@@ -107,18 +107,18 @@ def handle_cli_add(sbom, output, output_format, input_format, **kwargs):
     pm = get_plugin_manager()
     output_writer = find_io_plugin(pm, output_format, "write_sbom")
     input_reader = find_io_plugin(pm, input_format, "read_sbom")
-    with open(Path(sbom), "r") as f:
+    with Path(sbom).open() as f:
         in_sbom = input_reader.read_sbom(f)
     # Remove None values
     filtered_kwargs = dict({(k, v) for k, v in kwargs.items() if v is not None})
     out_sbom = cli_add().execute(in_sbom, **filtered_kwargs)
     # Write to the input file if no output specified
     if output is None:
-        with open(Path(sbom), "w") as f:
+        with Path(sbom).open("w") as f:
             output_writer.write_sbom(out_sbom, f)
     else:
         try:
-            with open(Path(output), "w") as f:
+            with Path(output).open("w") as f:
                 output_writer.write_sbom(out_sbom, f)
         except OSError as e:
             logger.error(f"Could not open file {output} in write mode - {e}")
@@ -340,7 +340,7 @@ class cli_find:
         returns:         str, str, str, Hashes calculated, None for those that aren't calculated
         """
         sha256_hash, sha1_hash, md5_hash = None, None, None
-        with open(file, "rb") as f:
+        with Path(file).open("rb") as f:
             if sha256:
                 sha256_hash = hashlib.sha256(f.read()).hexdigest()
                 f.seek(0)

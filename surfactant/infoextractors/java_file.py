@@ -1,5 +1,6 @@
+from pathlib import Path
 from sys import modules
-from typing import Any, Dict, List
+from typing import Any
 
 try:
     import javatools.jarinfo
@@ -14,7 +15,7 @@ from surfactant.sbomtypes import SBOM, Software
 # https://gitlab.com/m2crypto/m2crypto/-/blob/master/INSTALL.rst
 
 
-def supports_file(filetype: List[str]) -> bool:
+def supports_file(filetype: list[str]) -> bool:
     supported_types = ("JAVACLASS", "JAR", "WAR", "EAR")
     for ft in filetype:
         if ft in supported_types:
@@ -23,7 +24,7 @@ def supports_file(filetype: List[str]) -> bool:
 
 
 @surfactant.plugin.hookimpl
-def extract_file_info(sbom: SBOM, software: Software, filename: str, filetype: List[str]) -> object:
+def extract_file_info(sbom: SBOM, software: Software, filename: str, filetype: list[str]) -> object:
     if not supports_file(filetype):
         return None
     if "javatools" not in modules:
@@ -65,7 +66,7 @@ _JAVA_VERSION_MAPPING = {
 }
 
 
-def handle_java_class(info: Dict[str, Any], class_info: "javatools.JavaClassInfo"):
+def handle_java_class(info: dict[str, Any], class_info: "javatools.JavaClassInfo"):
     # This shouldn't happen but just in-case it does don't overwrite information
     if class_info.get_this() in info["javaClasses"]:
         return
@@ -84,14 +85,14 @@ def handle_java_class(info: Dict[str, Any], class_info: "javatools.JavaClassInfo
         add_to["javaImports"] = []
 
 
-def extract_java_info(filename: str, filetype: List[str]) -> object:
-    info: Dict[str, Any] = {"javaClasses": {}}
+def extract_java_info(filename: str, filetype: list[str]) -> object:
+    info: dict[str, Any] = {"javaClasses": {}}
     if "JAR" in filetype or "EAR" in filetype or "WAR" in filetype:
         with javatools.jarinfo.JarInfo(filename) as jarinfo:
             for class_ in jarinfo.get_classes():
                 handle_java_class(info, jarinfo.get_classinfo(class_))
     elif "JAVACLASS" in filetype:
-        with open(filename, "rb") as f:
+        with Path(filename).open("rb") as f:
             class_info = javatools.JavaClassInfo()
             class_info.unpack(javatools.unpack(f))
         handle_java_class(info, class_info)

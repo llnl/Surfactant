@@ -5,7 +5,6 @@
 
 import re
 import sys
-from typing import List, Tuple
 
 from loguru import logger
 
@@ -19,7 +18,7 @@ else:
 
 
 # pylint: disable=too-many-return-statements
-def handle_escaped_literal(regex_pattern: str, i: int, length: int) -> Tuple[str, int]:
+def handle_escaped_literal(regex_pattern: str, i: int, length: int) -> tuple[str, int]:
     """
     Handles escaped literals in a regex pattern and returns the character to be added to the prefix
     and the number of positions to advance the index by.
@@ -63,7 +62,7 @@ def handle_escaped_literal(regex_pattern: str, i: int, length: int) -> Tuple[str
     return next_char, 2
 
 
-def extract_fixed_prefixes(regex_pattern: str) -> List[str]:
+def extract_fixed_prefixes(regex_pattern: str) -> list[str]:
     """
     Extracts the fixed string prefixes from a regex pattern, including handling
     escaped characters, expanding character classes, and handling capture groups
@@ -183,7 +182,7 @@ class RegexNode:
 
     def __repr__(self):
         if self.value is not None:
-            return f"RegexNode({self.op}, {repr(self.value)})"
+            return f"RegexNode({self.op}, {self.value!r})"
         return f"RegexNode({self.op}, children={len(self.children)})"
 
 
@@ -574,11 +573,8 @@ def extract_internal_literals(node, max_possibilities, min_length, parser):
         # Only consider required repetitions
         if min_count > 0:
             sub_tree = node.children[0]
-            sub_literals = extract_internal_literals(
-                sub_tree, max_possibilities, min_length, parser
-            )
+            return extract_internal_literals(sub_tree, max_possibilities, min_length, parser)
 
             # If always repeated at least once, these literals must be present
-            return sub_literals
 
     return []

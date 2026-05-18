@@ -1,7 +1,7 @@
 import logging
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import surfactant.plugin
 from surfactant.sbomtypes import SBOM, Software
@@ -25,9 +25,9 @@ class DapperPackageInfo:
     package_dataset: str
     original_name: str
     file_path: str
-    normalized_name: Optional[str] = None
-    version: Optional[str] = None
-    soabi: Optional[str] = None
+    normalized_name: str | None = None
+    version: str | None = None
+    soabi: str | None = None
 
     @classmethod
     def from_result(cls, result, dataset_name, filename):
@@ -86,7 +86,7 @@ class DapperPlugin:  # pylint: disable=too-few-public-methods
         except Exception:  # pylint: disable=broad-exception-caught
             self.catalog = None
 
-    def lookup_package(self, file_path: str, file_types: List[str]) -> Optional[Dict[str, Any]]:
+    def lookup_package(self, file_path: str, file_types: list[str]) -> dict[str, Any] | None:
         """Provides package lookup for files in SBOMs."""
         if not self.catalog or not DAPPER_AVAILABLE:
             return None
@@ -167,8 +167,8 @@ def extract_file_info(
     sbom: SBOM,
     software: Software,
     filename: str,
-    filetype: List[str],
-) -> Optional[Dict[str, Any]]:
+    filetype: list[str],
+) -> dict[str, Any] | None:
     if not DAPPER_AVAILABLE:
         return None
 
