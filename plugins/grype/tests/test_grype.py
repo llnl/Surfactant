@@ -240,7 +240,7 @@ def test_surfactant_generate(config_and_tarball_fixture, tmp_path_factory):
     # Run the Surfactant generate command (with Grype enabled)
     output_enabled_sbom = Path(temp_dir / "docker_tball_grype-enabled_sbom.json")
     logging.info(config_file)
-    with config_file.open(encoding="utf-8") as f:
+    with Path(config_file).open(encoding="utf-8") as f:
         config_out = json.load(f)
     logging.info(json.dumps(config_out, indent=4))
     logging.info("Running surfactant generate via API for: '%s'", output_enabled_sbom)
