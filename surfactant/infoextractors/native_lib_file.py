@@ -6,8 +6,8 @@
 # See the top-level LICENSE file for details.
 #
 # SPDX-License-Identifier: MIT
-import os
-from typing import Any, Dict, List, Optional, Set, Union
+from pathlib import Path
+from typing import Any
 
 # regex adds features that built-in re module is missing
 # e.g. variable width look-behind
@@ -29,7 +29,7 @@ NATIVE_DB_DIR = "native_library_patterns"  # The directory name to store the dat
 
 
 @surfactant.plugin.hookimpl
-def short_name() -> Optional[str]:
+def short_name() -> str | None:
     return "native_lib_file"
 
 
@@ -53,23 +53,23 @@ class EmbaNativeLibDatabaseManager(BaseDatabaseManager):
         self.ac_filename = None
         self.ac_filecontent = None
 
-    def parse_raw_data(self, raw_data: str) -> Dict[str, Dict[str, List[str]]]:
-        database: Dict[str, Dict[str, List[str]]] = {}
+    def parse_raw_data(self, raw_data: str) -> dict[str, dict[str, list[str]]]:
+        database: dict[str, dict[str, list[str]]] = {}
         lines = raw_data.splitlines()
-        filtered_lines: List[str] = []
+        filtered_lines: list[str] = []
 
         for line in lines:
             if not line.startswith("#"):
                 filtered_lines.append(line)
 
         for line in filtered_lines:
-            line = line.strip()
+            line = line.strip()  # noqa: PLW2901
 
             fields = line.split(";")
 
             lib_name = fields[0]
 
-            name_patterns: List[str] = []
+            name_patterns: list[str] = []
 
             if fields[3].startswith('"') and fields[3].endswith('""'):
                 filecontent = fields[3][1:-1]
@@ -85,9 +85,8 @@ class EmbaNativeLibDatabaseManager(BaseDatabaseManager):
                             "filename": [lib_name],
                             "filecontent": [],
                         }
-                    else:
-                        if lib_name not in database[lib_name]["filename"]:
-                            database[lib_name]["filename"].append(lib_name)
+                    elif lib_name not in database[lib_name]["filename"]:
+                        database[lib_name]["filename"].append(lib_name)
                 else:
                     try:
                         re.compile(filecontent.encode("utf-8"))  # Validate regex
@@ -103,7 +102,7 @@ class EmbaNativeLibDatabaseManager(BaseDatabaseManager):
                         logger.error("Error parsing file content regexp %s: %s", filecontent, rex)
         return database
 
-    def load_db(self) -> Optional[Dict[str, Any]]:
+    def load_db(self) -> dict[str, Any] | None:
         """Load the database and build the Aho-Corasick automaton for pattern matching."""
         super().load_db()
         if self._database:
@@ -137,35 +136,32 @@ class EmbaNativeLibDatabaseManager(BaseDatabaseManager):
 native_lib_manager = EmbaNativeLibDatabaseManager()
 
 
-def supports_file(filetype: List[str]) -> bool:
+def supports_file(filetype: list[str]) -> bool:
     supported_types = ("PE", "ELF", "MACHOFAT", "MACHOFAT64", "MACHO32", "MACHO64", "UIMAGE")
-    for ft in filetype:
-        if ft in supported_types:
-            return True
-    return False
+    return any(ftype in supported_types for ftype in filetype)
 
 
 @surfactant.plugin.hookimpl
 def extract_file_info(
-    sbom: SBOM, software: Software, filename: str, filetype: List[str]
-) -> Optional[Dict[str, Any]]:
+    sbom: SBOM, software: Software, filename: str, filetype: list[str]
+) -> dict[str, Any] | None:
     if not supports_file(filetype):
         return None
     return extract_native_lib_info(filename)
 
 
-def extract_native_lib_info(filename: str) -> Optional[Dict[str, Any]]:
-    native_lib_info: Dict[str, Any] = {"nativeLibraries": []}
+def extract_native_lib_info(filename: str) -> dict[str, Any] | None:
+    native_lib_info: dict[str, Any] = {"nativeLibraries": []}
     native_lib_database = native_lib_manager.get_database()
 
     if native_lib_database is None:
         return None
 
     found_libraries: set = set()
-    library_names: List[str] = []
-    contains_library_names: List[str] = []
+    library_names: list[str] = []
+    contains_library_names: list[str] = []
 
-    base_filename = os.path.basename(filename)
+    base_filename = Path(filename).name
     filenames_list = match_by_attribute("filename", base_filename, native_lib_database)
     if len(filenames_list) > 0:
         for match in filenames_list:
@@ -175,7 +171,7 @@ def extract_native_lib_info(filename: str) -> Optional[Dict[str, Any]]:
                 found_libraries.add(library_name)
 
     try:
-        with open(filename, "rb") as native_file:
+        with Path(filename).open("rb") as native_file:
             filecontent = native_file.read()
         filecontent_list = match_by_attribute("filecontent", filecontent, native_lib_database)
 
@@ -198,9 +194,9 @@ def extract_native_lib_info(filename: str) -> Optional[Dict[str, Any]]:
 
 
 def match_by_attribute(
-    attribute: str, content: Union[str, bytes], patterns_database: Dict[str, Any]
-) -> List[Dict[str, Any]]:
-    libs: List[Dict[str, str]] = []
+    attribute: str, content: str | bytes, patterns_database: dict[str, Any]
+) -> list[dict[str, Any]]:
+    libs: list[dict[str, str]] = []
 
     # Get the appropriate automaton
     if attribute == "filename":
@@ -226,7 +222,7 @@ def match_by_attribute(
         return libs
 
     # Use Aho-Corasick for prefix matching
-    matched_libraries: Set[str] = set()
+    matched_libraries: set[str] = set()
 
     # For filename we can just do direct string matching
     if attribute == "filename":
@@ -243,33 +239,32 @@ def match_by_attribute(
                     matched_libraries.add(lib_name)
 
     # For file content, we need to search in binary data
-    elif attribute == "filecontent":
-        if isinstance(content, bytes):
-            # Window size for context around matches
-            window_size = 4096  # Adjustable based on expected pattern size
-            content_length = len(content)
-            potential_matches = ac.search(content)
-            for pattern_id, positions in potential_matches.items():
-                lib_name, attr, pattern = pattern_id
-                if attr == attribute and lib_name not in matched_libraries:
-                    try:
-                        encoded_pattern = pattern.encode("utf-8")
+    elif attribute == "filecontent" and isinstance(content, bytes):
+        # Window size for context around matches
+        window_size = 4096  # Adjustable based on expected pattern size
+        content_length = len(content)
+        potential_matches = ac.search(content)
+        for pattern_id, positions in potential_matches.items():
+            lib_name, attr, pattern = pattern_id
+            if attr == attribute and lib_name not in matched_libraries:
+                try:
+                    encoded_pattern = pattern.encode("utf-8")
 
-                        # Check each position where the prefix was found
-                        for pos in positions:
-                            # Calculate start and end for a slice of content around the match position
-                            slice_start = max(0, pos - 50)  # Allow some context before match
-                            slice_end = min(content_length, pos + window_size)
-                            content_slice = content[slice_start:slice_end]
+                    # Check each position where the prefix was found
+                    for pos in positions:
+                        # Calculate start and end for a slice of content around the match position
+                        slice_start = max(0, pos - 50)  # Allow some context before match
+                        slice_end = min(content_length, pos + window_size)
+                        content_slice = content[slice_start:slice_end]
 
-                            # Search only in the slice
-                            matches = re.search(encoded_pattern, content_slice)
-                            if matches:
-                                libs.append({"containsLibrary": lib_name})
-                                matched_libraries.add(lib_name)
-                                break  # Found one match for this library, no need to check more positions
-                    except re.error as e:
-                        logger.error(f"Error with regex pattern {pattern}: {e}")
+                        # Search only in the slice
+                        matches = re.search(encoded_pattern, content_slice)
+                        if matches:
+                            libs.append({"containsLibrary": lib_name})
+                            matched_libraries.add(lib_name)
+                            break  # Found one match for this library, no need to check more positions
+                except re.error as e:
+                    logger.error(f"Error with regex pattern {pattern}: {e}")
 
     return libs
 
@@ -280,7 +275,7 @@ def update_db(force: bool = False) -> str:
 
 
 @surfactant.plugin.hookimpl
-def init_hook(command_name: Optional[str] = None) -> None:
+def init_hook(command_name: str | None = None) -> None:
     """
     Initialization hook to load the native library database.
 

@@ -4,7 +4,6 @@
 # SPDX-License-Identifier: MIT
 import uuid
 from dataclasses import dataclass, field
-from typing import List, Optional
 
 from ..utils.capture_time import validate_capture_time
 from ._comment import CommentEntry
@@ -17,20 +16,20 @@ from ._name import NameEntry
 @dataclass
 class Hardware:
     UUID: str = field(default_factory=lambda: str(uuid.uuid4()))
-    name: Optional[List[NameEntry]] = None
-    captureTime: Optional[str] = None
-    countryOfOrigin: Optional[List[str]] = None
-    countryOfOriginSource: Optional[str] = None
-    quantity: Optional[int] = None
-    description: Optional[str] = None
-    vendor: Optional[List[str]] = None
-    identifiers: Optional[List[str]] = None
-    hardwareType: Optional[List[str]] = None
-    comments: Optional[List[CommentEntry]] = None
-    metadata: Optional[List[object]] = field(default_factory=list)
-    supplementaryFiles: Optional[List[File]] = None
-    packageType: Optional[str] = None
-    boardLocation: List[str] = field(default_factory=list)
+    name: list[NameEntry] | None = None
+    captureTime: str | None = None
+    countryOfOrigin: list[str] | None = None
+    countryOfOriginSource: str | None = None
+    quantity: int | None = None
+    description: str | None = None
+    vendor: list[str] | None = None
+    identifiers: list[str] | None = None
+    hardwareType: list[str] | None = None
+    comments: list[CommentEntry] | None = None
+    metadata: list[object] | None = field(default_factory=list)
+    supplementaryFiles: list[File] | None = None
+    packageType: str | None = None
+    boardLocation: list[str] = field(default_factory=list)
 
     def validate(self) -> None:
         """Validate this hardware entry against the CyTRICS field constraints."""

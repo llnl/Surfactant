@@ -4,7 +4,6 @@
 # SPDX-License-Identifier: MIT
 import json
 from pathlib import Path
-from typing import List
 
 import angr
 from cle import CLECompatibilityError
@@ -17,7 +16,7 @@ from surfactant.sbomtypes import SBOM, Software
 @surfactant.plugin.hookimpl(specname="extract_file_info")
 # extract_strings(sbom: SBOM, software: Software, filename: str, filetype: str):
 # def angrimport_finder(filename: str, filetype: str, filehash: str):
-def angrimport_finder(sbom: SBOM, software: Software, filename: str, filetype: List[str]):
+def angrimport_finder(sbom: SBOM, software: Software, filename: str, filetype: list[str]):
     """
     :param sbom(SBOM): The SBOM that the software entry/file is being added to. Can be used to add observations or analysis data.
     :param software(Software): The software entry associated with the file to extract information from.
@@ -42,7 +41,7 @@ def angrimport_finder(sbom: SBOM, software: Software, filename: str, filetype: L
             output_name = f
 
     if existing_json:
-        with open(existing_json, "r") as json_file:
+        with Path(existing_json).open() as json_file:
             existing_data = json.load(json_file)
         if (
             "imported function names" in existing_data
@@ -74,7 +73,7 @@ def angrimport_finder(sbom: SBOM, software: Software, filename: str, filetype: L
                     return
 
                 # Write the string_dict to the output JSON file
-                with open(output_name, "w") as json_file:
+                with Path(output_name).open("w") as json_file:
                     json.dump(existing_data, json_file, indent=4)
             except CLECompatibilityError as e:
                 logger.info(f"Angr Error {filename} {e}")
@@ -104,7 +103,7 @@ def angrimport_finder(sbom: SBOM, software: Software, filename: str, filetype: L
                 logger.warning(f"Error while parsing PE file: {filename}: {e}")
                 return
             # Write the string_dict to the output JSON file
-            with open(output_path, "w") as json_file:
+            with Path(output_path).open("w") as json_file:
                 json.dump(metadata, json_file, indent=4)
 
             logger.info(f"Data written to {output_path}")

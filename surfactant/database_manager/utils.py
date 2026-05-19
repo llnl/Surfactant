@@ -10,7 +10,7 @@ import hashlib
 import time
 from functools import lru_cache
 from pathlib import Path
-from typing import Any, Dict, Optional, Union
+from typing import Any
 
 import requests
 import tomlkit
@@ -24,13 +24,13 @@ RTD_URL = "https://surfactant.readthedocs.io/en/latest/database_sources.toml"
 
 
 @lru_cache(maxsize=1)
-def _get_rtd_raw() -> Optional[str]:
+def _get_rtd_raw() -> str | None:
     raw = download_content(RTD_URL)
     logger.debug("Fetched RTD singleton for URL: {}", RTD_URL)
     return raw
 
 
-def download_content(url: str, timeout: int = 10, retries: int = 3) -> Optional[str]:
+def download_content(url: str, timeout: int = 10, retries: int = 3) -> str | None:
     """
     Downloads content from a given URL with retry logic and timeout.
 
@@ -78,7 +78,7 @@ def calculate_hash(data: str) -> str:
     return hashlib.sha256(data.encode("utf-8")).hexdigest()
 
 
-def _read_toml_file(file_path: Union[str, Path]) -> Optional[Dict[str, Any]]:
+def _read_toml_file(file_path: str | Path) -> dict[str, Any] | None:
     """
     Read and parse a TOML file.
 
@@ -98,7 +98,7 @@ def _read_toml_file(file_path: Union[str, Path]) -> Optional[Dict[str, Any]]:
         raise ValueError(f"Error parsing TOML file at {file_path}: {e}") from e
 
 
-def _write_toml_file(file_path: Union[str, Path], data: Dict[str, Any]) -> None:
+def _write_toml_file(file_path: str | Path, data: dict[str, Any]) -> None:
     """
     Write data to a TOML file.
 
@@ -112,8 +112,8 @@ def _write_toml_file(file_path: Union[str, Path], data: Dict[str, Any]) -> None:
 
 
 def load_db_version_metadata(
-    version_file_path: Union[str, Path], database_key: str
-) -> Optional[Dict[str, str]]:
+    version_file_path: str | Path, database_key: str
+) -> dict[str, str] | None:
     """
     Load the database version metadata for a specific database from the specified TOML file.
 
@@ -147,7 +147,7 @@ def load_db_version_metadata(
     return db_metadata.get(database_key, {})
 
 
-def save_db_version_metadata(version_info: Union[str, Path], database_info: Dict[str, str]) -> None:
+def save_db_version_metadata(version_info: str | Path, database_info: dict[str, str]) -> None:
     """
     Save the metadata for a specific database to the specified TOML file.
 

@@ -13,6 +13,7 @@ import copy
 import json
 import os
 import re
+from pathlib import Path
 
 from surfactant.sbomtypes import SBOM
 
@@ -34,13 +35,12 @@ def parse_args():
     )
     parser.add_argument("input_sbom", help="The SBOM for the additional metadata to be merged into")
     parser.add_argument("output_file", help="The output file")
-    _args = parser.parse_args()
-    return _args
+    return parser.parse_args()
 
 
 if __name__ == "__main__":
     args = parse_args()
-    with open(args.input_sbom, encoding="utf-8") as f:
+    with Path(args.input_sbom).open(encoding="utf-8") as f:
         sbom = SBOM.from_json(f.read())
     lookup_table = {}
     for sw in sbom.software:
@@ -48,7 +48,7 @@ if __name__ == "__main__":
             lookup_table.setdefault(sw.sha256, []).append(sw)
     for path in os.scandir(args.metadata_dir):
         if path.is_file() and re.fullmatch(r"[a-z0-9]{64}_additional_metadata\.json", path.name):
-            with open(path, encoding="utf-8") as f:
+            with Path(path).open(encoding="utf-8") as f:
                 additional_data = json.load(f)
             if not isinstance(additional_data, dict):
                 raise TypeError(f"Additional metadata file must contain a JSON object: {path.name}")
@@ -68,5 +68,5 @@ if __name__ == "__main__":
             for sw in matches:
                 if additional_data not in sw.metadata:
                     sw.metadata.append(copy.deepcopy(additional_data))
-    with open(args.output_file, "w", encoding="utf-8") as f:
+    with Path(args.output_file).open("w", encoding="utf-8") as f:
         f.write(sbom.to_json(indent=4))

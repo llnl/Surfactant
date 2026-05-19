@@ -4,7 +4,6 @@
 # SPDX-License-Identifier: MIT
 import pathlib
 import re
-from typing import List, Optional
 
 from loguru import logger
 
@@ -13,9 +12,7 @@ from surfactant import ContextEntry
 
 
 @surfactant.plugin.hookimpl
-def identify_file_type(
-    filepath: str, context: Optional[ContextEntry] = None
-) -> Optional[List[str]]:
+def identify_file_type(filepath: str, context: ContextEntry | None = None) -> list[str] | None:
     # pylint: disable=too-many-return-statements
     _filetype_extensions = {
         ".sh": "SHELL",
@@ -42,7 +39,7 @@ def identify_file_type(
         b"perl": "PERL",
     }
     try:
-        with open(filepath, "rb") as f:
+        with pathlib.Path(filepath).open("rb") as f:
             head = f.read(256)
             if head.startswith(b"<!DOCTYPE html>"):
                 return ["HTML"]

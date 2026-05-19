@@ -30,7 +30,7 @@ class Save(Cli):
         pm = get_plugin_manager()
         output_writer = find_io_plugin(pm, self.output_format, "write_sbom")
 
-        with open(Path(self.data_dir, self.sbom_filename), "rb") as f:
+        with Path(self.data_dir, self.sbom_filename).open("rb") as f:
             data = f.read()
         self.sbom = Cli.deserialize(data)
         output_writer.write_sbom(self.sbom, output_file)

@@ -3,7 +3,7 @@
 #
 # SPDX-License-Identifier: MIT
 import sys
-from typing import Any, List, Optional
+from typing import Any
 
 import pluggy
 from loguru import logger
@@ -111,9 +111,7 @@ def is_plugin_blocked(pm: pluggy.PluginManager, plugin_name: str) -> bool:
     Returns:
         bool: True if the plugin is blocked, False otherwise.
     """
-    if pm.is_blocked(plugin_name):
-        return True
-    return False
+    return bool(pm.is_blocked(plugin_name))
 
 
 def get_plugin_manager() -> pluggy.PluginManager:
@@ -149,7 +147,7 @@ def is_hook_implemented(pm: pluggy.PluginManager, plugin: object, hook_name: str
 def print_plugins(pm: pluggy.PluginManager) -> None:
     print("PLUGINS")
     for plugin in pm.get_plugins():
-        plugin_name = pm.get_name(plugin) if pm.get_name(plugin) else ""
+        plugin_name = pm.get_name(plugin) or ""
         print(f"\t> name: {plugin_name}")
         print(f"\t  canonical name: {pm.get_canonical_name(plugin)}")
 
@@ -164,7 +162,7 @@ def print_plugins(pm: pluggy.PluginManager) -> None:
         print(f"\t  short name: {short_name}\n")
 
 
-def find_io_plugin(pm: pluggy.PluginManager, io_format: str, function_name: str) -> Optional[Any]:
+def find_io_plugin(pm: pluggy.PluginManager, io_format: str, function_name: str) -> Any | None:
     """
     Finds and returns a plugin that matches the specified input/output format and has the desired function.
 
@@ -203,7 +201,7 @@ def find_io_plugin(pm: pluggy.PluginManager, io_format: str, function_name: str)
     return found_plugin
 
 
-def find_plugin_by_name(pm: pluggy.PluginManager, name: str) -> Optional[Any]:
+def find_plugin_by_name(pm: pluggy.PluginManager, name: str) -> Any | None:
     """
     Finds a plugin by matching the given name against the plugin's registered name,
     canonical name, and its short name (if applicable).
@@ -241,7 +239,7 @@ def find_plugin_by_name(pm: pluggy.PluginManager, name: str) -> Optional[Any]:
 
 
 def call_init_hooks(
-    pm: pluggy.PluginManager, hook_filter: List[str] = None, command_name: str = None
+    pm: pluggy.PluginManager, hook_filter: list[str] | None = None, command_name: str | None = None
 ) -> None:
     """
     Call the initialization hook for plugins that implement it.
@@ -254,7 +252,8 @@ def call_init_hooks(
     for plugin in pm.get_plugins():
         if is_hook_implemented(pm, plugin, "init_hook"):
             # Check if the plugin implements any of the hooks in the filter
-            if hook_filter:
-                if not any(is_hook_implemented(pm, plugin, hook) for hook in hook_filter):
-                    continue
+            if hook_filter and not any(
+                is_hook_implemented(pm, plugin, hook) for hook in hook_filter
+            ):
+                continue
             plugin.init_hook(command_name=command_name)

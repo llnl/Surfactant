@@ -1,6 +1,5 @@
 import re
 from datetime import datetime, timezone
-from typing import Optional
 
 # RFC 3339 date-time with required timezone.
 #
@@ -30,11 +29,11 @@ _RFC3339_CAPTURE_TIME_RE = re.compile(
 
 
 def validate_capture_time(
-    value: Optional[str],
+    value: str | None,
     *,
     nullable: bool = True,
     field_name: str = "captureTime",
-) -> Optional[str]:
+) -> str | None:
     """
     Validate a captureTime value against CyTRICS v1.0.1 expectations.
 

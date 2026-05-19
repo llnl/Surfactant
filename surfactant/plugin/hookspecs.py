@@ -3,21 +3,21 @@
 #
 # SPDX-License-Identifier: MIT
 
-from queue import Queue
-from typing import Any, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any
 
 from pluggy import HookspecMarker
 
 from surfactant import ContextEntry
 from surfactant.sbomtypes import SBOM, Relationship, Software
 
+if TYPE_CHECKING:
+    from queue import Queue
+
 hookspec = HookspecMarker("surfactant")
 
 
 @hookspec(firstresult=True)
-def identify_file_type(
-    filepath: str, context: Optional[ContextEntry]
-) -> Optional[Union[str, List[str]]]:
+def identify_file_type(filepath: str, context: ContextEntry | None) -> str | list[str] | None:
     """Determine the type of file located at filepath.
 
     Implementations may return either a single file type string or a list of file
@@ -41,11 +41,11 @@ def extract_file_info(
     sbom: SBOM,
     software: Software,
     filename: str,
-    filetype: List[str],
+    filetype: list[str],
     context_queue: "Queue[ContextEntry]",
-    current_context: Optional[ContextEntry],
-    children: List[Software],
-    software_field_hints: List[Tuple[str, Any, int]],
+    current_context: ContextEntry | None,
+    children: list[Software],
+    software_field_hints: list[tuple[str, Any, int]],
     omit_unrecognized_types: bool,
 ) -> object:
     """Extract information from the given file and add it to the given software entry.
@@ -87,7 +87,7 @@ def extract_file_info(
 @hookspec
 def establish_relationships(
     sbom: SBOM, software: Software, metadata: object
-) -> Optional[List[Relationship]]:
+) -> list[Relationship] | None:
     """Called to add relationships to an SBOM after information has been gathered.
 
     The function will be called once for every metadata value in every software
@@ -130,7 +130,7 @@ def read_sbom(infile) -> SBOM:
 
 
 @hookspec
-def short_name() -> Optional[str]:
+def short_name() -> str | None:
     """A short name to register the hook as.
 
     Returns:
@@ -139,7 +139,7 @@ def short_name() -> Optional[str]:
 
 
 @hookspec
-def update_db(force: bool = False) -> Optional[str]:
+def update_db(force: bool = False) -> str | None:
     """Updates the database for the plugin.
 
     This hook should be implemented by plugins that require a database update.
@@ -154,7 +154,7 @@ def update_db(force: bool = False) -> Optional[str]:
 
 
 @hookspec
-def init_hook(command_name: Optional[str] = None) -> None:
+def init_hook(command_name: str | None = None) -> None:
     """Initialization hook for plugins.
 
     This hook is called to perform any necessary initialization for the plugin,
@@ -167,5 +167,5 @@ def init_hook(command_name: Optional[str] = None) -> None:
 
 
 @hookspec
-def settings_name() -> Optional[str]:
+def settings_name() -> str | None:
     """The setting base name to use for setting/retrieving settings"""

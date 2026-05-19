@@ -15,7 +15,6 @@ import traceback
 import uuid
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Optional
 from unittest.mock import patch
 
 import click
@@ -77,7 +76,7 @@ def deterministic_context(enabled: bool = True):
 
 def generate_sbom_string(
     input_folder: str,
-    install_prefix: Optional[str] = None,
+    install_prefix: str | None = None,
     deterministic: bool = False,
 ) -> str:
     """
@@ -113,17 +112,16 @@ def generate_sbom_string(
     output_buffer = io.StringIO()
 
     # Create a click context
-    with click.Context(sbom) as ctx:
-        with deterministic_context(enabled=deterministic):
-            try:
-                # Use Click's invoke to call the command with the context
-                ctx.invoke(
-                    sbom,
-                    specimen_context=specimen_context,
-                    sbom_outfile=output_buffer,
-                )
-            except Exception as e:
-                raise RuntimeError(f"Failed to invoke SBOM generation: {e}") from e
+    with click.Context(sbom) as ctx, deterministic_context(enabled=deterministic):
+        try:
+            # Use Click's invoke to call the command with the context
+            ctx.invoke(
+                sbom,
+                specimen_context=specimen_context,
+                sbom_outfile=output_buffer,
+            )
+        except Exception as e:
+            raise RuntimeError(f"Failed to invoke SBOM generation: {e}") from e
 
     # Get the output as a string
     return output_buffer.getvalue()
@@ -195,12 +193,12 @@ def test_all_data_folders():
 
 
 def test_gha(
-    old_folders: dict[str, dict[str, Optional[str]]],
-    repo: Optional[str],
-    current_run: Optional[tuple[str, str]],
-    last_run: Optional[tuple[str, str]],
-    requested_last_sha: Optional[str] = None,
-) -> tuple[str, dict[str, dict[str, Optional[str]]]]:
+    old_folders: dict[str, dict[str, str | None]],
+    repo: str | None,
+    current_run: tuple[str, str] | None,
+    last_run: tuple[str, str] | None,
+    requested_last_sha: str | None = None,
+) -> tuple[str, dict[str, dict[str, str | None]]]:
     """
     Test function for CI/CD mode.
 
@@ -353,7 +351,7 @@ def main():
         gh_summary = os.environ.get("GITHUB_STEP_SUMMARY", None)
         old_folders = {}
         if input_file:
-            with open(input_file, "r") as f:
+            with Path(input_file).open() as f:
                 old_folders = json.load(f)
         summary, new_folders = test_gha(
             old_folders,
@@ -364,17 +362,17 @@ def main():
         )
 
         if summary_file:
-            with open(summary_file, "w") as f:
+            with Path(summary_file).open("w") as f:
                 print(summary, file=f)
         else:
             print(summary)
 
         if gh_summary:
-            with open(gh_summary, "a") as f:
+            with Path(gh_summary).open("a") as f:
                 print(summary, file=f)
 
         if output_file:
-            with open(output_file, "w") as f:
+            with Path(output_file).open("w") as f:
                 json.dump(new_folders, f, indent=4)
         return
 

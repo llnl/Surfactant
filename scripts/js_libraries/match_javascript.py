@@ -1,5 +1,6 @@
 import json
 import re
+from pathlib import Path
 
 import requests
 
@@ -10,7 +11,7 @@ def get_test_file():
     url = "https://cdnjs.cloudflare.com/ajax/libs/select2/3.5.4/select2.min.js"
     response = requests.get(url)
     if response.status_code == 200:
-        with open("testFile.js", "w") as js:
+        with Path("testFile.js").open("w") as js:
             js.write(response.text)
 
 
@@ -21,7 +22,7 @@ def find_js_match(expressions: dict, filename: str) -> str:
                 if re.search(pattern, filename):
                     return name
     try:
-        with open(filename, "r") as jsfile:
+        with Path(filename).open() as jsfile:
             contents = jsfile.read()
         for name, library in expressions.items():
             if "filecontent" in library:
@@ -35,7 +36,7 @@ def find_js_match(expressions: dict, filename: str) -> str:
 
 get_test_file()
 json_file_path = ConfigManager().get_data_dir_path() / "infoextractors" / "js_library_patterns.json"
-with open(json_file_path, "r") as f:
+with Path(json_file_path).open() as f:
     patterns = json.load(f)
 
 library_name = find_js_match(patterns, "testFile.js")

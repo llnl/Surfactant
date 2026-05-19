@@ -3,7 +3,8 @@
 #
 # SPDX-License-Identifier: MIT
 import struct
-from typing import Any, Dict, List
+from pathlib import Path
+from typing import Any
 
 from elftools.common.exceptions import ELFError, ELFParseError
 from elftools.elf.dynamic import DynamicSection
@@ -16,12 +17,12 @@ import surfactant.plugin
 from surfactant.sbomtypes import SBOM, Software
 
 
-def supports_file(filetype: List[str]) -> bool:
+def supports_file(filetype: list[str]) -> bool:
     return "ELF" in filetype
 
 
 @surfactant.plugin.hookimpl
-def extract_file_info(sbom: SBOM, software: Software, filename: str, filetype: List[str]) -> object:
+def extract_file_info(sbom: SBOM, software: Software, filename: str, filetype: list[str]) -> object:
     if not supports_file(filetype):
         return None
     return extract_elf_info(filename)
@@ -54,14 +55,14 @@ _EI_OSABI_NAME = {
 
 
 def extract_elf_info(filename: str) -> object:
-    with open(filename, "rb") as f:
+    with Path(filename).open("rb") as f:  # noqa: F821
         try:
             elf = ELFFile(f)
         except (OSError, ELFError):
             return {}
 
         # Don't assume OS is Linux, map e_ident EI_OSABI value to an OS name
-        file_details: Dict[str, Any] = {"OS": ""}
+        file_details: dict[str, Any] = {"OS": ""}
         file_details["elfIdent"] = get_elf_ident_from_file_header(f, elf.little_endian)
         file_details["elfDependencies"] = set()
         file_details["elfRpath"] = []
@@ -124,7 +125,7 @@ def extract_elf_info(filename: str) -> object:
                             file_details["elfSoname"].append(tag.soname)
                         elif tag.entry.d_tag == "DT_FLAGS":
                             # Dynamic Flags, DT_FLAGS
-                            dt_flags_entry: Dict[str, Any] = {}
+                            dt_flags_entry: dict[str, Any] = {}
                             dt_flags_entry["value"] = hex(tag.entry.d_val)
                             # $ORIGIN processing is required
                             dt_flags_entry["DF_ORIGIN"] = bool(
@@ -137,7 +138,7 @@ def extract_elf_info(filename: str) -> object:
                             file_details["elfDynamicFlags"].append(dt_flags_entry)
                         elif tag.entry.d_tag == "DT_FLAGS_1":
                             # Dynamic Flags, DT_FLAGS_1 (custom entry first added by binutils)
-                            dt_flags_1_entry: Dict[str, Any] = {}
+                            dt_flags_1_entry: dict[str, Any] = {}
                             dt_flags_1_entry["value"] = hex(tag.entry.d_val)
                             # Position-Independent Executable file
                             dt_flags_1_entry["DF_1_PIE"] = bool(
@@ -157,7 +158,7 @@ def extract_elf_info(filename: str) -> object:
                             )
                             file_details["elfDynamicFlags1"].append(dt_flags_1_entry)
         except ELFParseError as e:
-            logger.warning(f"Error while parsing ELF sections in {filename}: {repr(e)}")
+            logger.warning(f"Error while parsing ELF sections in {filename}: {e!r}")
 
         # Check for presence of special segments (e.g. PT_GNU_RELRO)
         for segment in elf.iter_segments():

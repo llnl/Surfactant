@@ -104,14 +104,59 @@ indent-width = 4
 
 [tool.ruff.lint]
 # ruff defaults: E4, E7, E9, F
-select = ["E", "F", "B", "I"]
-ignore = ["E501", "F841"]
+select = [
+    "B",      # flake8-bugbear          (B)     (https://docs.astral.sh/ruff/rules/#flake8-bugbear-b)
+    "C4",     # flake8-comprehensions   (C4)    (https://docs.astral.sh/ruff/rules/#flake8-comprehensions-c4)
+    "E",      # pycodestyle             (E)     (https://docs.astral.sh/ruff/rules/#pycodestyle-e-w)
+    "F",      # Pyflakes                (F)     (https://docs.astral.sh/ruff/rules/#pyflakes-f)
+    "FURB",   # refurb                  (FURB)  (https://docs.astral.sh/ruff/rules/#refurb-furb)
+    "I",      # isort                   (I)     (https://docs.astral.sh/ruff/rules/#isort-i)
+    "PIE",    # flake8-pie              (PIE)   (https://docs.astral.sh/ruff/rules/#flake8-pie-pie)
+    "PL",     # Pylint                  (PL)    (https://docs.astral.sh/ruff/rules/#pylint-pl)
+    "PTH",    # flake8-use-pathlib      (PTH)   (https://docs.astral.sh/ruff/rules/#flake8-use-pathlib-pth)
+    "PYI",    # flake8-PYI              (PYI)   (https://docs.astral.sh/ruff/rules/#flake8-pyi-pyi)
+    "Q",      # flake8-quotes           (Q)     (https://docs.astral.sh/ruff/rules/#flake8-quotes)
+    "RET",    # flake8-return           (RET)   (https://docs.astral.sh/ruff/rules/#flake8-raise-rse)
+    "SIM",    # flake8-simpify          (SIM)   (https://docs.astral.sh/ruff/rules/#flake8-simplify-sim)
+    "TC",     # flake8-type-checking    (TC)    (https://docs.astral.sh/ruff/rules/#flake8-type-checking-tc)
+    "UP",     # pyupgrade               (UP)    (https://docs.astral.sh/ruff/rules/#pyupgrade-up)
+    "W",      # pycodestyle             (W)     (https://docs.astral.sh/ruff/rules/#pycodestyle-e-w)
+    "RUF010", #
+    "RUF013", # PEP 484 prohibits implicit `Optional`
+    "RUF019", # [*] Unnecessary key check before dictionary access",
+    "RUF022", #`__all__` is not sorted
+]
+
+
+
+
+ignore = [
+  "F841",
+  "E501",   # line-too-long
+  "SIM300",
+  "D100",   # missing-module-docstring
+  "D101",   # missing-class-docstring
+  "D102",   # missing-function-docstring
+  "PLR0912", # too-many-branches
+  "PLR0915", # too-many-statements
+  "PLR0912", # too-many-nested-blocks
+  "PLR0914", # too-many-locals
+  "PLR0913", # too-many-arguments
+  "PLR2004",  # Magic Number
+  "PLR0911", # To many Return Statements
+]
+
 # don't fix flake8-bugbear (`B`) violations
 unfixable = ["B"]
 
 # Ignore `E402` import violations in plugin manager
 [tool.ruff.lint.per-file-ignores]
-"surfactant/plugin/manager.py" = ["E402"]
+"surfactant/plugin/manager.py" = [
+    "E402",
+    "PLC0415" # `import` should be at the top-level of a file
+    ]
+"tests/*" = ["PLR2004"]
+"surfactant/plugin" = []
 
 [tool.pylint.messages_control]
 max-line-length = "100"
