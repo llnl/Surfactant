@@ -121,7 +121,7 @@ select = [
     "TC",     # flake8-type-checking    (TC)    (https://docs.astral.sh/ruff/rules/#flake8-type-checking-tc)
     "UP",     # pyupgrade               (UP)    (https://docs.astral.sh/ruff/rules/#pyupgrade-up)
     "W",      # pycodestyle             (W)     (https://docs.astral.sh/ruff/rules/#pycodestyle-e-w)
-    "RUF010", # 
+    "RUF010", #
     "RUF013", # PEP 484 prohibits implicit `Optional`
     "RUF019", # [*] Unnecessary key check before dictionary access",
     "RUF022", #`__all__` is not sorted

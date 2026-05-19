@@ -346,6 +346,7 @@ def extract_prefix_from_tree(node, max_possibilities, min_length, parser):
 
     return [], False, True
 
+
 # pylint: disable=too-many-return-statements
 def node_to_prefixes(node, max_possibilities, parser):
     """Convert a node to its potential literal prefixes."""
