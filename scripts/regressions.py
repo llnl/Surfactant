@@ -112,17 +112,16 @@ def generate_sbom_string(
     output_buffer = io.StringIO()
 
     # Create a click context
-    with click.Context(sbom) as ctx:
-        with deterministic_context(enabled=deterministic):
-            try:
-                # Use Click's invoke to call the command with the context
-                ctx.invoke(
-                    sbom,
-                    specimen_context=specimen_context,
-                    sbom_outfile=output_buffer,
-                )
-            except Exception as e:
-                raise RuntimeError(f"Failed to invoke SBOM generation: {e}") from e
+    with click.Context(sbom) as ctx, deterministic_context(enabled=deterministic):
+        try:
+            # Use Click's invoke to call the command with the context
+            ctx.invoke(
+                sbom,
+                specimen_context=specimen_context,
+                sbom_outfile=output_buffer,
+            )
+        except Exception as e:
+            raise RuntimeError(f"Failed to invoke SBOM generation: {e}") from e
 
     # Get the output as a string
     return output_buffer.getvalue()

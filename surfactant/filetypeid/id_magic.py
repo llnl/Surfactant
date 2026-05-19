@@ -207,9 +207,8 @@ def identify_file_type(filepath: str, context: ContextEntry | None = None) -> li
                 cmf = magic_bytes[0]
                 flg = magic_bytes[1]
                 cm = cmf & 0x0F
-                if cm == 8:
-                    if (cmf * 256 + flg) % 31 == 0:
-                        filetype_matches.append("ZLIB")
+                if cm == 8 and (cmf * 256 + flg) % 31 == 0:
+                    filetype_matches.append("ZLIB")
             # cpio:
             # https://commons.apache.org/proper/commons-compress/apidocs/org/apache/commons/compress/archivers/cpio/CpioArchiveEntry.html
             if int.from_bytes(magic_bytes[:2], byteorder="big", signed=False) == 0o70707:

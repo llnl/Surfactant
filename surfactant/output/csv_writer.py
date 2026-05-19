@@ -77,10 +77,9 @@ def get_software_field(software, field):
     if hasattr(software, field):
         return getattr(software, field)
     # Copyright field currently only gets populated from Windows PE file metadata
-    if field == "Copyright":
-        if software.metadata and isinstance(software.metadata, Iterable):
-            retval = []
-            for entry in software.metadata:
-                if "FileInfo" in entry and "LegalCopyright" in entry["FileInfo"]:
-                    return entry["FileInfo"]["LegalCopyright"]
+    if field == "Copyright" and software.metadata and isinstance(software.metadata, Iterable):
+        retval = []
+        for entry in software.metadata:
+            if "FileInfo" in entry and "LegalCopyright" in entry["FileInfo"]:
+                return entry["FileInfo"]["LegalCopyright"]
     return None

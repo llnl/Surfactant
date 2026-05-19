@@ -96,13 +96,12 @@ def _normalize_structured_list(
 
     normalized = []
     for item in value:
-        if isinstance(item, dict):
-            item = entry_type(**item)
+        element = entry_type(**item) if isinstance(item, dict) else item
 
-        if not isinstance(item, entry_type):
+        if not isinstance(element, entry_type):
             raise TypeError(f"All items in {field_name} must be {entry_type.__name__} objects")
 
-        normalized.append(item)
+        normalized.append(element)
 
     return normalized
 
@@ -276,7 +275,7 @@ class SBOM:
             normalized_tools = []
             for item in self.tools:
                 if isinstance(item, dict):
-                    item = Tool(**item)
+                    item = Tool(**item)  # noqa: PLW2901
                 normalized_tools.append(item)
             self.tools = normalized_tools
 
@@ -284,7 +283,7 @@ class SBOM:
             normalized_authors = []
             for item in self.authors:
                 if isinstance(item, dict):
-                    item = Author(**item)
+                    item = Author(**item)  # noqa: PLW2901
                 normalized_authors.append(item)
             self.authors = normalized_authors
 
@@ -1490,19 +1489,15 @@ class SBOM:
             # If we have hashes to check
             if sha256 or md5 or sha1:
                 # Check if we have both sides of the comparison, then compare. At least one hash must match
-                if sw.sha256 and sha256:
-                    if sw.sha256 == sha256:
-                        match = True
-                if sw.md5 and md5:
-                    if sw.md5 == md5:
-                        match = True
-                if sw.sha1 and sha1:
-                    if sw.sha1 == sha1:
-                        match = True
-            # If no hashes to check, match by UUID
-            else:
-                if sw.UUID == uuid:
+                if sw.sha256 and sha256 and sw.sha256 == sha256:
                     match = True
+                if sw.md5 and md5 and sw.md5 == md5:
+                    match = True
+                if sw.sha1 and sha1 and sw.sha1 == sha1:
+                    match = True
+            # If no hashes to check, match by UUID
+            elif sw.UUID == uuid:
+                match = True
             if match:
                 return sw
         return None

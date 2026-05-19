@@ -318,21 +318,20 @@ def establish_relationships(sbom: SBOM, software: Software, metadata) -> list[Re
     if "appConfigFile" in metadata:
         windowsAppConfig = metadata["appConfigFile"]
 
-    if windowsAppConfig:
-        if "runtime" in windowsAppConfig:
-            wac_runtime = windowsAppConfig["runtime"]
-            if "assemblyBinding" in wac_runtime:
-                wac_asmbinding = wac_runtime["assemblyBinding"]
-                if "dependentAssembly" in wac_asmbinding:
-                    dnDependentAssemblies = wac_asmbinding["dependentAssembly"]
-                if "probing" in wac_asmbinding:
-                    wac_probing = wac_asmbinding["probing"]
-                    if "privatePath" in wac_probing:
-                        wac_paths = wac_probing["privatePath"]
-                        for path in wac_paths.split(";"):
-                            if dnProbingPaths is None:
-                                dnProbingPaths = []
-                            dnProbingPaths.append(pathlib.PureWindowsPath(path).as_posix())
+    if windowsAppConfig and "runtime" in windowsAppConfig:
+        wac_runtime = windowsAppConfig["runtime"]
+        if "assemblyBinding" in wac_runtime:
+            wac_asmbinding = wac_runtime["assemblyBinding"]
+            if "dependentAssembly" in wac_asmbinding:
+                dnDependentAssemblies = wac_asmbinding["dependentAssembly"]
+            if "probing" in wac_asmbinding:
+                wac_probing = wac_asmbinding["probing"]
+                if "privatePath" in wac_probing:
+                    wac_paths = wac_probing["privatePath"]
+                    for path in wac_paths.split(";"):
+                        if dnProbingPaths is None:
+                            dnProbingPaths = []
+                        dnProbingPaths.append(pathlib.PureWindowsPath(path).as_posix())
 
     # --- Handle unmanaged libraries from dotnetImplMap ---
     if "dotnetImplMap" in metadata:
@@ -452,57 +451,51 @@ def establish_relationships(sbom: SBOM, software: Software, metadata) -> list[Re
                 for depAsm in dnDependentAssemblies:
                     # dependent assembly object contains info on assembly id and binding redirects that with a better internal SBOM
                     # representation could be used to also verify the right assembly is being found
-                    if "codeBase" in depAsm:
-                        if "href" in depAsm["codeBase"]:
-                            codebase_href = depAsm["codeBase"]["href"]
-                            # strong named assembly can be anywhere on intranet or Internet
-                            if codebase_href.startswith(("http://", "https://", "file://")):
-                                # codebase references a url; interesting for manual analysis/gathering additional files, but not supported by surfactant yet
-                                pass
-                            else:
-                                # most likely a private assembly, so path must be relative to application's directory
-                                if isinstance(software.installPath, Iterable):
-                                    for install_filepath in software.installPath:
-                                        install_basepath = pathlib.PureWindowsPath(
-                                            install_filepath
-                                        ).parent.as_posix()
-                                        cb_fullpath = normalize_path(
-                                            install_basepath, codebase_href
-                                        )
-                                        # 1) Graph-first: resolve via fs_tree
-                                        match = sbom.get_software_by_path(
-                                            cb_fullpath, case_insensitive=True
-                                        )
-                                        if match and match.UUID != dependent_uuid:
+                    if "codeBase" in depAsm and "href" in depAsm["codeBase"]:
+                        codebase_href = depAsm["codeBase"]["href"]
+                        # strong named assembly can be anywhere on intranet or Internet
+                        if codebase_href.startswith(("http://", "https://", "file://")):
+                            # codebase references a url; interesting for manual analysis/gathering additional files, but not supported by surfactant yet
+                            pass
+                        # most likely a private assembly, so path must be relative to application's directory
+                        elif isinstance(software.installPath, Iterable):
+                            for install_filepath in software.installPath:
+                                install_basepath = pathlib.PureWindowsPath(
+                                    install_filepath
+                                ).parent.as_posix()
+                                cb_fullpath = normalize_path(install_basepath, codebase_href)
+                                # 1) Graph-first: resolve via fs_tree
+                                match = sbom.get_software_by_path(
+                                    cb_fullpath, case_insensitive=True
+                                )
+                                if match and match.UUID != dependent_uuid:
+                                    logger.debug(
+                                        f"[.NET][codeBase] {codebase_href} -> UUID={match.UUID} [graph]"
+                                    )
+                                    relationships.append(
+                                        Relationship(dependent_uuid, match.UUID, "Uses")
+                                    )
+                                else:
+                                    # 2) Legacy fallback: directory+filename scan (matches legacy behavior)
+                                    cb_filepath = pathlib.PureWindowsPath(cb_fullpath)
+                                    cb_file = cb_filepath.name
+                                    cb_path = [cb_filepath.parent.as_posix()]
+
+                                    legacy_found = False
+                                    for e in find_installed_software(sbom, cb_path, cb_file):
+                                        if e and e.UUID != dependent_uuid:
                                             logger.debug(
-                                                f"[.NET][codeBase] {codebase_href} -> UUID={match.UUID} [graph]"
+                                                f"[.NET][codeBase] {codebase_href} -> UUID={e.UUID} [legacy_fallback]"
                                             )
                                             relationships.append(
-                                                Relationship(dependent_uuid, match.UUID, "Uses")
+                                                Relationship(dependent_uuid, e.UUID, "Uses")
                                             )
-                                        else:
-                                            # 2) Legacy fallback: directory+filename scan (matches legacy behavior)
-                                            cb_filepath = pathlib.PureWindowsPath(cb_fullpath)
-                                            cb_file = cb_filepath.name
-                                            cb_path = [cb_filepath.parent.as_posix()]
+                                            legacy_found = True
 
-                                            legacy_found = False
-                                            for e in find_installed_software(
-                                                sbom, cb_path, cb_file
-                                            ):
-                                                if e and e.UUID != dependent_uuid:
-                                                    logger.debug(
-                                                        f"[.NET][codeBase] {codebase_href} -> UUID={e.UUID} [legacy_fallback]"
-                                                    )
-                                                    relationships.append(
-                                                        Relationship(dependent_uuid, e.UUID, "Uses")
-                                                    )
-                                                    legacy_found = True
-
-                                            if not legacy_found:
-                                                logger.debug(
-                                                    f"[.NET][codeBase] {codebase_href} -> no match"
-                                                )
+                                    if not legacy_found:
+                                        logger.debug(
+                                            f"[.NET][codeBase] {codebase_href} -> no match"
+                                        )
 
             # --- Build probing dirs (legacy patterns + fs_tree) ---
             #   - base dir

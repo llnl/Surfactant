@@ -111,9 +111,7 @@ def is_plugin_blocked(pm: pluggy.PluginManager, plugin_name: str) -> bool:
     Returns:
         bool: True if the plugin is blocked, False otherwise.
     """
-    if pm.is_blocked(plugin_name):
-        return True
-    return False
+    return bool(pm.is_blocked(plugin_name))
 
 
 def get_plugin_manager() -> pluggy.PluginManager:
@@ -254,7 +252,8 @@ def call_init_hooks(
     for plugin in pm.get_plugins():
         if is_hook_implemented(pm, plugin, "init_hook"):
             # Check if the plugin implements any of the hooks in the filter
-            if hook_filter:
-                if not any(is_hook_implemented(pm, plugin, hook) for hook in hook_filter):
-                    continue
+            if hook_filter and not any(
+                is_hook_implemented(pm, plugin, hook) for hook in hook_filter
+            ):
+                continue
             plugin.init_hook(command_name=command_name)

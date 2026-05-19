@@ -191,10 +191,7 @@ def extract_rpm_info(filename: str) -> dict[str, Any]:
             file_details["rpm"]["buildtime"] = header["buildtime"]
         if "basenames" in header:
             file_hash_location = ""
-            if "filedigests" in header:
-                file_hash_location = "filedigests"
-            else:
-                file_hash_location = "filemd5s"
+            file_hash_location = "filedigests" if "filedigests" in header else "filemd5s"
             # Handling error here so filename can be included in error output
             try:
                 # Storing which algorithm is used for the file hashes

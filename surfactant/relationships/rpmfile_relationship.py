@@ -11,9 +11,7 @@ from surfactant.sbomtypes import SBOM, Relationship, Software
 
 def has_required_fields(metadata) -> bool:
     # no elfDependencies info, can't establish relationships
-    if "rpm" in metadata:
-        return True
-    return False
+    return "rpm" in metadata
 
 
 @surfactant.plugin.hookimpl

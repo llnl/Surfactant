@@ -53,9 +53,7 @@ def supports_file(filetype: list[str]) -> list[str] | None:
     supported = []
     # Filter out non-archive types
     for ft in filetype:
-        if ft in supported_types:
-            supported.append(ft)
-        elif ft == "RAR" and RAR_SUPPORT["enabled"]:
+        if ft in supported_types or ft == "RAR" and RAR_SUPPORT["enabled"]:
             supported.append(ft)
     if supported:
         return supported
@@ -148,12 +146,12 @@ def create_extraction(
 
     for entry_prefix, extract_path in entries:
         # Merges our install prefix with the entry's install prefix (where applicable)
-        entry_prefix = "/".join(filter(None, [install_prefix, entry_prefix]))
+        prefix = "/".join(filter(None, [install_prefix, entry_prefix]))
 
         # Create a new context entry and add it to the queue
         new_entry = ContextEntry(
             archive=filename,
-            installPrefix=entry_prefix,
+            installPrefix=prefix,
             extractPaths=[extract_path],
             skipProcessingArchive=True,
         )
@@ -225,9 +223,11 @@ def decompress_file(
     }
     try:
         module = modules[compression_type]
-        with module.open(filename, "rb") as f_in:
-            with (Path(output_folder) / output_filename).open("wb") as f_out:
-                shutil.copyfileobj(f_in, f_out)
+        with (
+            module.open(filename, "rb") as f_in,
+            (Path(output_folder) / output_filename).open("wb") as f_out,
+        ):
+            shutil.copyfileobj(f_in, f_out)
     except gzip.BadGzipFile as e:
         # Likely only the first stream of a concatenated file was decompressed, so we will still keep the temp dir
         logger.warning(

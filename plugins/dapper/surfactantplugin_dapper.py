@@ -156,7 +156,7 @@ _PLUGIN_INSTANCE = None
 
 
 def _get_plugin():
-    global _PLUGIN_INSTANCE  # pylint: disable=global-statement
+    global _PLUGIN_INSTANCE  # pylint: disable=global-statement  # noqa: PLW0603
     if _PLUGIN_INSTANCE is None:
         _PLUGIN_INSTANCE = DapperPlugin()
     return _PLUGIN_INSTANCE

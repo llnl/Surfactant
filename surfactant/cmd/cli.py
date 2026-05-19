@@ -178,7 +178,7 @@ class cli_add:
     def handle_kwargs(self, kwargs: dict) -> dict:
         converted_kwargs = {}
         for k, v in kwargs.items():  # Convert key values to camelcase where appropriate
-            key = self.camel_case_conversions[k] if k in self.camel_case_conversions else k
+            key = self.camel_case_conversions.get(k, k)
             converted_kwargs[key] = v
         return converted_kwargs
 
@@ -266,8 +266,8 @@ class cli_find:
         for k, v in kwargs.items():  # Convert key values to camelcase where appropriate
             if k == "file":
                 sha256, sha1, md5 = self._calculate_hashes(v, sha256=True, sha1=True, md5=True)
-                v = {"sha256": sha256, "sha1": sha1, "md5": md5}
-            key = self.camel_case_conversions[k] if k in self.camel_case_conversions else k
+                v = {"sha256": sha256, "sha1": sha1, "md5": md5}  # noqa: PLW2901
+            key = self.camel_case_conversions.get(k, k)
             converted_kwargs[key] = v
         return converted_kwargs
 
@@ -284,7 +284,7 @@ class cli_find:
                 if k == "file":
                     entry_value = {"sha256": sw.sha256, "sha1": sw.sha1, "md5": sw.md5}
                 else:
-                    entry_value = vars(sw)[k] if k in vars(sw) else None
+                    entry_value = vars(sw).get(k, None)
                 if not self.match_functions[type(entry_value)](entry_value, v):
                     match = False
                     break
@@ -298,9 +298,7 @@ class cli_find:
         param: second: The value to match first to
         returns:       bool, True if a match, False if not
         """
-        if first == second:
-            return True
-        return False
+        return first == second
 
     def match_array_value(self, array, value) -> bool:
         """Matches sbom entry on array value. Will match if value is contained in any of the array values.
@@ -308,9 +306,7 @@ class cli_find:
         param: value:   The value to find in array
         returns:        bool, True if a match, False if not
         """
-        if any(value in entry for entry in array):
-            return True
-        return False
+        return bool(any(value in entry for entry in array))
 
     def match_dict_value(self, d1: dict, d2: dict) -> bool:
         """Matches dictonary values. Will match if two dictionaries have any k,v pairs in common. Used for file hash comparison.
@@ -318,9 +314,7 @@ class cli_find:
         param: d2:      The 2nd dictionary of values to find
         returns:        bool, True if a match, False if not
         """
-        if set(d1.items()).intersection(set(d2.items())):
-            return True
-        return False
+        return bool(set(d1.items()).intersection(set(d2.items())))
 
     def match_none_or_unhandled(self, value, match):
         """Default match function if no key value found in SBOM or match type unknown/unhandled

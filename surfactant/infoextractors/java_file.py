@@ -1,11 +1,10 @@
+import contextlib
 from pathlib import Path
 from sys import modules
 from typing import Any
 
-try:
+with contextlib.suppress(ModuleNotFoundError):
     import javatools.jarinfo
-except ModuleNotFoundError:
-    pass
 
 import surfactant.plugin
 from surfactant.sbomtypes import SBOM, Software
@@ -17,10 +16,7 @@ from surfactant.sbomtypes import SBOM, Software
 
 def supports_file(filetype: list[str]) -> bool:
     supported_types = ("JAVACLASS", "JAR", "WAR", "EAR")
-    for ft in filetype:
-        if ft in supported_types:
-            return True
-    return False
+    return any(ft in supported_types for ft in filetype)
 
 
 @surfactant.plugin.hookimpl

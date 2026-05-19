@@ -137,7 +137,7 @@ def establish_relationships(sbom: SBOM, software: Software, metadata) -> list[Re
     for dep in metadata["elfDependencies"]:
         dep_str = dep
         fpaths = []
-        dep = posix_normpath(dep_str)
+        dep = posix_normpath(dep_str)  # noqa: PLW2901
         fname = dep.name  # e.g., 'libfoo.so'
 
         # Determine all candidate filesystem paths where this dependency *might*
@@ -168,12 +168,11 @@ def establish_relationships(sbom: SBOM, software: Software, metadata) -> list[Re
         if "/" in dep_str:
             if dep.is_absolute():
                 fpaths = [dep.as_posix()]
-            else:
-                if isinstance(software.installPath, Iterable):
-                    for ipath in software.installPath:
-                        ipath_posix = posix_normpath(ipath)
-                        combined = posix_normpath(str(ipath_posix.parent.joinpath(dep))).as_posix()
-                        fpaths.append(combined)
+            elif isinstance(software.installPath, Iterable):
+                for ipath in software.installPath:
+                    ipath_posix = posix_normpath(ipath)
+                    combined = posix_normpath(str(ipath_posix.parent.joinpath(dep))).as_posix()
+                    fpaths.append(combined)
 
         # Case 2: Bare filename -- use runpaths and fallback paths
         else:
@@ -230,6 +229,7 @@ def establish_relationships(sbom: SBOM, software: Software, metadata) -> list[Re
 
                 # Check for exact installPath equivalence with any computed dep path
                 for fp in fpaths:
+                    # ruff: disable[SIM102] Simplify IF
                     if isinstance(item.installPath, Iterable) and fp in (item.installPath or []):
                         # software matching requirements to be the loaded dependency was found
                         if item.UUID != software.UUID:

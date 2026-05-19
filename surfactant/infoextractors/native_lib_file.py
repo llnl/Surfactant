@@ -63,7 +63,7 @@ class EmbaNativeLibDatabaseManager(BaseDatabaseManager):
                 filtered_lines.append(line)
 
         for line in filtered_lines:
-            line = line.strip()
+            line = line.strip()  # noqa: PLW2901
 
             fields = line.split(";")
 
@@ -85,9 +85,8 @@ class EmbaNativeLibDatabaseManager(BaseDatabaseManager):
                             "filename": [lib_name],
                             "filecontent": [],
                         }
-                    else:
-                        if lib_name not in database[lib_name]["filename"]:
-                            database[lib_name]["filename"].append(lib_name)
+                    elif lib_name not in database[lib_name]["filename"]:
+                        database[lib_name]["filename"].append(lib_name)
                 else:
                     try:
                         re.compile(filecontent.encode("utf-8"))  # Validate regex
@@ -139,10 +138,7 @@ native_lib_manager = EmbaNativeLibDatabaseManager()
 
 def supports_file(filetype: list[str]) -> bool:
     supported_types = ("PE", "ELF", "MACHOFAT", "MACHOFAT64", "MACHO32", "MACHO64", "UIMAGE")
-    for ft in filetype:
-        if ft in supported_types:
-            return True
-    return False
+    return any(ftype in supported_types for ftype in filetype)
 
 
 @surfactant.plugin.hookimpl
@@ -243,33 +239,32 @@ def match_by_attribute(
                     matched_libraries.add(lib_name)
 
     # For file content, we need to search in binary data
-    elif attribute == "filecontent":
-        if isinstance(content, bytes):
-            # Window size for context around matches
-            window_size = 4096  # Adjustable based on expected pattern size
-            content_length = len(content)
-            potential_matches = ac.search(content)
-            for pattern_id, positions in potential_matches.items():
-                lib_name, attr, pattern = pattern_id
-                if attr == attribute and lib_name not in matched_libraries:
-                    try:
-                        encoded_pattern = pattern.encode("utf-8")
+    elif attribute == "filecontent" and isinstance(content, bytes):
+        # Window size for context around matches
+        window_size = 4096  # Adjustable based on expected pattern size
+        content_length = len(content)
+        potential_matches = ac.search(content)
+        for pattern_id, positions in potential_matches.items():
+            lib_name, attr, pattern = pattern_id
+            if attr == attribute and lib_name not in matched_libraries:
+                try:
+                    encoded_pattern = pattern.encode("utf-8")
 
-                        # Check each position where the prefix was found
-                        for pos in positions:
-                            # Calculate start and end for a slice of content around the match position
-                            slice_start = max(0, pos - 50)  # Allow some context before match
-                            slice_end = min(content_length, pos + window_size)
-                            content_slice = content[slice_start:slice_end]
+                    # Check each position where the prefix was found
+                    for pos in positions:
+                        # Calculate start and end for a slice of content around the match position
+                        slice_start = max(0, pos - 50)  # Allow some context before match
+                        slice_end = min(content_length, pos + window_size)
+                        content_slice = content[slice_start:slice_end]
 
-                            # Search only in the slice
-                            matches = re.search(encoded_pattern, content_slice)
-                            if matches:
-                                libs.append({"containsLibrary": lib_name})
-                                matched_libraries.add(lib_name)
-                                break  # Found one match for this library, no need to check more positions
-                    except re.error as e:
-                        logger.error(f"Error with regex pattern {pattern}: {e}")
+                        # Search only in the slice
+                        matches = re.search(encoded_pattern, content_slice)
+                        if matches:
+                            libs.append({"containsLibrary": lib_name})
+                            matched_libraries.add(lib_name)
+                            break  # Found one match for this library, no need to check more positions
+                except re.error as e:
+                    logger.error(f"Error with regex pattern {pattern}: {e}")
 
     return libs
 

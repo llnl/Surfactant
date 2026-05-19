@@ -15,22 +15,16 @@ def check_motorola(current_line):
         return False
     if current_line[0] != "S" and current_line[0] != "s":
         return False
-    for x in range(1, len(current_line)):
-        if current_line[x] not in string.hexdigits:
-            return False
-    return True
+    return all(current_line[x] in string.hexdigits for x in range(1, len(current_line)))
 
 
-def check_intel(current_line):
+def check_intel(current_line: str):
     current_line = current_line.strip()
     if len(current_line) < 1:
         return False
     if current_line[0] != ":":
         return False
-    for x in range(1, len(current_line)):
-        if current_line[x] not in string.hexdigits:
-            return False
-    return True
+    return all(current_line[x] in string.hexdigits for x in range(1, len(current_line)))
 
 
 # extensions from:

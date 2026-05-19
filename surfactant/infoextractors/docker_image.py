@@ -78,9 +78,7 @@ dsManager = DockerScoutManager()
 
 def supports_file(filetype: list[str]) -> bool:
     """Check if the file type is supported."""
-    if "DOCKER_TAR" in filetype or "DOCKER_GZIP" in filetype:
-        return True
-    return False
+    return bool("DOCKER_TAR" in filetype or "DOCKER_GZIP" in filetype)
 
 
 @surfactant.plugin.hookimpl

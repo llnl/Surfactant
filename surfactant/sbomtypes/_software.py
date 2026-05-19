@@ -121,9 +121,10 @@ class Software:
                 )
 
     def _enforce_hash_requirement(self) -> None:
-        if not self.notHashable:
-            if not any(isinstance(v, str) for v in (self.sha1, self.sha256, self.md5)):
-                raise ValueError("At least one hash must be a string unless notHashable is True")
+        if not self.notHashable and not any(
+            isinstance(v, str) for v in (self.sha1, self.sha256, self.md5)
+        ):
+            raise ValueError("At least one hash must be a string unless notHashable is True")
 
     def _validate_optional_string_list_field(self, field_name: str) -> None:
         value = getattr(self, field_name)
@@ -240,9 +241,12 @@ class Software:
 
                         for new_value in new_arr:
                             # special case, UUID in containerPaths need updating to match our UUID
-                            if fld.name == "containerPath" and isinstance(new_value, str):
-                                if new_value.startswith(sw.UUID):
-                                    new_value = new_value.replace(sw.UUID, self.UUID)
+                            if (
+                                fld.name == "containerPath"
+                                and isinstance(new_value, str)
+                                and new_value.startswith(sw.UUID)
+                            ):
+                                new_value = new_value.replace(sw.UUID, self.UUID)  # noqa: PLW2901
 
                             if new_value not in merged_arr:
                                 merged_arr.append(new_value)
@@ -253,6 +257,7 @@ class Software:
 
     @staticmethod
     def check_for_hash_collision(soft1: Software | None, soft2: Software | None) -> bool:
+        # ruff: disable[SIM114] (Combine if branches using logical or operator)
         if not soft1 or not soft2:
             return False
         # A hash collision occurs if one or more but less than all hashes match or

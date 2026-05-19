@@ -484,23 +484,30 @@ class PluginSetting(textual.widgets.Static):
         super().__init__()
         self.plugin_name = plugin_name
         self.info = info
-        if self.info.type_ == "str":
-            self.input_field = textual.widgets.Input()
-            default_value = self.info.default
-            if default_value is None:
-                default_value = ""
-            self.value = self.__config_manager.get(self.plugin_name, self.info.name, default_value)
-        elif self.info.type_ == "bool":
-            self.input_field = textual.widgets.Checkbox()
-            default_value = self.info.default
-            if default_value is None:
-                default_value = True
-            else:
+
+        match self.info.type_:
+            case "str":
+                self.input_field = textual.widgets.Input()
+                default_value = self.info.default
+                if default_value is None:
+                    default_value = ""
+                self.value = self.__config_manager.get(
+                    self.plugin_name, self.info.name, default_value
+                )
+            case "bool":
+                self.input_field = textual.widgets.Checkbox()
                 # Have to convert from string to Boolean
-                default_value = default_value.lower() == "true"
-            self.value = self.__config_manager.get(self.plugin_name, self.info.name, default_value)
-        else:
-            raise TypeError(f'Invalid plugin setting of type "{self.info.type_}"')
+
+                default_value = (
+                    True if self.info.default is None else self.info.default.lower() == "true"
+                )
+
+                self.value = self.__config_manager.get(
+                    self.plugin_name, self.info.name, default_value
+                )
+
+            case _:
+                raise TypeError(f'Invalid plugin setting of type "{self.info.type_}"')
 
     def compose(self) -> textual.app.ComposeResult:
         # Set the value now - setting the Input value during __init__ was causing errors...

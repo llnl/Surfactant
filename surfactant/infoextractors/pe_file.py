@@ -35,19 +35,18 @@ def extract_file_info(
     if not supports_file(filetype):
         return None
     pe_info = extract_pe_info(filename)
-    if pe_info:
-        if "FileInfo" in pe_info:
-            fi = pe_info["FileInfo"]
-            if "ProductName" in fi:
-                software_field_hints.append(("name", fi["ProductName"], 80))
-            if "FileVersion" in fi:
-                software_field_hints.append(("version", fi["FileVersion"], 80))
-            if "CompanyName" in fi:
-                software_field_hints.append(("vendor", fi["CompanyName"], 80))
-            if "FileDescription" in fi:
-                software_field_hints.append(("description", fi["FileDescription"], 80))
-            if "Comments" in fi:
-                software_field_hints.append(("comments", fi["Comments"], 80))
+    if pe_info and "FileInfo" in pe_info:
+        fi = pe_info["FileInfo"]
+        if "ProductName" in fi:
+            software_field_hints.append(("name", fi["ProductName"], 80))
+        if "FileVersion" in fi:
+            software_field_hints.append(("version", fi["FileVersion"], 80))
+        if "CompanyName" in fi:
+            software_field_hints.append(("vendor", fi["CompanyName"], 80))
+        if "FileDescription" in fi:
+            software_field_hints.append(("description", fi["FileDescription"], 80))
+        if "Comments" in fi:
+            software_field_hints.append(("comments", fi["Comments"], 80))
     return pe_info
 
 
@@ -168,7 +167,7 @@ def extract_pe_info(filename: str) -> object:
 
     file_details["peIsExe"] = pe.is_exe()
     file_details["peIsDll"] = pe.is_dll()
-    if opt_hdr := getattr(pe, "OPTIONAL_HEADER", None):
+    if opt_hdr := getattr(pe, "OPTIONAL_HEADER", None):  # noqa: SIM102
         if opt_hdr_data_dir := getattr(opt_hdr, "DATA_DIRECTORY", None):
             com_desc_dir = get_com_desc(opt_hdr_data_dir)
             if com_desc_dir is not None:
@@ -178,14 +177,13 @@ def extract_pe_info(filename: str) -> object:
             else:
                 file_details["peIsClr"] = False
 
-    if pe_fi := getattr(pe, "FileInfo", None):
-        if len(pe_fi) > 0:
-            file_details["FileInfo"] = {}
-            for fi_entry in pe_fi[0]:
-                if fi_entry.name == "StringFileInfo" and hasattr(fi_entry, "StringTable"):
-                    for st in fi_entry.StringTable:
-                        for st_entry in st.entries.items():
-                            file_details["FileInfo"][st_entry[0].decode()] = st_entry[1].decode()
+    if (pe_fi := getattr(pe, "FileInfo", None)) and len(pe_fi) > 0:
+        file_details["FileInfo"] = {}
+        for fi_entry in pe_fi[0]:
+            if fi_entry.name == "StringFileInfo" and hasattr(fi_entry, "StringTable"):
+                for st in fi_entry.StringTable:
+                    for st_entry in st.entries.items():
+                        file_details["FileInfo"][st_entry[0].decode()] = st_entry[1].decode()
 
     # If this is a .NET assembly, extract information about it from the headers
     if dnet := getattr(pe, "net", None):

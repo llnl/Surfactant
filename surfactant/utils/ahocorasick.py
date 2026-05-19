@@ -105,7 +105,7 @@ class AhoCorasick:
 
         for i, char in enumerate(text):
             # For bytes, char will be int value of the byte
-            char = text[i]
+            char = text[i]  # noqa: PLW2901
 
             while node is not self.root and char not in node.goto:
                 node = node.fail

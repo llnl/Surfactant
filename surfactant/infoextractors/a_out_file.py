@@ -11,10 +11,7 @@ from surfactant.sbomtypes import SBOM, Software
 
 def supports_file(filetype: list[str]) -> bool:
     supported_types = ("A.OUT little", "A.OUT big")
-    for ft in filetype:
-        if ft in supported_types:
-            return True
-    return False
+    return any(ftype in supported_types for ftype in filetype)
 
 
 @surfactant.plugin.hookimpl

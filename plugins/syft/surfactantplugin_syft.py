@@ -85,10 +85,7 @@ def gather_relationship_data(image_sw: Software, data: str, sw_list: list):
         if rel["parent"] in uuid_dict and rel["child"] in uuid_dict:
             parent_info = uuid_dict[rel["parent"]]
             child_info = uuid_dict[rel["child"]]
-            if parent_info[0] == -1:
-                sw = image_sw
-            else:
-                sw = sw_list[parent_info[0]]
+            sw = image_sw if parent_info[0] == -1 else sw_list[parent_info[0]]
             sw.relationshipAssertion = "Known"
             sw_list[child_info[0]].relationshipAssertion = "Known"
             relationship_list = []

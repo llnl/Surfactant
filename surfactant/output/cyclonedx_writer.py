@@ -52,7 +52,7 @@ def write_sbom(sbom: SBOM, outfile) -> None:
 
     # Walk every edge, pulling the relationship out of the key
     for parent_uuid, child_uuid, rel_type in sbom.graph.edges(keys=True):
-        rel_type = rel_type.upper()
+        rel_type = rel_type.upper()  # noqa: PLW2901
 
         # skip duplicate CONTAINS if we've already mapped a container path
         if (
@@ -268,9 +268,8 @@ def get_software_field(software: Software, field: str):
     if hasattr(software, field):
         return getattr(software, field)
     # Copyright field currently only gets populated from Windows PE file metadata
-    if field == "Copyright":
-        if software.metadata and isinstance(software.metadata, Iterable):
-            for entry in software.metadata:
-                if "FileInfo" in entry and "LegalCopyright" in entry["FileInfo"]:
-                    return entry["FileInfo"]["LegalCopyright"]
+    if field == "Copyright" and software.metadata and isinstance(software.metadata, Iterable):
+        for entry in software.metadata:
+            if "FileInfo" in entry and "LegalCopyright" in entry["FileInfo"]:
+                return entry["FileInfo"]["LegalCopyright"]
     return None

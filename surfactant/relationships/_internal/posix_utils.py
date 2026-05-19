@@ -22,10 +22,9 @@ def posix_normpath(path: str) -> pathlib.PurePosixPath:
     while i < len(parts):
         if parts[i] == "..":
             del parts[i]
-            if i > 0:
-                if i > 1 or parts[0] not in ("//", "/"):
-                    del parts[i - 1]
-                    i -= 1
+            if i > 1 or (i > 0 and parts[0] not in ("//", "/")):
+                del parts[i - 1]
+                i -= 1
         else:
             i += 1
     return pathlib.PurePosixPath(*parts)
