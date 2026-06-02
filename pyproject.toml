@@ -41,7 +41,7 @@ classifiers = [
 ]
 dependencies = [
     "dataclasses_json==0.6.*",
-    "pyelftools==0.32.*",
+    "pyelftools>=0.32,<0.34",
     # This isn't semver so fix it to a specific release
     "pefile==2024.8.26",
     "dnfile>=0.17,<0.19",
