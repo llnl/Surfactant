@@ -1,6 +1,4 @@
-import dataclasses
 import pickle
-from dataclasses import Field
 
 from loguru import logger
 
@@ -37,7 +35,7 @@ class Cli:
         self.data_dir.mkdir(parents=True, exist_ok=True)
 
     @staticmethod
-    def serialize(sbom: SBOM) -> str:
+    def serialize(sbom: SBOM):
         """Serializes a given sbom.
 
         Args:
@@ -46,15 +44,7 @@ class Cli:
         Returns:
             bytes: A binary representation of the serialized SBOM.
         """
-        # NOTE: python pickle cannot pickle MappingProxyType, which is inherently included in the Field type.
-        # Pickling is much faster than converting to json or msgpack (see MR for timings: https://github.com/LLNL/Surfactant/pull/261
-        # To workaround the issue we replace the metadata attribute of the Field type (which is default mappingproxytype) with an empty dict
-        # Upon deserialization, we recreate the class with dataclasses.replace() to ensure the unpickled class instance is intact. Without this,
-        # the class function to_json() and to_dict() does not work as the Field type is no longer recongized.
         if isinstance(sbom, SBOM):
-            for _, v in sbom.__dataclass_fields__.items():
-                if isinstance(v, Field):
-                    v.metadata = {}
             return pickle.dumps(sbom)
         logger.error(f"Could not serialize sbom - {type(sbom)} is not of type SBOM")
         return None
@@ -70,10 +60,7 @@ class Cli:
             SBOM: An SBOM instance.
         """
         try:
-            sbom = pickle.loads(data)
-            return dataclasses.replace(
-                sbom
-            )  # Create a copy to repopulate anything that got messed up in serialization
+            return pickle.loads(data)
         except pickle.UnpicklingError as e:
             logger.error(f"Could not deserialize sbom from given data - {e}")
             return None

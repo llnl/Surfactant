@@ -1,5 +1,6 @@
 {
-  "systems": [],
+  "bomFormat": "cytrics",
+  "specVersion": "1.0.1",
   "hardware": [],
   "software": [
     {
@@ -11,7 +12,7 @@
       ],
       "installPath": [],
       "containerPath": [],
-      "captureTime": 1689186146,
+      "captureTime": "2023-07-12T17:42:01Z",
       "version": "",
       "vendor": [],
       "description": "",
@@ -19,7 +20,7 @@
       "sha256": "f41ca6f7c447225df3a7eef754d303d22cf877586735fb2d56d1eb15bf1daed9",
       "md5": "5fbf80df5004db2f0ce1f78b524024fe",
       "relationshipAssertion": "Unknown",
-      "comments": "",
+      "comments": null,
       "metadata": [
         {
           "collectedBy": "Surfactant",
@@ -30,10 +31,7 @@
           }
         }
       ],
-      "supplementaryFiles": [],
-      "provenance": null,
-      "recordedInstitution": "LLNL",
-      "components": []
+      "supplementaryFiles": []
     },
     {
       "UUID": "4c9a7915-7f5a-440b-97b6-60b13942f739",
@@ -50,7 +48,7 @@
         "477da45b-bb38-450e-93f7-e525aaaa6862/libzmq.so",
         "477da45b-bb38-450e-93f7-e525aaaa6862/libzmq.so.5"
       ],
-      "captureTime": 1689186146,
+      "captureTime": "2023-07-12T17:42:01Z",
       "version": "",
       "vendor": [],
       "description": "",
@@ -58,7 +56,7 @@
       "sha256": "ec811e0fa8d629510bc24bc90352d41956b99002d35794a443efe4970b726782",
       "md5": "2ff380e740d2eb09e5d67f6f2cd17636",
       "relationshipAssertion": "Unknown",
-      "comments": "",
+      "comments": null,
       "metadata": [
         {
           "collectedBy": "Surfactant",
@@ -118,10 +116,7 @@
           "elfIsCore": false
         }
       ],
-      "supplementaryFiles": [],
-      "provenance": null,
-      "recordedInstitution": "LLNL",
-      "components": []
+      "supplementaryFiles": []
     },
     {
       "UUID": "7465416c-4f7b-4958-9842-c18609b0b2ab",
@@ -138,7 +133,7 @@
         "477da45b-bb38-450e-93f7-e525aaaa6862/libhelics.so.3",
         "477da45b-bb38-450e-93f7-e525aaaa6862/libhelics.so.3.4.0"
       ],
-      "captureTime": 1689186146,
+      "captureTime": "2023-07-12T17:42:01Z",
       "version": "",
       "vendor": [],
       "description": "",
@@ -146,7 +141,7 @@
       "sha256": "76f16a79c8794f6378b926c35130cefb7a5ed47ecfb832de8db23adda375d4d9",
       "md5": "435775db74e3caee6ebbae9ce20240b7",
       "relationshipAssertion": "Unknown",
-      "comments": "",
+      "comments": null,
       "metadata": [
         {
           "collectedBy": "Surfactant",
@@ -207,10 +202,7 @@
           "elfIsCore": false
         }
       ],
-      "supplementaryFiles": [],
-      "provenance": null,
-      "recordedInstitution": "LLNL",
-      "components": []
+      "supplementaryFiles": []
     }
   ],
   "relationships": [
@@ -224,8 +216,5 @@
       "yUUID": "7465416c-4f7b-4958-9842-c18609b0b2ab",
       "relationship": "Contains"
     }
-  ],
-  "analysisData": [],
-  "observations": [],
-  "starRelationships": []
+  ]
 }

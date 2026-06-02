@@ -19,7 +19,9 @@ from surfactant.configmanager import ConfigManager
 from surfactant.fileinfo import sha256sum
 from surfactant.plugin.manager import call_init_hooks, find_io_plugin, get_plugin_manager
 from surfactant.relationships import parse_relationships
-from surfactant.sbomtypes import SBOM, Software
+from surfactant.sbomtypes import SBOM, Author, Software
+from surfactant.sbomtypes._comment import CommentEntry
+from surfactant.sbomtypes._name import NameEntry
 
 
 # Converts from a true path to an install path
@@ -30,6 +32,153 @@ def real_path_to_install_path(root_path: str, install_path: str, filepath: str) 
     return re.sub("^" + root_path, install_path, filepath)
 
 
+def _normalize_filetypes(value: Any, *, filepath: str) -> List[str]:
+    if value is None:
+        return []
+
+    if isinstance(value, str):
+        return [value]
+
+    if isinstance(value, (list, tuple)):
+        normalized: List[str] = []
+        for item in value:
+            if not isinstance(item, str):
+                raise TypeError(
+                    f"Invalid identify_file_type result for {filepath}: "
+                    f"expected str items, got {type(item).__name__}"
+                )
+            if item not in normalized:
+                normalized.append(item)
+        return normalized
+
+    raise TypeError(
+        f"Invalid identify_file_type result for {filepath}: "
+        f"expected str, list[str], or None; got {type(value).__name__}"
+    )
+
+
+def _normalize_name_hints(value: Any, *, filepath: str) -> List[NameEntry]:
+    raw_items = value if isinstance(value, (list, tuple)) else [value]
+    normalized: List[NameEntry] = []
+
+    for item in raw_items:
+        if item is None:
+            continue
+
+        try:
+            normalized.append(NameEntry.from_hint(item))
+        except (TypeError, ValueError) as err:
+            raise TypeError(f"Invalid name field hint for {filepath}: {err}") from err
+
+    return normalized
+
+
+def _normalize_comment_hints(value: Any, *, filepath: str) -> List[CommentEntry]:
+    raw_items = value if isinstance(value, (list, tuple)) else [value]
+    normalized: List[CommentEntry] = []
+
+    for item in raw_items:
+        if item is None:
+            continue
+
+        try:
+            normalized.append(CommentEntry.from_hint(item))
+        except (TypeError, ValueError) as err:
+            raise TypeError(f"Invalid comment field hint for {filepath}: {err}") from err
+
+    return normalized
+
+
+def _normalize_string_hint(field_name: str, value: Any, *, filepath: str) -> str:
+    if not isinstance(value, str):
+        raise TypeError(
+            f"Invalid {field_name} field hint for {filepath}: "
+            f"expected str, got {type(value).__name__}"
+        )
+    return value
+
+
+def _normalize_vendor_hints(value: Any, *, filepath: str) -> List[str]:
+    normalized: List[str] = []
+
+    def _append_vendor(item: Any) -> None:
+        if item is None:
+            return
+
+        if isinstance(item, (list, tuple)):
+            for sub_item in item:
+                _append_vendor(sub_item)
+            return
+
+        if not isinstance(item, str):
+            raise TypeError(
+                f"Invalid vendor field hint for {filepath}: expected str, got {type(item).__name__}"
+            )
+
+        if item not in normalized:
+            normalized.append(item)
+
+    _append_vendor(value)
+    return normalized
+
+
+def _normalize_software_type_hints(value: Any, *, filepath: str) -> List[str]:
+    normalized: List[str] = []
+
+    def _append_software_type(item: Any) -> None:
+        if item is None:
+            return
+
+        if isinstance(item, (list, tuple)):
+            for sub_item in item:
+                _append_software_type(sub_item)
+            return
+
+        if not isinstance(item, str):
+            raise TypeError(
+                f"Invalid softwareType field hint for {filepath}: "
+                f"expected str, got {type(item).__name__}"
+            )
+
+        if item not in normalized:
+            normalized.append(item)
+
+    _append_software_type(value)
+    return normalized
+
+
+def _normalize_author_value(value: Optional[str], option_name: str) -> Optional[str]:
+    """Normalize an optional author CLI/config value."""
+    if value is None:
+        return None
+
+    if not isinstance(value, str):
+        raise click.ClickException(f"{option_name} must be a string")
+
+    value = value.strip()
+    return value or None
+
+
+# pylint: disable-next=redefined-outer-name
+def _set_sbom_author(sbom: SBOM, author_name: Optional[str], author_type: Optional[str]) -> None:
+    """Set a generated SBOM author from CLI/config values."""
+    author_name = _normalize_author_value(author_name, "--author_name")
+    author_type = _normalize_author_value(author_type, "--author_type")
+
+    if author_name is None and author_type is None:
+        return
+
+    if author_name is None or author_type is None:
+        raise click.ClickException("--author_name and --author_type must be provided together")
+
+    author = Author(authorType=author_type, authorName=author_name)
+    if sbom.authors is None:
+        sbom.authors = []
+
+    if author not in sbom.authors:
+        sbom.authors.append(author)
+
+
 def get_software_entry(
     context_queue,
     current_context,
@@ -37,16 +186,16 @@ def get_software_entry(
     parent_sbom: SBOM,
     filepath,
     *,  # arguments past this point are keyword-only
-    filetype=None,
+    filetype: Optional[Union[str, List[str]]] = None,
     container_uuid=None,
     root_path=None,
     install_path=None,
-    user_institution_name="",
     omit_unrecognized_types=False,
     skip_extraction=False,
     container_prefix=None,
 ) -> Tuple[Software, List[Software]]:
     sw_entry = Software.create_software_from_file(filepath)
+    normalized_filetypes = _normalize_filetypes(filetype, filepath=filepath)
     if root_path is not None and install_path is not None:
         sw_entry.installPath = [real_path_to_install_path(root_path, install_path, filepath)]
     if root_path is not None and container_uuid is not None:
@@ -59,18 +208,17 @@ def get_software_entry(
             sw_entry.containerPath = [
                 re.sub("^" + root_path, container_uuid + container_prefix + "/", filepath)
             ]
-    sw_entry.recordedInstitution = user_institution_name
     sw_children: List[Software] = []
     sw_field_hints: List[Tuple[str, Any, int]] = []
 
     # for unsupported file types, details are just empty; this is the case for archive files (e.g. zip, tar, iso)
     # as well as intel hex or motorola s-rec files
-    extracted_info_results: List[object] = (
+    extracted_info_results: List[Any] = (
         pluginmanager.hook.extract_file_info(
             sbom=parent_sbom,
             software=sw_entry,
             filename=filepath,
-            filetype=filetype,
+            filetype=normalized_filetypes,
             context_queue=context_queue,
             current_context=current_context,
             children=sw_children,
@@ -81,46 +229,108 @@ def get_software_entry(
         else []
     )
     # add metadata extracted from the file
+    validated_metadata: List[Any] = []
     for file_details in extracted_info_results:
         # None as details doesn't add any useful info...
         if file_details is None:
             continue
 
-        # ensure metadata exists for the software entry
-        if sw_entry.metadata is None:
-            sw_entry.metadata = []
-        sw_entry.metadata.append(file_details)
+        validated_metadata.append(file_details)
+
+    if validated_metadata:
+        sw_entry.update_field("metadata", [*(sw_entry.metadata or []), *validated_metadata])
 
     # set SBOM fields based on sw_field_hints
     field_confidence: Dict[str, Tuple[Any, int]] = {}
+    name_hints: List[Tuple[Any, int]] = []
+    vendor_hints: List[Any] = []
+    software_type_hints: List[Any] = []
+    comment_hints: List[Any] = []
+
     for field, value, confidence in sw_field_hints:
-        # special case since vendor can list multiple values
+        # name values are confidence-ranked separately for each name type
+        if field == "name":
+            name_hints.append((value, confidence))
+            continue
+
+        # vendor values are aggregated across hints rather than confidence-ranked
         if field == "vendor":
-            if field not in field_confidence:
-                field_confidence[field] = ([], 0)
-            field_confidence[field][0].append(value)
-        # otherwise, find the value for each field with the highest confidence
-        elif field not in field_confidence or confidence > field_confidence[field][1]:
+            vendor_hints.append(value)
+            continue
+
+        # softwareType values are aggregated across hints rather than confidence-ranked
+        if field == "softwareType":
+            software_type_hints.append(value)
+            continue
+
+        # comment values are aggregated across hints rather than confidence-ranked
+        if field == "comments":
+            comment_hints.append(value)
+            continue
+
+        # for all other fields, keep only the value with the highest confidence
+        if field not in field_confidence or confidence > field_confidence[field][1]:
             field_confidence[field] = (value, confidence)
+
+    if name_hints:
+        field_confidence["name"] = (name_hints, 0)
+
+    if vendor_hints:
+        field_confidence["vendor"] = (vendor_hints, 0)
+
+    if software_type_hints:
+        field_confidence["softwareType"] = (software_type_hints, 0)
+
+    if comment_hints:
+        field_confidence["comments"] = (comment_hints, 0)
 
     # set any fields that haven't been set yet (user/previously set fields take precedence)
     for field, (value, _) in field_confidence.items():
         if field == "name" and not sw_entry.name:
-            sw_entry.name = value
+            selected_names: Dict[str, Tuple[NameEntry, int]] = {}
+            for name_value, name_confidence in value:
+                for name_entry in _normalize_name_hints(name_value, filepath=filepath):
+                    name_type = name_entry.nameType if isinstance(name_entry.nameType, str) else ""
+                    if (
+                        name_type not in selected_names
+                        or name_confidence > selected_names[name_type][1]
+                    ):
+                        selected_names[name_type] = (name_entry, name_confidence)
+
+            normalized_names = [name_entry for name_entry, _ in selected_names.values()]
+            if normalized_names:
+                sw_entry.update_field("name", normalized_names)
         elif field == "version" and not sw_entry.version:
-            sw_entry.version = value
+            normalized_version = _normalize_string_hint("version", value, filepath=filepath)
+            sw_entry.update_field("version", normalized_version)
         elif field == "vendor":
-            # make sure the vendor field is initialized
-            if sw_entry.vendor is None:
-                sw_entry.vendor = []
-            # add any new vendors detected to the list
-            for vendor in value:
-                if vendor not in sw_entry.vendor:
-                    sw_entry.vendor.append(vendor)
+            normalized_vendors = _normalize_vendor_hints(value, filepath=filepath)
+            if normalized_vendors:
+                merged_vendors = [*(sw_entry.vendor or [])]
+                for vendor in normalized_vendors:
+                    if vendor not in merged_vendors:
+                        merged_vendors.append(vendor)
+                sw_entry.update_field("vendor", merged_vendors)
+        elif field == "softwareType":
+            normalized_software_types = _normalize_software_type_hints(value, filepath=filepath)
+            if normalized_software_types:
+                merged_software_types = [*(sw_entry.softwareType or [])]
+                for software_type in normalized_software_types:
+                    if software_type not in merged_software_types:
+                        merged_software_types.append(software_type)
+                sw_entry.update_field("softwareType", merged_software_types)
         elif field == "description" and not sw_entry.description:
-            sw_entry.description = value
-        elif field == "comments" and not sw_entry.comments:
-            sw_entry.comments = value
+            normalized_description = _normalize_string_hint("description", value, filepath=filepath)
+            sw_entry.update_field("description", normalized_description)
+        elif field == "comments":
+            merged_comments = [*(sw_entry.comments or [])]
+            for comment_value in value:
+                for comment in _normalize_comment_hints(comment_value, filepath=filepath):
+                    if comment not in merged_comments:
+                        merged_comments.append(comment)
+
+            if merged_comments != (sw_entry.comments or []):
+                sw_entry.update_field("comments", merged_comments)
     return (sw_entry, sw_children)
 
 
@@ -226,12 +436,6 @@ def get_default_from_config(option: str, fallback: Optional[Any] = None) -> Any:
     help="Skip including install path information if not given by configuration",
 )
 @click.option(
-    "--recorded_institution",
-    is_flag=False,
-    default=get_default_from_config("recorded_institution"),
-    help="Name of user's institution",
-)
-@click.option(
     "--output_format",
     is_flag=False,
     default=get_default_from_config("output_format", fallback="surfactant.output.cytrics_writer"),
@@ -250,6 +454,18 @@ def get_default_from_config(option: str, fallback: Optional[Any] = None) -> Any:
     is_flag=False,
     default="surfactant.input_readers.cytrics_reader",
     help="Input SBOM format, see --list-input-formats for list of options; default is CyTRICS",
+)
+@click.option(
+    "--author_name",
+    is_flag=False,
+    default=get_default_from_config("author_name"),
+    help="Name of the BOM author.",
+)
+@click.option(
+    "--author_type",
+    is_flag=False,
+    default=get_default_from_config("author_type"),
+    help="Type of the BOM author, such as name, organization, or program.",
 )
 @click.option(
     "--list_input_formats",
@@ -283,9 +499,10 @@ def sbom(
     skip_gather: bool,
     skip_relationships: bool,
     skip_install_path: bool,
-    recorded_institution: str,
     output_format: str,
     input_format: str,
+    author_name: Optional[str],
+    author_type: Optional[str],
     omit_unrecognized_types: bool,
     install_prefix_arg: str,
 ):
@@ -314,6 +531,8 @@ def sbom(
     else:
         new_sbom = input_reader.read_sbom(input_sbom)
 
+    _set_sbom_author(new_sbom, author_name, author_type)
+
     # gather metadata for files and add/augment software entries in the sbom
     if not skip_gather:
         # List of directory symlinks; 2-sized tuples with (source, dest)
@@ -337,7 +556,6 @@ def sbom(
                     entry.archive,
                     filetype=pm.hook.identify_file_type(filepath=entry.archive, context=entry)
                     or [],
-                    user_institution_name=recorded_institution,
                     skip_extraction=entry.skipProcessingArchive,
                     container_prefix=entry.containerPrefix,
                 )
@@ -417,7 +635,6 @@ def sbom(
                             root_path=epath.parent.as_posix() if len(epath.parts) > 1 else "",
                             container_uuid=parent_uuid,
                             install_path=install_prefix,
-                            user_institution_name=recorded_institution,
                             container_prefix=entry.containerPrefix,
                         )
                     except Exception as e:  # pylint: disable=broad-exception-caught
@@ -609,7 +826,6 @@ def sbom(
                                         root_path=epath.as_posix(),
                                         container_uuid=parent_uuid,
                                         install_path=install_prefix,
-                                        user_institution_name=recorded_institution,
                                         omit_unrecognized_types=omit_unrecognized_types
                                         or entry.omitUnrecognizedTypes,
                                         container_prefix=entry.containerPrefix,

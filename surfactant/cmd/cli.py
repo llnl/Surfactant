@@ -204,15 +204,26 @@ class cli_add:
         self.sbom.software.append(Software.create_software_from_file(path))
 
     def add_entry(self, entry):
+        """Add a software entry without implicit schema validation."""
         self.sbom.software.append(Software.from_dict(entry))
 
     def add_installpath(self, prefixes: tuple):
+        """Add installPath values by rewriting matching containerPath prefixes."""
         cleaned_prefixes = (p.rstrip("/") for p in prefixes)
         containerPathPrefix, installPathPrefix = cleaned_prefixes
+
         for sw in self.sbom.software:
+            if not sw.containerPath:
+                continue
+
+            if sw.installPath is None:
+                sw.installPath = []
+
             for path in sw.containerPath:
                 if containerPathPrefix in path:
-                    sw.installPath.append(path.replace(containerPathPrefix, installPathPrefix))
+                    new_path = path.replace(containerPathPrefix, installPathPrefix)
+                    if new_path not in sw.installPath:
+                        sw.installPath.append(new_path)
 
 
 class cli_find:

@@ -4,7 +4,7 @@
 # SPDX-License-Identifier: MIT
 import pathlib
 import string
-from typing import Optional
+from typing import List, Optional
 
 import surfactant.plugin
 from surfactant import ContextEntry
@@ -70,7 +70,9 @@ hex_file_extensions = [
 
 
 @surfactant.plugin.hookimpl
-def identify_file_type(filepath: str, context: Optional[ContextEntry] = None) -> Optional[str]:
+def identify_file_type(
+    filepath: str, context: Optional[ContextEntry] = None
+) -> Optional[List[str]]:
     file_suffix = pathlib.Path(filepath).suffix.lower()
     # quick exit based on file extension
     if file_suffix not in hex_file_extensions:

@@ -8,8 +8,10 @@ See the [this page](configuration_files.md#settings-configuration-file) for deta
 
 - output_format
     - SBOM output format, see `--list-output-formats` for list of options; default is CyTRICS.
-- recorded_institution
-    - Name of user's institution.
+- author_name
+    - Name of the BOM author.
+- author_type
+    - Type of the BOM author, such as name, organization, or program.
 - include_all_files
     - Include all files in the SBOM (default). Set to `false` to only include files with types recognized by Surfactant; default is `true`.
 
