@@ -172,7 +172,7 @@ def extract_file_info(  # pylint: disable=too-many-positional-arguments
         return None
     timeout = current_context.get_pconf(__name__, "timeout", 150000)
     args_help = [filename, "--help"]
-    reg_string = current_context.get_pconf(__name__, "regex", r"[0-9a-zA-Z\(\)] [0-9]+\.[0-9]+")
+    reg_string = current_context.get_pconf(__name__, "regex", r"[0-9a-zA-Z\(\)]+ [0-9]+\.[0-9]+")
 
     regex = re.compile(reg_string)
     file_details: Dict[str, Any] = {"qilingexec": {}}
