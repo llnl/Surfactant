@@ -110,7 +110,7 @@ def get_os_arch(context: ContextEntry, filetype: str, def_os) -> Optional[Tuple[
         return None
     # Prevent running binaries when environment doesn't match
     if env_mismatch(filetype, os_conversion[operating_system]):
-        logger.warning(f"Trying to run qilingexec on {filetype} when os is: {operating_system}")
+        logger.warning(f"Trying to run qilingexec on {filetype} when OS is: {operating_system}")
         return None
     return (os_conversion[operating_system], arch_conversion[arch])
 
@@ -172,13 +172,15 @@ def extract_file_info(  # pylint: disable=too-many-positional-arguments
         return None
     timeout = current_context.get_pconf(__name__, "timeout", 150000)
     args_help = [filename, "--help"]
-    reg_string = current_context.get_pconf(__name__, "regex", r"[0-9a-zA-Z\(\)]+ [0-9]+\.[0-9]+")
+    reg_string = current_context.get_pconf(
+        __name__, "regex", r"[0-9a-zA-Z\(\)]+( \([0-9a-zA-Z ]*\))? [0-9]+\.[0-9]+"
+    )
 
     regex = re.compile(reg_string)
     file_details: Dict[str, Any] = {"qilingexec": {}}
 
     for arg in ver_arg_list:
-        print(arg)
+        # print(arg) # For debugging
         args_version = [filename, arg]
         fd_version = pipe.SimpleStringBuffer()
         ql_version = Qiling(

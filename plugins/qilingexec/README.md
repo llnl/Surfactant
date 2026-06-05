@@ -82,37 +82,37 @@ Here is a basic example context file:
 
 - **mount_prefix** (string): Base folder to look for libraries from. If using Surfactant on an extracted filesystem please specify the equivalent of the `/` or `C:\` folders.
 - **ver_arg_list** (string): List of strings to try as arguments to pass into the executable, looking for a regex match for the software version. Set to [`--version`, `-v`, `-V`, `version`] by default. (i.e. `executable_name --version`)
-- **arch_type** (string): ISA of the executable. By default, this is set to x86_64.
+- **arch_type** (string): ISA of the executable. You will need a rootfs for `mount_prefix` that uses the same ISA as your executable. By default, this is set to x64.
 - **os_type** (string): What type of Operating System does the executable run under? By default, this is set to Linux.
-- **timeout** (integer): How long (in microseconds) should executables be given to run before timing out? By default, this is set to 150000 or 15/100th of a second. Sometimes executables need longer to load their libraries into memory and begin execution. If you are running into issues (i.e. Invalid memory fetches), this is a good field to play with.
-- **regex** (string): Regular expression to match against when searching through the output of `--version` and other options.
+- **timeout** (integer): How long (in microseconds) executables are given to run before timing out. By default, this is set to 150000 or 15/100th of a second. Sometimes executables need longer to load their libraries into memory and begin execution. **If you see a Surfactant warning for an Invalid memory fetch, this is a good field to play with.**
+- **regex** (string): Regular expression to match against when searching through the output of `--version` and other options. **Make sure any `\`s have an additional `\` to ensure you have valid JSON in your config file.**
 
 ##### Allowed Enum Values
 
 `arch_type`:
-- x64
-- x86
-- a8086
-- arm32
-- cortex_m
-- aarch64
-- mips
-- evm
-- riscv
-- riscv64
-- ppc
+- `x64` (tested)
+- `x86`
+- `a8086`
+- `arm32`
+- `cortex_m`
+- `aarch64`
+- `mips`
+- `evm`
+- `riscv`
+- `riscv64`
+- `ppc`
 
 `os_type` (string):
-- linux
-- freebsd
-- macos
-- windows
-- uefi
-- dos
-- evm
-- qnx
-- mcu
-- blob
+- `linux` (tested)
+- `freebsd`
+- `macos`
+- `windows`
+- `uefi`
+- `dos`
+- `evm`
+- `qnx`
+- `mcu`
+- `blob`
 
 
 ### Enabling/Disabling
