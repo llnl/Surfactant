@@ -111,7 +111,7 @@ def is_plugin_blocked(pm: pluggy.PluginManager, plugin_name: str) -> bool:
     Returns:
         bool: True if the plugin is blocked, False otherwise.
     """
-    return bool(pm.is_blocked(plugin_name))
+    return pm.is_blocked(plugin_name)
 
 
 def get_plugin_manager() -> pluggy.PluginManager:
