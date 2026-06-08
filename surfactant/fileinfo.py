@@ -18,7 +18,7 @@ def get_file_info(filename):
         Optional[dict]: Dictionary that contains info about the file.
     """
     try:
-        fstats = os.stat(filename)  # noqa: PTH116
+        fstats = Path(filename).stat()
     except (FileNotFoundError, PermissionError):
         return None
 

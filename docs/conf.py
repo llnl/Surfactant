@@ -89,9 +89,9 @@ def download_images_from_toml(toml_file: Path, image_dir: Path):
 
 
 # Path to the TOML file
-toml_file_path = Path(__file__).parent / "images.toml"
+toml_file_path = base_dir / "images.toml"
 # Directory to save the images
-image_directory = Path(__file__).parent / "img"
+image_directory = base_dir / "img"
 
 # Download images
 download_images_from_toml(toml_file_path, image_directory)
@@ -108,7 +108,7 @@ html_extra_path = ["database_sources.toml", "_static_html"]
 # Make CyTRICS schema available as a static file under cytrics_schema/
 # -------------------------------------------------------------------
 def _copy_cytrics_schema(app, exception):
-    src = Path(__file__).parent / "cytrics_schema" / "schema.json"
+    src = base_dir / "cytrics_schema" / "schema.json"
     if not src.exists():
         # Add a warning to the RTD logs instead of failing the build
         print(f"cytrics_schema.json not found at {src}")
@@ -125,7 +125,7 @@ def _copy_cytrics_schema(app, exception):
 # -------------------------------------------------------------------
 def _setup_capa_directory(app, exception):
     # Copy local capa files to output directory
-    src_dir = Path(__file__).parent / "capa"
+    src_dir = base_dir / "capa"
     dst_dir = Path(app.outdir) / "capa"
 
     if src_dir.exists():

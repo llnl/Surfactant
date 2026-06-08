@@ -574,8 +574,7 @@ def extract_internal_literals(node, max_possibilities, min_length, parser):
         # Only consider required repetitions
         if min_count > 0:
             sub_tree = node.children[0]
+            # If always repeated at least once, these "sub"-literals must be present
             return extract_internal_literals(sub_tree, max_possibilities, min_length, parser)
-
-            # If always repeated at least once, these literals must be present
 
     return []

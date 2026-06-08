@@ -10,7 +10,7 @@ class ExitHooks:
     def __init__(self):
         self.exit_code: int | None = None
         self.exception: Exception | None = None
-        self._orig_exit: Callable[[int], None] | None = None
+        self._orig_exit: "Callable[[int], None] | None" = None
 
     def hook(self):
         """Install the exit and exception hooks."""
