@@ -176,13 +176,15 @@ def extract_file_info(  # pylint: disable=too-many-positional-arguments
         __name__, "regex", r"[0-9a-zA-Z\(\)]+( \([0-9a-zA-Z ]*\))? [0-9]+\.[0-9]+"
     )
 
+    # Set up static variables for emulation
     regex = re.compile(reg_string)
     file_details: Dict[str, Any] = {"qilingexec": {}}
 
+    # Loop through all the potential version args
     for arg in ver_arg_list:
         # print(arg) # For debugging
         args_version = [filename, arg]
-        fd_version = pipe.SimpleStringBuffer()
+        out_version_fd = pipe.SimpleStringBuffer()
         ql_version = Qiling(
             argv=args_version,
             rootfs=mountPoint,
@@ -191,7 +193,7 @@ def extract_file_info(  # pylint: disable=too-many-positional-arguments
             verbose=QL_VERBOSE.OFF,
             multithread=True,
         )
-        ql_version.os.stdout = fd_version
+        ql_version.os.stdout = out_version_fd
         # Emulate executable
         try:
             ql_version.run(timeout=timeout)
@@ -201,7 +203,7 @@ def extract_file_info(  # pylint: disable=too-many-positional-arguments
         except (QlErrorBase, NotImplementedError, AttributeError) as error:
             logger.error(f"qilingexec ran into a(n) {error} exception when trying to run {arg}")
             return None
-        result = parse_stdout(fd_version, regex)
+        result = parse_stdout(out_version_fd, regex)
         (match, file_details["qilingexec"]["stdout"]) = result if result else (None, None)
         if match:  # pylint: disable=no-else-break
             match_arr = match.split(" ")
@@ -217,7 +219,7 @@ def extract_file_info(  # pylint: disable=too-many-positional-arguments
             if not file_details["qilingexec"]["stdout"] and arg == ver_arg_list[-1]:
                 return None
 
-    fd_help = pipe.SimpleStringBuffer()
+    out_help_fd = pipe.SimpleStringBuffer()
     ql_help = Qiling(
         argv=args_help,
         rootfs=mountPoint,
@@ -226,7 +228,7 @@ def extract_file_info(  # pylint: disable=too-many-positional-arguments
         verbose=QL_VERBOSE.OFF,
         multithread=True
     )
-    ql_help.os.stdout = fd_help
+    ql_help.os.stdout = out_help_fd
     # Emulate executable
     try:
         ql_help.run(timeout=timeout)
@@ -236,5 +238,5 @@ def extract_file_info(  # pylint: disable=too-many-positional-arguments
     except (QlErrorBase, NotImplementedError, AttributeError) as error:
         logger.error(f"qilingexec ran into a(n) {error} exception when trying to run {arg}")
         return None
-    file_details["qilingexec"]["help_stdout"] = handle_help(fd_help)
+    file_details["qilingexec"]["help_stdout"] = handle_help(out_help_fd)
     return file_details
