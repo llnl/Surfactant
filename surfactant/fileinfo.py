@@ -2,7 +2,6 @@
 # See the top-level LICENSE file for details.
 #
 # SPDX-License-Identifier: MIT
-import os
 import stat
 from hashlib import md5, sha1, sha256
 from pathlib import Path

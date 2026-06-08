@@ -153,7 +153,7 @@ def extract_msi(filename: str, output_folder: str) -> list[tuple[str, str]]:
 
 
 def preprocess_msi_decompression(msi: pymsi.Msi):
-    folders: "list[CabFolder]" = []
+    folders: list[CabFolder] = []
     for media in msi.medias.values():
         if media.cabinet and media.cabinet.disks:
             for disk in media.cabinet.disks.values():
