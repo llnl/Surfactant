@@ -239,10 +239,10 @@ def extract_file_info(  # pylint: disable=too-many-positional-arguments
         ql_help.run(timeout=timeout)
     except UcError as error:
         # This error occurs even during normal emulation
-        logger.error(f"qilingexec ran into a(n) {error} exception when trying to run {arg}")
+        logger.error(f"qilingexec ran into a(n) {error} exception when trying to run {args_help}")
     except (QlErrorBase, NotImplementedError, AttributeError) as error:
-        logger.error(f"qilingexec ran into a(n) {error} exception when trying to run {arg}")
+        logger.error(f"qilingexec ran into a(n) {error} exception when trying to run {args_help}")
         return None
-    help = handle_help(out_help_fd) or handle_help(err_help_fd)
+    help_result = handle_help(out_help_fd) or handle_help(err_help_fd)
     file_details["qilingexec"]["help_stdout"] = help
     return file_details
