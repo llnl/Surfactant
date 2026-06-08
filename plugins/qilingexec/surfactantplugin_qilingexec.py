@@ -185,6 +185,7 @@ def extract_file_info(  # pylint: disable=too-many-positional-arguments
         # print(arg) # For debugging
         args_version = [filename, arg]
         out_version_fd = pipe.SimpleStringBuffer()
+        err_version_fd = pipe.SimpleStringBuffer()
         ql_version = Qiling(
             argv=args_version,
             rootfs=mountPoint,
@@ -194,6 +195,7 @@ def extract_file_info(  # pylint: disable=too-many-positional-arguments
             multithread=True,
         )
         ql_version.os.stdout = out_version_fd
+        ql_version.os.stderr = err_version_fd
         # Emulate executable
         try:
             ql_version.run(timeout=timeout)
@@ -203,7 +205,8 @@ def extract_file_info(  # pylint: disable=too-many-positional-arguments
         except (QlErrorBase, NotImplementedError, AttributeError) as error:
             logger.error(f"qilingexec ran into a(n) {error} exception when trying to run {arg}")
             return None
-        result = parse_stdout(out_version_fd, regex)
+        # If text was sent to stderr instead of stdout, use stderr for parsing
+        result = parse_stdout(out_version_fd, regex) or parse_stdout(err_version_fd, regex)
         (match, file_details["qilingexec"]["stdout"]) = result if result else (None, None)
         if match:  # pylint: disable=no-else-break
             match_arr = match.split(" ")
@@ -220,6 +223,7 @@ def extract_file_info(  # pylint: disable=too-many-positional-arguments
                 return None
 
     out_help_fd = pipe.SimpleStringBuffer()
+    err_help_fd = pipe.SimpleStringBuffer()
     ql_help = Qiling(
         argv=args_help,
         rootfs=mountPoint,
@@ -229,6 +233,7 @@ def extract_file_info(  # pylint: disable=too-many-positional-arguments
         multithread=True
     )
     ql_help.os.stdout = out_help_fd
+    ql_help.os.stderr = err_help_fd
     # Emulate executable
     try:
         ql_help.run(timeout=timeout)
@@ -238,5 +243,6 @@ def extract_file_info(  # pylint: disable=too-many-positional-arguments
     except (QlErrorBase, NotImplementedError, AttributeError) as error:
         logger.error(f"qilingexec ran into a(n) {error} exception when trying to run {arg}")
         return None
-    file_details["qilingexec"]["help_stdout"] = handle_help(out_help_fd)
+    help = handle_help(out_help_fd) or handle_help(err_help_fd)
+    file_details["qilingexec"]["help_stdout"] = help
     return file_details
