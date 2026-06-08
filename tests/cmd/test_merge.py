@@ -4,10 +4,9 @@
 # SPDX-License-Identifier: MIT
 
 import json
-import os
-import pathlib
 import random
 import string
+from pathlib import Path
 
 import pytest
 
@@ -18,17 +17,14 @@ from tests.cmd import common
 
 
 def get_sbom3():
-    with open(
-        pathlib.Path(__file__).parent / "../data/sample_sboms/helics_binaries_sbom.json",
-        "r",
-    ) as f:
+    with Path(
+        Path(__file__).parent / "../data/sample_sboms/helics_binaries_sbom.json",
+    ).open() as f:
         return SBOM.from_json(f.read())
 
 
 def get_sbom4():
-    with open(
-        pathlib.Path(__file__).parent / "../data/sample_sboms/helics_libs_sbom.json", "r"
-    ) as f:
+    with Path(Path(__file__).parent / "../data/sample_sboms/helics_libs_sbom.json").open() as f:
         return SBOM.from_json(f.read())
 
 
@@ -57,14 +53,16 @@ def test_merge_with_circular_dependency():
         "Contains",
     )
 
-    outfile_name = generate_filename("test_merge_with_circular_dependency")
+    outfile = Path(generate_filename("test_merge_with_circular_dependency"))
     pm = get_plugin_manager()
     output_writer = pm.get_plugin("surfactant.output.cytrics_writer")
     input_sboms = [circular_dependency_sbom, sbom2]
-    with open(outfile_name, "w") as sbom_outfile:
+
+    with outfile.open("w") as sbom_outfile:
         merge(input_sboms, sbom_outfile, output_writer)
     # TODO add validation checks here
-    os.remove(os.path.abspath(outfile_name))
+
+    Path(outfile).resolve().unlink()
 
 
 @pytest.mark.skip(reason="No way of properly validating this test yet")
@@ -72,38 +70,38 @@ def test_cmdline_merge():
     sbom3 = get_sbom3()
     sbom4 = get_sbom4()
     # Test simple merge of two sboms
-    outfile_name = generate_filename("test_cmdline_merge")
+    outfile = Path(generate_filename("test_cmdline_merge"))
     pm = get_plugin_manager()
     output_writer = pm.get_plugin("surfactant.output.cytrics_writer")
     input_sboms = [sbom3, sbom4]
-    with open(outfile_name, "w") as sbom_outfile:
+    with outfile.open("w") as sbom_outfile:
         merge(input_sboms, sbom_outfile, output_writer)
 
     # TODO add validation checks here
-    with open(outfile_name, "r") as j:
+    with outfile.open() as j:
         generated_sbom = json.loads(j.read())
-    with open(pathlib.Path(__file__).parent / "../data/sample_sboms/helics_sbom.json", "r") as j:
+    with (Path(__file__).parent / "../data/sample_sboms/helics_sbom.json").open() as j:
         ground_truth_sbom = json.loads(j.read())
-    os.remove(os.path.abspath(outfile_name))
+    outfile.resolve().unlink()
 
 
 def test_merge_does_not_emit_systems():
     sbom1 = common.get_sbom1()
     sbom2 = common.get_sbom2()
-    outfile_name = generate_filename("test_merge_does_not_emit_systems")
+    outfile = Path(generate_filename("test_merge_does_not_emit_systems"))
     pm = get_plugin_manager()
     output_writer = pm.get_plugin("surfactant.output.cytrics_writer")
     input_sboms = [sbom1, sbom2]
 
-    with open(outfile_name, "w") as sbom_outfile:
+    with outfile.open("w") as sbom_outfile:
         merge(input_sboms, sbom_outfile, output_writer)
 
-    with open(outfile_name, "r") as j:
+    with outfile.open() as j:
         generated_sbom = json.loads(j.read())
 
     assert "systems" not in generated_sbom or not generated_sbom["systems"]
 
-    os.remove(os.path.abspath(outfile_name))
+    Path(outfile).resolve().unlink()
 
 
 def generate_filename(name, ext=".json"):

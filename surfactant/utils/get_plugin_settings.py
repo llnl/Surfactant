@@ -5,7 +5,6 @@
 
 import re
 from dataclasses import dataclass
-from typing import Dict, List, Optional
 
 from surfactant.plugin.manager import get_plugin_manager
 
@@ -13,12 +12,12 @@ from surfactant.plugin.manager import get_plugin_manager
 @dataclass
 class PluginSetting:
     name: str
-    type_: Optional[str]
+    type_: str | None
     description: str
-    default: Optional[str]
+    default: str | None
 
 
-def extract_plugin_settings() -> Dict[str, List[PluginSetting]]:
+def extract_plugin_settings() -> dict[str, list[PluginSetting]]:
     """Extract settings information from plugin docstrings"""
     settings = {}
     pm = get_plugin_manager()
@@ -35,7 +34,7 @@ def extract_plugin_settings() -> Dict[str, List[PluginSetting]]:
 __option_re = re.compile(r"([^(:]+)\s*([(][^)]+[)])?:(.*)")
 
 
-def extract_settings_from_docstring(docstring: str) -> List[PluginSetting]:
+def extract_settings_from_docstring(docstring: str) -> list[PluginSetting]:
     def count_leading_indentation(s: str) -> int:
         indent_amount = 0
         while indent_amount < len(s) and s[indent_amount].isspace():

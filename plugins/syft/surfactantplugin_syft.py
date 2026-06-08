@@ -1,6 +1,5 @@
 import json
 import subprocess
-from typing import List, Optional
 
 import surfactant.plugin
 from surfactant.plugin.manager import get_plugin_manager
@@ -12,8 +11,8 @@ from surfactant.utils.capture_time import utc_now_rfc3339
 
 @surfactant.plugin.hookimpl
 def extract_file_info(
-    sbom: SBOM, software: Software, filename: str, filetype: List[str], children: list
-) -> Optional[List[Software]]:
+    sbom: SBOM, software: Software, filename: str, filetype: list[str], children: list
+) -> list[Software] | None:
     pm = get_plugin_manager()
     # Change to properly filter filetypes, add to if statement for filetypes syft should run for
     if "TAR" in filetype:
@@ -64,9 +63,7 @@ def extract_file_info(
 
 
 @surfactant.plugin.hookimpl
-def establish_relationships(
-    sbom: SBOM, software: Software, metadata
-) -> Optional[List[Relationship]]:
+def establish_relationships(sbom: SBOM, software: Software, metadata) -> list[Relationship] | None:
     relationship_list = []
     for meta in software.metadata:
         if "syftRelationships" in meta:
@@ -88,10 +85,7 @@ def gather_relationship_data(image_sw: Software, data: str, sw_list: list):
         if rel["parent"] in uuid_dict and rel["child"] in uuid_dict:
             parent_info = uuid_dict[rel["parent"]]
             child_info = uuid_dict[rel["child"]]
-            if parent_info[0] == -1:
-                sw = image_sw
-            else:
-                sw = sw_list[parent_info[0]]
+            sw = image_sw if parent_info[0] == -1 else sw_list[parent_info[0]]
             sw.relationshipAssertion = "Known"
             sw_list[child_info[0]].relationshipAssertion = "Known"
             relationship_list = []

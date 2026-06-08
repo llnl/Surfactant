@@ -2,7 +2,6 @@
 # See the top-level LICENSE file for details.
 #
 # SPDX-License-Identifier: MIT
-import os
 import pathlib
 import sys
 import zlib
@@ -45,9 +44,9 @@ _file_to_file_type = {
 
 def test_magic_id():
     base_path = pathlib.Path(__file__).parent.absolute()
-    data_dir = os.path.join(base_path, "..", "data")
+    data_dir = base_path.parent / "data"
     for file_name, file_type in _file_to_file_type.items():
-        assert identify_file_type(os.path.join(data_dir, file_name)) == [file_type]
+        assert identify_file_type(data_dir / file_name) == [file_type]
 
 
 def test_zlib_basic(tmp_path):

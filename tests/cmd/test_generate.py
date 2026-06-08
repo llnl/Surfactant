@@ -19,7 +19,7 @@ def test_generate_no_install_prefix(tmp_path):
     config_path = str(Path(tmp_path, "config.json"))
     output_path = str(Path(tmp_path, "out.json"))
 
-    with open(config_path, "w") as f:
+    with Path(config_path).open("w") as f:
         f.write(config_data)
 
     # the click.testing module would be better here but it doesn't allow for files to be generated
@@ -36,7 +36,7 @@ def test_generate_with_install_prefix(tmp_path):
     config_path = str(Path(tmp_path, "config.json"))
     output_path = str(Path(tmp_path, "out.json"))
 
-    with open(config_path, "w") as f:
+    with Path(config_path).open("w") as f:
         f.write(config_data)
 
     # the click.testing module would be better here but it doesn't allow for files to be generated
@@ -44,7 +44,7 @@ def test_generate_with_install_prefix(tmp_path):
     sbom([config_path, output_path], standalone_mode=False)
     # pylint: enable
 
-    with open(output_path) as f:
+    with Path(output_path).open() as f:
         generated_sbom = json.load(f)
 
     assert len(generated_sbom["software"]) == 2
@@ -75,7 +75,7 @@ def test_generate_with_author(tmp_path):
     config_path = str(Path(tmp_path, "config.json"))
     output_path = str(Path(tmp_path, "out.json"))
 
-    with open(config_path, "w") as f:
+    with Path(config_path).open("w") as f:
         f.write(config_data)
 
     # pylint: disable=no-value-for-parameter
@@ -92,7 +92,7 @@ def test_generate_with_author(tmp_path):
     )
     # pylint: enable
 
-    with open(output_path) as f:
+    with Path(output_path).open() as f:
         generated_sbom = json.load(f)
 
     assert generated_sbom["authors"] == [
@@ -135,10 +135,10 @@ def test_get_software_entry_merges_software_type_hints(tmp_path):
 def test_generate_author_requires_name_and_type(tmp_path):
     extract_path = Path(testing_data, "Windows_dll_test_no1").as_posix()
     config_data = f'[{{"extractPaths": ["{extract_path}"]}}]'
-    config_path = str(Path(tmp_path, "config.json"))
+    config_path = Path(tmp_path, "config.json")
     output_path = str(Path(tmp_path, "out.json"))
 
-    with open(config_path, "w") as f:
+    with config_path.open("w") as f:
         f.write(config_data)
 
     with pytest.raises(click.ClickException, match="--author_name and --author_type"):
@@ -147,7 +147,7 @@ def test_generate_author_requires_name_and_type(tmp_path):
             [
                 "--author_name",
                 "Lawrence Livermore National Laboratory",
-                config_path,
+                str(config_path),
                 output_path,
             ],
             standalone_mode=False,
@@ -161,7 +161,7 @@ def test_generate_with_skip_install_path(tmp_path):
     config_path = str(Path(tmp_path, "config.json"))
     output_path = str(Path(tmp_path, "out.json"))
 
-    with open(config_path, "w") as f:
+    with Path(config_path).open("w") as f:
         f.write(config_data)
 
     # the click.testing module would be better here but it doesn't allow for files to be generated
@@ -169,7 +169,7 @@ def test_generate_with_skip_install_path(tmp_path):
     sbom(["--skip_install_path", config_path, output_path], standalone_mode=False)
     # pylint: enable
 
-    with open(output_path) as f:
+    with Path(output_path).open() as f:
         generated_sbom = json.load(f)
 
     assert len(generated_sbom["software"]) == 2
@@ -190,7 +190,7 @@ def test_generate_with_conflicting_install_prefixs(tmp_path):
     config_path = str(Path(tmp_path, "config.json"))
     output_path = str(Path(tmp_path, "out.json"))
 
-    with open(config_path, "w") as f:
+    with Path(config_path).open("w") as f:
         f.write(config_data)
 
     with pytest.raises(SystemExit) as exec_info:

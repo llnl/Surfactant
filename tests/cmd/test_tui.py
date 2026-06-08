@@ -44,7 +44,7 @@ async def test_merge(tmp_path):
     assert input_reader is not None
     # Write the two SBOM's to files
     for i, sbom in enumerate((common.get_sbom1(), common.get_sbom2())):
-        with open(tmp_path / f"sbom{i}.json", "w") as f:
+        with Path(tmp_path / f"sbom{i}.json").open("w") as f:
             output_writer.write_sbom(sbom, f)
     async with tui.run_test() as pilot:
         # This is the only way I could figure out how to change tabs
@@ -63,7 +63,7 @@ async def test_merge(tmp_path):
         await pilot.press(*"test_out.json")
         # Run it
         await pilot.click(tui.merge_tab.btn)
-    with open(tmp_path / "test_out.json") as f:
+    with Path(tmp_path / "test_out.json").open() as f:
         merged_sbom = input_reader.read_sbom(f)
     common.test_simple_merge_method(common.get_sbom1(), common.get_sbom2(), merged_sbom)
 
@@ -87,7 +87,7 @@ __context_data = """
 @pytest.mark.asyncio
 async def test_context_roundtrip(tmp_path):
     tui = TUI()
-    with open(tmp_path / "test_input.json", "w") as f:
+    with (tmp_path / "test_input.json").open("w") as f:
         f.write(__context_data)
     async with tui.run_test() as pilot:
         # Change to context tab
@@ -103,9 +103,9 @@ async def test_context_roundtrip(tmp_path):
         await pilot.click(tui.context_tab.save_btn)
         await pilot.pause(0.1)
     # Compare the two JSON files
-    with open(tmp_path / "test_input.json") as f:
+    with Path(tmp_path / "test_input.json").open() as f:
         inp = json.load(f)
-    with open(tmp_path / "test_output.json") as f:
+    with Path(tmp_path / "test_output.json").open() as f:
         output = json.load(f)
 
     # There doesn't seem to be any better way of doing this

@@ -107,18 +107,18 @@ def handle_cli_add(sbom, output, output_format, input_format, **kwargs):
     pm = get_plugin_manager()
     output_writer = find_io_plugin(pm, output_format, "write_sbom")
     input_reader = find_io_plugin(pm, input_format, "read_sbom")
-    with open(Path(sbom), "r") as f:
+    with Path(sbom).open() as f:
         in_sbom = input_reader.read_sbom(f)
     # Remove None values
     filtered_kwargs = dict({(k, v) for k, v in kwargs.items() if v is not None})
     out_sbom = cli_add().execute(in_sbom, **filtered_kwargs)
     # Write to the input file if no output specified
     if output is None:
-        with open(Path(sbom), "w") as f:
+        with Path(sbom).open("w") as f:
             output_writer.write_sbom(out_sbom, f)
     else:
         try:
-            with open(Path(output), "w") as f:
+            with Path(output).open("w") as f:
                 output_writer.write_sbom(out_sbom, f)
         except OSError as e:
             logger.error(f"Could not open file {output} in write mode - {e}")
@@ -178,7 +178,7 @@ class cli_add:
     def handle_kwargs(self, kwargs: dict) -> dict:
         converted_kwargs = {}
         for k, v in kwargs.items():  # Convert key values to camelcase where appropriate
-            key = self.camel_case_conversions[k] if k in self.camel_case_conversions else k
+            key = self.camel_case_conversions.get(k, k)
             converted_kwargs[key] = v
         return converted_kwargs
 
@@ -266,8 +266,8 @@ class cli_find:
         for k, v in kwargs.items():  # Convert key values to camelcase where appropriate
             if k == "file":
                 sha256, sha1, md5 = self._calculate_hashes(v, sha256=True, sha1=True, md5=True)
-                v = {"sha256": sha256, "sha1": sha1, "md5": md5}
-            key = self.camel_case_conversions[k] if k in self.camel_case_conversions else k
+                v = {"sha256": sha256, "sha1": sha1, "md5": md5}  # noqa: PLW2901
+            key = self.camel_case_conversions.get(k, k)
             converted_kwargs[key] = v
         return converted_kwargs
 
@@ -284,7 +284,7 @@ class cli_find:
                 if k == "file":
                     entry_value = {"sha256": sw.sha256, "sha1": sw.sha1, "md5": sw.md5}
                 else:
-                    entry_value = vars(sw)[k] if k in vars(sw) else None
+                    entry_value = vars(sw).get(k, None)
                 if not self.match_functions[type(entry_value)](entry_value, v):
                     match = False
                     break
@@ -298,9 +298,7 @@ class cli_find:
         param: second: The value to match first to
         returns:       bool, True if a match, False if not
         """
-        if first == second:
-            return True
-        return False
+        return first == second
 
     def match_array_value(self, array, value) -> bool:
         """Matches sbom entry on array value. Will match if value is contained in any of the array values.
@@ -308,9 +306,7 @@ class cli_find:
         param: value:   The value to find in array
         returns:        bool, True if a match, False if not
         """
-        if any(value in entry for entry in array):
-            return True
-        return False
+        return bool(any(value in entry for entry in array))
 
     def match_dict_value(self, d1: dict, d2: dict) -> bool:
         """Matches dictonary values. Will match if two dictionaries have any k,v pairs in common. Used for file hash comparison.
@@ -318,9 +314,7 @@ class cli_find:
         param: d2:      The 2nd dictionary of values to find
         returns:        bool, True if a match, False if not
         """
-        if set(d1.items()).intersection(set(d2.items())):
-            return True
-        return False
+        return bool(set(d1.items()).intersection(set(d2.items())))
 
     def match_none_or_unhandled(self, value, match):
         """Default match function if no key value found in SBOM or match type unknown/unhandled
@@ -340,7 +334,7 @@ class cli_find:
         returns:         str, str, str, Hashes calculated, None for those that aren't calculated
         """
         sha256_hash, sha1_hash, md5_hash = None, None, None
-        with open(file, "rb") as f:
+        with Path(file).open("rb") as f:
             if sha256:
                 sha256_hash = hashlib.sha256(f.read()).hexdigest()
                 f.seek(0)

@@ -1,13 +1,11 @@
 #!/usr/bin/env python3
 
 import dataclasses
-import os
 import sys
 from argparse import ArgumentParser
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import List
 
 import networkx
 import pyvis
@@ -115,10 +113,9 @@ def generate_pyvis_graph(
         cdn_resources="remote",
     )
 
-    currentDir = os.path.dirname(os.path.abspath(__file__))
-    pv.template_dir = os.path.join(
-        currentDir, "./customTemplates/"
-    )  # Use custom template to fix CSS issue with not filling page
+    currentDir = Path(__file__).parent
+    pv.template_dir = currentDir / "customTemplates/"
+    # Use custom template to fix CSS issue with not filling page
     pv.templateEnv = Environment(loader=FileSystemLoader(pv.template_dir))
 
     pv.force_atlas_2based()
@@ -186,9 +183,9 @@ def main():
 
     args = parser.parse_args()
 
-    sboms: List[dict] = []
+    sboms: list[dict] = []
     for path in args.path:
-        with open(path, "r") as f:
+        with Path(path).open() as f:
             sboms.append({"sbom": SBOM.from_json(f.read()), "sbomFileName": Path(path).name})
 
     g = generate_dependency_graph(sboms[0], args.cull)

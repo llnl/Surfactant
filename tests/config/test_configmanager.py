@@ -101,7 +101,7 @@ def test_unix_data_dir_path():
 def test_preserve_comments(config_manager):
     # Create a config file with some value and add in a comment line
     config_manager.set("Settings", "theme", "dark")
-    with open(config_manager.config_file_path, "a") as configfile:
+    with config_manager.config_file_path.open("a") as configfile:
         configfile.write("\n# This is a comment\n")
     # Force reload of cached config in the ConfigManager
     config_manager._load_config()  # pylint: disable=protected-access
@@ -109,7 +109,7 @@ def test_preserve_comments(config_manager):
 
     # Set a new value to make ConfigManager to save an updated config file
     config_manager.set("Settings", "language", "en")
-    with open(config_manager.config_file_path, "r") as configfile:
+    with config_manager.config_file_path.open() as configfile:
         content = configfile.read()
     assert "# This is a comment" in content
 

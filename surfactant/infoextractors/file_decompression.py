@@ -11,14 +11,14 @@ import bz2
 import gzip
 import json
 import lzma
-import os
 import pathlib
 import shutil
 import tarfile
 import tempfile
 import zipfile
-from queue import Queue
-from typing import Any, Callable, Dict, List, Literal, Optional, Tuple, Union
+from collections.abc import Callable
+from pathlib import Path
+from typing import TYPE_CHECKING, Any, Literal
 
 import rarfile
 from loguru import logger
@@ -28,6 +28,9 @@ from surfactant import ContextEntry
 from surfactant.configmanager import ConfigManager
 from surfactant.sbomtypes import SBOM, Software
 from surfactant.utils import exit_hook
+
+if TYPE_CHECKING:
+    from queue import Queue
 
 EXTRACT_DIR = pathlib.Path(
     ConfigManager().get("decompression", "extract_dir", tempfile.gettempdir())
@@ -43,16 +46,14 @@ EXTRACT_DIRS_PATH = EXTRACT_DIR / ".surfactant_extracted_dirs.json"
 RAR_SUPPORT = {"enabled": False}
 
 
-def supports_file(filetype: list[str]) -> Optional[list[str]]:
+def supports_file(filetype: list[str]) -> list[str] | None:
     if filetype is None:
         return None
     supported_types = {"TAR", "GZIP", "ZIP", "BZIP2", "XZ"}
     supported = []
     # Filter out non-archive types
     for ft in filetype:
-        if ft in supported_types:
-            supported.append(ft)
-        elif ft == "RAR" and RAR_SUPPORT["enabled"]:
+        if ft in supported_types or ft == "RAR" and RAR_SUPPORT["enabled"]:
             supported.append(ft)
     if supported:
         return supported
@@ -66,10 +67,10 @@ def extract_file_info(
     sbom: SBOM,
     software: Software,
     filename: str,
-    filetype: List[str],
+    filetype: list[str],
     context_queue: "Queue[ContextEntry]",
-    current_context: Optional[ContextEntry],
-) -> Optional[Dict[str, Any]]:
+    current_context: ContextEntry | None,
+) -> dict[str, Any] | None:
     # Check if the file is compressed and get its format
     compression_format = supports_file(filetype)
 
@@ -88,8 +89,8 @@ def create_extraction(
     filename: str,
     software: Software,
     context_queue: "Queue[ContextEntry]",
-    current_context: Optional[ContextEntry],
-    decompress: Callable[[str, str], Union[bool, List[Tuple[str, str]]]],
+    current_context: ContextEntry | None,
+    decompress: Callable[[str, str], bool | list[tuple[str, str]]],
 ):
     """Create extraction context entries for decompressed archive files.
 
@@ -119,7 +120,7 @@ def create_extraction(
     if (
         software.sha256 in EXTRACT_DIRS
         and EXTRACT_DIRS[software.sha256]["result"]
-        and os.path.exists(EXTRACT_DIRS[software.sha256]["path"])
+        and Path(EXTRACT_DIRS[software.sha256]["path"]).exists()
     ):
         entries = EXTRACT_DIRS[software.sha256]["result"]
         logger.info(f"Using cached extraction entries for {filename}")
@@ -145,12 +146,12 @@ def create_extraction(
 
     for entry_prefix, extract_path in entries:
         # Merges our install prefix with the entry's install prefix (where applicable)
-        entry_prefix = "/".join(filter(None, [install_prefix, entry_prefix]))
+        prefix = "/".join(filter(None, [install_prefix, entry_prefix]))
 
         # Create a new context entry and add it to the queue
         new_entry = ContextEntry(
             archive=filename,
-            installPrefix=entry_prefix,
+            installPrefix=prefix,
             extractPaths=[extract_path],
             skipProcessingArchive=True,
         )
@@ -222,9 +223,11 @@ def decompress_file(
     }
     try:
         module = modules[compression_type]
-        with module.open(filename, "rb") as f_in:
-            with open(os.path.join(output_folder, output_filename), "wb") as f_out:
-                shutil.copyfileobj(f_in, f_out)
+        with (
+            module.open(filename, "rb") as f_in,
+            (Path(output_folder) / output_filename).open("wb") as f_out,
+        ):
+            shutil.copyfileobj(f_in, f_out)
     except gzip.BadGzipFile as e:
         # Likely only the first stream of a concatenated file was decompressed, so we will still keep the temp dir
         logger.warning(
@@ -269,7 +272,7 @@ def setup_extracted_dirs():
     should_cache_extractions = ConfigManager().get("decompression", "cache_extractions", True)
     if should_cache_extractions and EXTRACT_DIRS_PATH.exists():
         try:
-            with open(EXTRACT_DIRS_PATH, "r") as f:
+            with Path(EXTRACT_DIRS_PATH).open() as f:
                 GLOBAL_EXTRACT_DIRS = json.load(f)
             if not isinstance(GLOBAL_EXTRACT_DIRS, dict):
                 logger.error(f"Invalid format in {EXTRACT_DIRS_PATH}. Expected a dictionary.")
@@ -286,9 +289,9 @@ def store_extracted_dirs():
     should_cache_extractions = ConfigManager().get("decompression", "cache_extractions", True)
     if should_cache_extractions:
         try:
-            with open(EXTRACT_DIRS_PATH, "w") as f:
+            with Path(EXTRACT_DIRS_PATH).open("w") as f:
                 json.dump(EXTRACT_DIRS, f)
-        except IOError as e:
+        except OSError as e:
             logger.error(f"Failed to write extracted directories to {EXTRACT_DIRS_PATH}: {e}")
 
 
@@ -309,7 +312,7 @@ def delete_extract_dirs():
         should_delete = extraction_failed or (not should_persist_extractions and exited_gracefully)
         if not should_cache_extractions or should_delete:
             temp_dir = EXTRACT_DIRS[key]["path"]
-            if temp_dir and os.path.exists(temp_dir):
+            if temp_dir and Path(temp_dir).exists():
                 shutil.rmtree(temp_dir)
                 logger.info(f"Cleaned up temporary directory: {temp_dir}")
             del EXTRACT_DIRS[key]
@@ -333,7 +336,7 @@ def setup_rar_support():
 
 
 @surfactant.plugin.hookimpl
-def init_hook(command_name: Optional[str] = None):
+def init_hook(command_name: str | None = None):
     """Initialize the file decompression plugin."""
     setup_extracted_dirs()
     setup_rar_support()

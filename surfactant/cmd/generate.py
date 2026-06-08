@@ -7,7 +7,7 @@ import pathlib
 import queue
 import re
 import sys
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any
 
 import click
 from loguru import logger
@@ -32,7 +32,7 @@ def real_path_to_install_path(root_path: str, install_path: str, filepath: str) 
     return re.sub("^" + root_path, install_path, filepath)
 
 
-def _normalize_filetypes(value: Any, *, filepath: str) -> List[str]:
+def _normalize_filetypes(value: Any, *, filepath: str) -> list[str]:
     if value is None:
         return []
 
@@ -40,7 +40,7 @@ def _normalize_filetypes(value: Any, *, filepath: str) -> List[str]:
         return [value]
 
     if isinstance(value, (list, tuple)):
-        normalized: List[str] = []
+        normalized: list[str] = []
         for item in value:
             if not isinstance(item, str):
                 raise TypeError(
@@ -57,9 +57,9 @@ def _normalize_filetypes(value: Any, *, filepath: str) -> List[str]:
     )
 
 
-def _normalize_name_hints(value: Any, *, filepath: str) -> List[NameEntry]:
+def _normalize_name_hints(value: Any, *, filepath: str) -> list[NameEntry]:
     raw_items = value if isinstance(value, (list, tuple)) else [value]
-    normalized: List[NameEntry] = []
+    normalized: list[NameEntry] = []
 
     for item in raw_items:
         if item is None:
@@ -73,9 +73,9 @@ def _normalize_name_hints(value: Any, *, filepath: str) -> List[NameEntry]:
     return normalized
 
 
-def _normalize_comment_hints(value: Any, *, filepath: str) -> List[CommentEntry]:
+def _normalize_comment_hints(value: Any, *, filepath: str) -> list[CommentEntry]:
     raw_items = value if isinstance(value, (list, tuple)) else [value]
-    normalized: List[CommentEntry] = []
+    normalized: list[CommentEntry] = []
 
     for item in raw_items:
         if item is None:
@@ -98,8 +98,8 @@ def _normalize_string_hint(field_name: str, value: Any, *, filepath: str) -> str
     return value
 
 
-def _normalize_vendor_hints(value: Any, *, filepath: str) -> List[str]:
-    normalized: List[str] = []
+def _normalize_vendor_hints(value: Any, *, filepath: str) -> list[str]:
+    normalized: list[str] = []
 
     def _append_vendor(item: Any) -> None:
         if item is None:
@@ -122,8 +122,8 @@ def _normalize_vendor_hints(value: Any, *, filepath: str) -> List[str]:
     return normalized
 
 
-def _normalize_software_type_hints(value: Any, *, filepath: str) -> List[str]:
-    normalized: List[str] = []
+def _normalize_software_type_hints(value: Any, *, filepath: str) -> list[str]:
+    normalized: list[str] = []
 
     def _append_software_type(item: Any) -> None:
         if item is None:
@@ -147,7 +147,7 @@ def _normalize_software_type_hints(value: Any, *, filepath: str) -> List[str]:
     return normalized
 
 
-def _normalize_author_value(value: Optional[str], option_name: str) -> Optional[str]:
+def _normalize_author_value(value: str | None, option_name: str) -> str | None:
     """Normalize an optional author CLI/config value."""
     if value is None:
         return None
@@ -160,7 +160,7 @@ def _normalize_author_value(value: Optional[str], option_name: str) -> Optional[
 
 
 # pylint: disable-next=redefined-outer-name
-def _set_sbom_author(sbom: SBOM, author_name: Optional[str], author_type: Optional[str]) -> None:
+def _set_sbom_author(sbom: SBOM, author_name: str | None, author_type: str | None) -> None:
     """Set a generated SBOM author from CLI/config values."""
     author_name = _normalize_author_value(author_name, "--author_name")
     author_type = _normalize_author_value(author_type, "--author_type")
@@ -186,14 +186,14 @@ def get_software_entry(
     parent_sbom: SBOM,
     filepath,
     *,  # arguments past this point are keyword-only
-    filetype: Optional[Union[str, List[str]]] = None,
+    filetype: str | list[str] | None = None,
     container_uuid=None,
     root_path=None,
     install_path=None,
     omit_unrecognized_types=False,
     skip_extraction=False,
     container_prefix=None,
-) -> Tuple[Software, List[Software]]:
+) -> tuple[Software, list[Software]]:
     sw_entry = Software.create_software_from_file(filepath)
     normalized_filetypes = _normalize_filetypes(filetype, filepath=filepath)
     if root_path is not None and install_path is not None:
@@ -208,12 +208,12 @@ def get_software_entry(
             sw_entry.containerPath = [
                 re.sub("^" + root_path, container_uuid + container_prefix + "/", filepath)
             ]
-    sw_children: List[Software] = []
-    sw_field_hints: List[Tuple[str, Any, int]] = []
+    sw_children: list[Software] = []
+    sw_field_hints: list[tuple[str, Any, int]] = []
 
     # for unsupported file types, details are just empty; this is the case for archive files (e.g. zip, tar, iso)
     # as well as intel hex or motorola s-rec files
-    extracted_info_results: List[Any] = (
+    extracted_info_results: list[Any] = (
         pluginmanager.hook.extract_file_info(
             sbom=parent_sbom,
             software=sw_entry,
@@ -229,7 +229,7 @@ def get_software_entry(
         else []
     )
     # add metadata extracted from the file
-    validated_metadata: List[Any] = []
+    validated_metadata: list[Any] = []
     for file_details in extracted_info_results:
         # None as details doesn't add any useful info...
         if file_details is None:
@@ -241,11 +241,11 @@ def get_software_entry(
         sw_entry.update_field("metadata", [*(sw_entry.metadata or []), *validated_metadata])
 
     # set SBOM fields based on sw_field_hints
-    field_confidence: Dict[str, Tuple[Any, int]] = {}
-    name_hints: List[Tuple[Any, int]] = []
-    vendor_hints: List[Any] = []
-    software_type_hints: List[Any] = []
-    comment_hints: List[Any] = []
+    field_confidence: dict[str, tuple[Any, int]] = {}
+    name_hints: list[tuple[Any, int]] = []
+    vendor_hints: list[Any] = []
+    software_type_hints: list[Any] = []
+    comment_hints: list[Any] = []
 
     for field, value, confidence in sw_field_hints:
         # name values are confidence-ranked separately for each name type
@@ -287,7 +287,7 @@ def get_software_entry(
     # set any fields that haven't been set yet (user/previously set fields take precedence)
     for field, (value, _) in field_confidence.items():
         if field == "name" and not sw_entry.name:
-            selected_names: Dict[str, Tuple[NameEntry, int]] = {}
+            selected_names: dict[str, tuple[NameEntry, int]] = {}
             for name_value, name_confidence in value:
                 for name_entry in _normalize_name_hints(name_value, filepath=filepath):
                     name_type = name_entry.nameType if isinstance(name_entry.nameType, str) else ""
@@ -361,10 +361,10 @@ def print_input_formats(ctx, _, value):
 
 
 def determine_install_prefix(
-    entry: Optional[ContextEntry] = None,
-    extract_path: Optional[Union[str, pathlib.Path]] = None,
+    entry: ContextEntry | None = None,
+    extract_path: str | pathlib.Path | None = None,
     skip_extract_path: bool = False,
-) -> Optional[str]:
+) -> str | None:
     """Determine the install prefix based on what is provided in the context entry, and the extract path for the file.
 
     Args:
@@ -391,7 +391,7 @@ def determine_install_prefix(
     return install_prefix
 
 
-def get_default_from_config(option: str, fallback: Optional[Any] = None) -> Any:
+def get_default_from_config(option: str, fallback: Any | None = None) -> Any:
     """Retrive a core config option for use as default argument value.
 
     Args:
@@ -501,8 +501,8 @@ def sbom(
     skip_install_path: bool,
     output_format: str,
     input_format: str,
-    author_name: Optional[str],
-    author_type: Optional[str],
+    author_name: str | None,
+    author_type: str | None,
     omit_unrecognized_types: bool,
     install_prefix_arg: str,
 ):
@@ -536,11 +536,11 @@ def sbom(
     # gather metadata for files and add/augment software entries in the sbom
     if not skip_gather:
         # List of directory symlinks; 2-sized tuples with (source, dest)
-        dir_symlinks: List[Tuple[str, str]] = []
+        dir_symlinks: list[tuple[str, str]] = []
         # List of file install path symlinks; keys are SHA256 hashes, values are source paths
-        file_symlinks: Dict[str, List[str]] = {}
+        file_symlinks: dict[str, list[str]] = {}
         # List of filename symlinks; keys are SHA256 hashes, values are file names
-        filename_symlinks: Dict[str, List[str]] = {}
+        filename_symlinks: dict[str, list[str]] = {}
         while not contextQ.empty():
             entry: ContextEntry = contextQ.get()
             if entry.archive:
@@ -617,7 +617,7 @@ def sbom(
                 logger.trace("Extracted Path: " + epath.as_posix())
 
                 # variable used to track software entries to add to the SBOM
-                entries: List[Software]
+                entries: list[Software]
 
                 # handle individual file case, since os.walk doesn't
                 if epath.is_file():
@@ -640,7 +640,7 @@ def sbom(
                     except Exception as e:  # pylint: disable=broad-exception-caught
                         raise RuntimeError(f"Unable to process: {filepath}") from e
                     entries.append(sw_parent)
-                    entries.extend(sw_children if sw_children else [])
+                    entries.extend(sw_children or [])
                     # ------------------------------------------------------------------------
                     # (Optional - Early Injection) Inject symlink paths into each Software entry so SBOM helper handles them
                     # ------------------------------------------------------------------------
@@ -674,8 +674,8 @@ def sbom(
 
                     if entry.installPrefix:
                         for dir_ in dirs:
-                            full_path = os.path.join(cdir, dir_)
-                            if os.path.islink(full_path):
+                            full_path = pathlib.Path(cdir) / dir_
+                            if pathlib.Path(full_path).is_file():
                                 dest = resolve_link(
                                     full_path, cdir, epath.as_posix(), entry.installPrefix
                                 )
@@ -700,7 +700,7 @@ def sbom(
                                             f"Failed to record directory symlink in fs_tree: {install_source} -> {install_dest}: {e}"
                                         )
 
-                    entries: List[Software] = []
+                    entries: list[Software] = []
                     for file in files:
                         # os.path.join will insert an OS specific separator between cdir and f
                         # need to make sure that separator is a / and not a \ on windows
@@ -708,7 +708,8 @@ def sbom(
                         logger.debug(f"Processing filepath: {filepath}")
                         # TODO: add CI tests for generating SBOMs in scenarios with symlinks... (and just generally more CI tests overall...)
                         # Record symlink details but don't run info extractors on them
-                        if os.path.islink(filepath):
+                        # if os.path.islink(filepath):
+                        if pathlib.Path(filepath).is_symlink():
                             # NOTE: resolve_link function could print warning if symlink goes outside of extract path dir
                             true_filepath = resolve_link(
                                 filepath, cdir, epath.as_posix(), entry.installPrefix
@@ -748,7 +749,7 @@ def sbom(
                             # Record the symlink name to be added as a file name
                             # Dead links would appear as a file, so need to check the true path to see
                             # if the thing pointed to is a file or a directory
-                            if os.path.isfile(true_filepath):
+                            if pathlib.Path(true_filepath).is_file():
                                 if true_file_sha256 and true_file_sha256 not in filename_symlinks:
                                     filename_symlinks[true_file_sha256] = []
                                 symlink_base_name = pathlib.PurePath(filepath).name
@@ -764,7 +765,7 @@ def sbom(
                                 )
                                 # A dead link shows as a file so need to test if it's a
                                 # file or a directory once rebased
-                                if os.path.isfile(true_filepath):
+                                if pathlib.Path(true_filepath).is_file():
                                     if true_file_sha256 and true_file_sha256 not in file_symlinks:
                                         file_symlinks[true_file_sha256] = []
                                     file_symlinks[true_file_sha256].append(install_filepath)
@@ -774,7 +775,9 @@ def sbom(
                                 # Reflect this symlink in fs_tree immediately
                                 try:
                                     subtype = (
-                                        "file" if os.path.isfile(true_filepath) else "directory"
+                                        "file"
+                                        if pathlib.Path(true_filepath).is_file()
+                                        else "directory"
                                     )
                                     new_sbom.record_symlink(
                                         install_filepath, install_dest, subtype=subtype
@@ -794,7 +797,7 @@ def sbom(
                             # unpacking/installation?
                             continue
 
-                        if os.path.isfile(filepath):
+                        if pathlib.Path(filepath).is_file():
                             if not entry.includeFileExts:
                                 entry.includeFileExts = []
                             if not entry.excludeFileExts:
@@ -809,10 +812,10 @@ def sbom(
                                 )
                                 or (not (omit_unrecognized_types or entry.omitUnrecognizedTypes))
                                 or (
-                                    os.path.splitext(filepath)[1].lower()
+                                    pathlib.Path(filepath).suffix.lower()
                                     in [ext.lower() for ext in entry.includeFileExts]
                                 )
-                            ) and os.path.splitext(filepath)[1].lower() not in [
+                            ) and pathlib.Path(filepath).suffix.lower() not in [
                                 ext.lower() for ext in entry.excludeFileExts
                             ]:
                                 try:
@@ -834,7 +837,7 @@ def sbom(
                                     raise RuntimeError(f"Unable to process: {filepath}") from e
 
                                 entries.append(sw_parent)
-                                entries.extend(sw_children if sw_children else [])
+                                entries.extend(sw_children or [])
                     # ------------------------------------------------------------------------
                     # (Optional - Early Injection) Inject symlink paths into each Software entry so SBOM helper handles them
                     # ------------------------------------------------------------------------
@@ -890,26 +893,30 @@ def sbom(
 
 
 def resolve_link(
-    path: str, cur_dir: str, extract_dir: str, install_prefix: Optional[str] = None
-) -> Union[str, None]:
+    path: str, cur_dir: str, extract_dir: str, install_prefix: str | None = None
+) -> str | None:
     assert cur_dir.startswith(extract_dir)
     # Links seen before
-    seen_paths = set()
+
+    seen_paths: set[pathlib.Path] = set()
     # os.readlink() resolves one step of a symlink
-    current_path = path
+    current_path = pathlib.Path(path)
     steps = 0
-    while os.path.islink(current_path):
+
+    while current_path.is_symlink:
         # If we've already seen this then we're in an infinite loop
         if current_path in seen_paths:
             logger.warning(f"Resolving symlink {path} encountered infinite loop at {current_path}")
             return None
+
         seen_paths.add(current_path)
-        dest = os.readlink(current_path)
+        dest = current_path.readlink()  # pylint: disable=assignment-from-no-return
+
         # Convert relative paths to absolute local paths
-        if not pathlib.Path(dest).is_absolute():
+        if not dest.is_absolute():
             common_path = os.path.commonpath([cur_dir, extract_dir])
-            local_path = os.path.join("/", cur_dir[len(common_path) :])
-            dest = os.path.join(local_path, dest)
+            local_path = pathlib.Path("/") / cur_dir[len(common_path) :]
+            dest = local_path / dest
         # Convert to a canonical form to eliminate .. to prevent reading above extract_dir
         # NOTE: should consider detecting reading above extract_dir and warn the user about incomplete file system structure issues
         dest = os.path.normpath(dest)
@@ -920,9 +927,9 @@ def resolve_link(
             # TODO: Windows support, but how???
             dest = dest[1:]
         # Rebase to get the true location
-        current_path = os.path.join(extract_dir, dest)
-        cur_dir = os.path.dirname(current_path)
-    if not os.path.exists(current_path):
+        current_path = pathlib.Path(extract_dir) / dest
+        cur_dir = current_path.parent
+    if not current_path.exists():
         logger.warning(f"Resolved symlink {path} to a path that doesn't exist {current_path}")
         return None
     return os.path.normpath(current_path)

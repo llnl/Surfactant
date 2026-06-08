@@ -10,7 +10,7 @@ import uuid as uuid_module
 from collections import deque
 from dataclasses import asdict, dataclass, field, fields
 from pathlib import PurePosixPath
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any
 
 import networkx as nx
 from dataclasses_json import config, dataclass_json
@@ -83,11 +83,11 @@ def _serialize_for_schema(value):
 
 
 def _normalize_structured_list(
-    value: Optional[List[Any]],
+    value: list[Any] | None,
     entry_type: type,
     *,
     field_name: str,
-) -> Optional[List[Any]]:
+) -> list[Any] | None:
     if value is None:
         return None
 
@@ -96,13 +96,12 @@ def _normalize_structured_list(
 
     normalized = []
     for item in value:
-        if isinstance(item, dict):
-            item = entry_type(**item)
+        element = entry_type(**item) if isinstance(item, dict) else item
 
-        if not isinstance(item, entry_type):
+        if not isinstance(element, entry_type):
             raise TypeError(f"All items in {field_name} must be {entry_type.__name__} objects")
 
-        normalized.append(item)
+        normalized.append(element)
 
     return normalized
 
@@ -171,18 +170,18 @@ class SBOM:
     bomFormat: str = "cytrics"
     bomDescription: str = ""
     specVersion: str = "1.0.1"
-    tools: Optional[List[Tool]] = None
-    authors: Optional[List[Author]] = None
-    hardware: List[Hardware] = field(default_factory=list)
-    software: List[Software] = field(default_factory=list)
+    tools: list[Tool] | None = None
+    authors: list[Author] | None = None
+    hardware: list[Hardware] = field(default_factory=list)
+    software: list[Software] = field(default_factory=list)
     # relationships: Set[Relationship] = field(default_factory=set)  # (removed relationships field. Graph is now the single source of truth)
-    _loaded_relationships: List[Relationship] = (
+    _loaded_relationships: list[Relationship] = (
         field(  # this metadata will capture the old array on load (but won't re-emit it)
             default_factory=list,
             metadata=config(field_name="relationships", exclude=lambda _: True),
         )
     )
-    software_lookup_by_sha256: Dict = field(default_factory=dict)
+    software_lookup_by_sha256: dict = field(default_factory=dict)
     fs_tree: nx.DiGraph = field(
         init=False,
         repr=False,
@@ -195,7 +194,7 @@ class SBOM:
         metadata=config(exclude=lambda _: True),
     )  # Add a NetworkX directed graph for quick traversal/query
 
-    _pending_dir_links: List[Tuple[str, str]] = field(
+    _pending_dir_links: list[tuple[str, str]] = field(
         default_factory=list,
         init=False,
         repr=False,
@@ -205,7 +204,7 @@ class SBOM:
     # Deferred file-level symlinks (link_path, target_path, subtype)
     # Queues symlink edges discovered before target nodes exist in fs_tree.
     # Flushed later by expand_pending_file_symlinks() to ensure no links are lost.
-    _pending_file_links: List[Tuple[str, str, Optional[str]]] = field(
+    _pending_file_links: list[tuple[str, str, str | None]] = field(
         default_factory=list,
         init=False,
         repr=False,
@@ -213,7 +212,7 @@ class SBOM:
     )
 
     @classmethod
-    def _from_raw_dict(cls, raw: Dict[str, Any]) -> "SBOM":
+    def _from_raw_dict(cls, raw: dict[str, Any]) -> SBOM:
         """Rehydrate an SBOM from a raw CyTRICS document dict.
 
         This is the explicit raw-document construction path used by
@@ -276,7 +275,7 @@ class SBOM:
             normalized_tools = []
             for item in self.tools:
                 if isinstance(item, dict):
-                    item = Tool(**item)
+                    item = Tool(**item)  # noqa: PLW2901
                 normalized_tools.append(item)
             self.tools = normalized_tools
 
@@ -284,7 +283,7 @@ class SBOM:
             normalized_authors = []
             for item in self.authors:
                 if isinstance(item, dict):
-                    item = Author(**item)
+                    item = Author(**item)  # noqa: PLW2901
                 normalized_authors.append(item)
             self.authors = normalized_authors
 
@@ -304,7 +303,7 @@ class SBOM:
         # Rebuild symlink edges from metadata (needed for deserialized SBOMs)
         self._rebuild_fs_tree_from_metadata()
 
-    def _add_software_to_fs_tree(self, sw: "Software") -> None:
+    def _add_software_to_fs_tree(self, sw: Software) -> None:
         """
         Adds the install paths of a Software object to the SBOM's filesystem tree (fs_tree).
 
@@ -442,7 +441,7 @@ class SBOM:
         path: str,
         *,
         case_insensitive: bool = False,
-    ) -> Optional[Software]:
+    ) -> Software | None:
         """
         Retrieve a Software entry by normalized install path, using the fs_tree (with optional
         case-insensitive fallback and symlink traversal).
@@ -552,7 +551,7 @@ class SBOM:
         # No match found after traversal
         return None
 
-    def get_symlink_sources_for_path(self, path: str) -> List[str]:
+    def get_symlink_sources_for_path(self, path: str) -> list[str]:
         """
         Retrieve all symlink paths (direct and transitive) that point to the given target path.
 
@@ -594,8 +593,8 @@ class SBOM:
             logger.debug(f"[fs_tree] Target path not found in graph: {norm_target}")
             return []
 
-        results: Set[str] = set()
-        visited: Set[str] = set()
+        results: set[str] = set()
+        visited: set[str] = set()
         queue: deque[str] = deque([norm_target])
 
         logger.debug(f"[fs_tree] Starting reverse symlink traversal from: {norm_target}")
@@ -660,7 +659,7 @@ class SBOM:
         xUUID: str,
         yUUID: str,
         relationship: str,
-        comments: Optional[List[CommentEntry]] = None,
+        comments: list[CommentEntry] | None = None,
     ) -> Relationship:
         # Construct first so callers still receive a Relationship object.
         rel = Relationship(
@@ -702,9 +701,9 @@ class SBOM:
 
     def has_relationship(
         self,
-        xUUID: Optional[str] = None,
-        yUUID: Optional[str] = None,
-        relationship: Optional[str] = None,
+        xUUID: str | None = None,
+        yUUID: str | None = None,
+        relationship: str | None = None,
     ) -> bool:
         """
         Return True if there exists at least one edge u->v in the graph
@@ -725,7 +724,7 @@ class SBOM:
             return True
         return False
 
-    def find_software(self, sha256: Optional[str]) -> Optional[Software]:
+    def find_software(self, sha256: str | None) -> Software | None:
         if sha256 in self.software_lookup_by_sha256:
             return self.software_lookup_by_sha256[sha256]
         return None
@@ -742,7 +741,7 @@ class SBOM:
         self._add_software_to_fs_tree(sw)
 
     def _refresh_merged_software_state(
-        self, sw: Software, *, previous_sha256: Optional[str] = None
+        self, sw: Software, *, previous_sha256: str | None = None
     ) -> None:
         """
         Refresh SBOM-level indexes and derived structures after Software.merge()
@@ -761,7 +760,7 @@ class SBOM:
         self._add_software_to_fs_tree(sw)
 
     def _add_symlink_edge(
-        self, src: str, dst: str, *, subtype: Optional[str] = None, log_prefix: str = "[fs_tree]"
+        self, src: str, dst: str, *, subtype: str | None = None, log_prefix: str = "[fs_tree]"
     ) -> None:
         """
         Internal helper to safely add a symlink edge to both fs_tree and graph.
@@ -796,7 +795,7 @@ class SBOM:
             logger.debug(f"[graph] Added symlink edge: {src} -> {dst}")
 
     def _record_symlink(
-        self, link_path: str, target_path: str, *, subtype: Optional[str] = None
+        self, link_path: str, target_path: str, *, subtype: str | None = None
     ) -> None:
         """
         Record a filesystem symlink in both the SBOM's relationship graph and its fs_tree.
@@ -887,7 +886,7 @@ class SBOM:
                 )
 
     def record_symlink(
-        self, link_path: str, target_path: str, *, subtype: Optional[str] = None
+        self, link_path: str, target_path: str, *, subtype: str | None = None
     ) -> None:
         """Public, stable API to record a filesystem symlink in the SBOM graphs.
 
@@ -993,7 +992,7 @@ class SBOM:
         return equivalents
 
     def add_software_entries(
-        self, entries: Optional[List[Software]], parent_entry: Optional[Software] = None
+        self, entries: list[Software] | None, parent_entry: Software | None = None
     ):
         """
         Add software entries to the SBOM graph, merging duplicates, preserving existing edges,
@@ -1121,7 +1120,7 @@ class SBOM:
             # ------------------------------------------------------------------
             # Collect immediate child nodes (depth-1 only, avoid recursive nesting)
             # ------------------------------------------------------------------
-            immediate_children: List[str] = []
+            immediate_children: list[str] = []
             for child in list(self.fs_tree.nodes):
                 if child.startswith(target_prefix) and child != target_node:
                     tail = child[len(target_prefix) :]
@@ -1310,24 +1309,24 @@ class SBOM:
     def create_software(
         self,
         *,  # all arguments are keyword-only
-        softwareType: Optional[List[str]] = None,
-        name: Optional[List[NameEntry]] = None,
-        size: Optional[int] = None,
-        sha1: Optional[str] = None,
-        sha256: Optional[str] = None,
-        md5: Optional[str] = None,
-        notHashable: Optional[bool] = None,
-        fileName: Optional[List[str]] = None,
-        installPath: Optional[List[str]] = None,
-        containerPath: Optional[List[str]] = None,
-        captureTime: Optional[str] = None,
-        version: Optional[str] = None,
-        vendor: Optional[List[str]] = None,
-        description: Optional[str] = None,
-        relationshipAssertion: Optional[str] = None,
-        comments: Optional[List[CommentEntry]] = None,
-        metadata: Optional[List[object]] = None,
-        supplementaryFiles: Optional[List[File]] = None,
+        softwareType: list[str] | None = None,
+        name: list[NameEntry] | None = None,
+        size: int | None = None,
+        sha1: str | None = None,
+        sha256: str | None = None,
+        md5: str | None = None,
+        notHashable: bool | None = None,
+        fileName: list[str] | None = None,
+        installPath: list[str] | None = None,
+        containerPath: list[str] | None = None,
+        captureTime: str | None = None,
+        version: str | None = None,
+        vendor: list[str] | None = None,
+        description: str | None = None,
+        relationshipAssertion: str | None = None,
+        comments: list[CommentEntry] | None = None,
+        metadata: list[object] | None = None,
+        supplementaryFiles: list[File] | None = None,
     ) -> Software:
         sw = Software(
             softwareType=softwareType,
@@ -1354,7 +1353,7 @@ class SBOM:
 
     def merge(self, sbom_m: SBOM):
         # merged/old to new UUID map
-        uuid_updates: Dict[str, str] = {}
+        uuid_updates: dict[str, str] = {}
 
         # 1) Merge software
         if sbom_m.software:
@@ -1468,11 +1467,11 @@ class SBOM:
 
     def _find_software_entry(
         self,
-        uuid: Optional[str] = None,
-        sha256: Optional[str] = None,
-        md5: Optional[str] = None,
-        sha1: Optional[str] = None,
-    ) -> Optional[Software]:
+        uuid: str | None = None,
+        sha256: str | None = None,
+        md5: str | None = None,
+        sha1: str | None = None,
+    ) -> Software | None:
         """Merge helper function to find and return
         the matching software entry in the provided sbom.
 
@@ -1490,29 +1489,25 @@ class SBOM:
             # If we have hashes to check
             if sha256 or md5 or sha1:
                 # Check if we have both sides of the comparison, then compare. At least one hash must match
-                if sw.sha256 and sha256:
-                    if sw.sha256 == sha256:
-                        match = True
-                if sw.md5 and md5:
-                    if sw.md5 == md5:
-                        match = True
-                if sw.sha1 and sha1:
-                    if sw.sha1 == sha1:
-                        match = True
-            # If no hashes to check, match by UUID
-            else:
-                if sw.UUID == uuid:
+                if sw.sha256 and sha256 and sw.sha256 == sha256:
                     match = True
+                if sw.md5 and md5 and sw.md5 == md5:
+                    match = True
+                if sw.sha1 and sha1 and sw.sha1 == sha1:
+                    match = True
+            # If no hashes to check, match by UUID
+            elif sw.UUID == uuid:
+                match = True
             if match:
                 return sw
         return None
 
     def _find_relationship_entry(
         self,
-        xUUID: Optional[str] = None,
-        yUUID: Optional[str] = None,
-        relationship: Optional[str] = None,
-    ) -> Optional[Relationship]:
+        xUUID: str | None = None,
+        yUUID: str | None = None,
+        relationship: str | None = None,
+    ) -> Relationship | None:
         """Merge helper function to find and return
         the matching relationship entry in the provided sbom.
 
@@ -1558,7 +1553,7 @@ class SBOM:
             return False
         return str(u_test) == u
 
-    def get_children(self, xUUID: str, rel_type: Optional[str] = None) -> List[str]:
+    def get_children(self, xUUID: str, rel_type: str | None = None) -> list[str]:
         """
         Return all v such that there is an edge xUUID -> v,
         optionally filtered by relationship key.
@@ -1569,7 +1564,7 @@ class SBOM:
                 children.append(v)
         return children
 
-    def get_parents(self, yUUID: str, rel_type: Optional[str] = None) -> List[str]:
+    def get_parents(self, yUUID: str, rel_type: str | None = None) -> list[str]:
         """
         Return all u such that there is an edge u -> yUUID,
         optionally filtered by relationship key.
@@ -1581,14 +1576,14 @@ class SBOM:
         return parents
 
     @classmethod
-    def from_dict_override(cls, kvs: Dict[str, Any]) -> "SBOM":
+    def from_dict_override(cls, kvs: dict[str, Any]) -> SBOM:
         if not isinstance(kvs, dict):
             raise TypeError("SBOM.from_dict() requires a dict input")
 
         return cls._from_raw_dict(kvs)
 
     @classmethod
-    def from_json_override(cls, s: str, **kwargs) -> "SBOM":
+    def from_json_override(cls, s: str, **kwargs) -> SBOM:
         data = json.loads(s, **kwargs)
         return cls.from_dict(data)
 
