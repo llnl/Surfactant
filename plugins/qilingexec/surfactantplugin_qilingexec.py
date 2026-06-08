@@ -199,7 +199,7 @@ def extract_file_info(  # pylint: disable=too-many-positional-arguments
         # Emulate executable
         try:
             ql_version.run(timeout=timeout)
-        except (UcError) as error:
+        except UcError as error:
             # This error occurs even during normal emulation
             logger.error(f"qilingexec ran into a(n) {error} exception when trying to run {arg}")
         except (QlErrorBase, NotImplementedError, AttributeError) as error:
@@ -230,14 +230,14 @@ def extract_file_info(  # pylint: disable=too-many-positional-arguments
         archtype=arch,
         ostype=os,
         verbose=QL_VERBOSE.OFF,
-        multithread=True
+        multithread=True,
     )
     ql_help.os.stdout = out_help_fd
     ql_help.os.stderr = err_help_fd
     # Emulate executable
     try:
         ql_help.run(timeout=timeout)
-    except (UcError) as error:
+    except UcError as error:
         # This error occurs even during normal emulation
         logger.error(f"qilingexec ran into a(n) {error} exception when trying to run {arg}")
     except (QlErrorBase, NotImplementedError, AttributeError) as error:
