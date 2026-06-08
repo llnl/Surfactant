@@ -195,10 +195,10 @@ def extract_file_info(  # pylint: disable=too-many-positional-arguments
         # Emulate executable
         try:
             ql_version.run(timeout=timeout)
-        except (UcError, AttributeError) as error:
+        except (UcError) as error:
             # This error occurs even during normal emulation
             logger.error(f"qilingexec ran into a(n) {error} exception when trying to run {arg}")
-        except QlErrorBase as error:
+        except (QlErrorBase, NotImplementedError, AttributeError) as error:
             logger.error(f"qilingexec ran into a(n) {error} exception when trying to run {arg}")
             return None
         result = parse_stdout(fd_version, regex)
@@ -224,16 +224,17 @@ def extract_file_info(  # pylint: disable=too-many-positional-arguments
         archtype=arch,
         ostype=os,
         verbose=QL_VERBOSE.OFF,
+        multithread=True
     )
     ql_help.os.stdout = fd_help
     # Emulate executable
     try:
         ql_help.run(timeout=timeout)
-    except UcError as error:
+    except (UcError) as error:
         # This error occurs even during normal emulation
-        logger.warning(f"qilingexec ran into a(n) {error} exception when trying to run {args_help}")
-    except QlErrorBase as error:
-        logger.warning(f"qilingexec ran into a(n) {error} exception when trying to run {args_help}")
-        return file_details
+        logger.error(f"qilingexec ran into a(n) {error} exception when trying to run {arg}")
+    except (QlErrorBase, NotImplementedError, AttributeError) as error:
+        logger.error(f"qilingexec ran into a(n) {error} exception when trying to run {arg}")
+        return None
     file_details["qilingexec"]["help_stdout"] = handle_help(fd_help)
     return file_details
