@@ -11,6 +11,7 @@
 import argparse
 import sys
 from contextlib import ExitStack
+from pathlib import Path
 
 import networkx as nx
 from loguru import logger
@@ -51,10 +52,10 @@ def main():
         sbom_outfile = (
             sys.stdout
             if args.sbom_outfile == "-"
-            else stack.enter_context(open(args.sbom_outfile, "w", encoding="utf-8"))
+            else stack.enter_context(Path(args.sbom_outfile).open("w", encoding="utf-8"))
         )
         input_sboms = [
-            sys.stdin if path == "-" else stack.enter_context(open(path, "r", encoding="utf-8"))
+            sys.stdin if path == "-" else stack.enter_context(Path(path).open(encoding="utf-8"))
             for path in args.input_sbom
         ]
 

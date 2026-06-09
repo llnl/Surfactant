@@ -4,7 +4,6 @@
 # SPDX-License-Identifier: MIT
 import uuid
 from dataclasses import dataclass
-from typing import List, Optional
 
 from ._comment import CommentEntry
 
@@ -23,7 +22,7 @@ class Relationship:
     xUUID: str
     yUUID: str
     relationship: str
-    comments: Optional[List[CommentEntry]] = None
+    comments: list[CommentEntry] | None = None
 
     def validate(self) -> None:
         validate_uuid(self.xUUID)

@@ -4,7 +4,6 @@
 # SPDX-License-Identifier: MIT
 import pathlib
 from collections.abc import Iterable
-from typing import List, Optional
 
 from loguru import logger
 
@@ -59,9 +58,7 @@ def has_required_fields(metadata) -> bool:
 
 
 @surfactant.plugin.hookimpl
-def establish_relationships(
-    sbom: SBOM, software: Software, metadata
-) -> Optional[List[Relationship]]:
+def establish_relationships(sbom: SBOM, software: Software, metadata) -> list[Relationship] | None:
     """
     Establish `Uses` relationships between a software item and its ELF-declared
     dependencies.
@@ -115,7 +112,7 @@ def establish_relationships(
     if not has_required_fields(metadata):
         return None
 
-    relationships: List[Relationship] = []
+    relationships: list[Relationship] = []
     dependent_uuid = software.UUID
     default_search_paths = generate_search_paths(software, metadata)
     logger.debug(f"[ELF][search] default paths: {[p.as_posix() for p in default_search_paths]}")
@@ -140,7 +137,7 @@ def establish_relationships(
     for dep in metadata["elfDependencies"]:
         dep_str = dep
         fpaths = []
-        dep = posix_normpath(dep_str)
+        dep = posix_normpath(dep_str)  # noqa: PLW2901
         fname = dep.name  # e.g., 'libfoo.so'
 
         # Determine all candidate filesystem paths where this dependency *might*
@@ -171,12 +168,11 @@ def establish_relationships(
         if "/" in dep_str:
             if dep.is_absolute():
                 fpaths = [dep.as_posix()]
-            else:
-                if isinstance(software.installPath, Iterable):
-                    for ipath in software.installPath:
-                        ipath_posix = posix_normpath(ipath)
-                        combined = posix_normpath(str(ipath_posix.parent.joinpath(dep))).as_posix()
-                        fpaths.append(combined)
+            elif isinstance(software.installPath, Iterable):
+                for ipath in software.installPath:
+                    ipath_posix = posix_normpath(ipath)
+                    combined = posix_normpath(str(ipath_posix.parent.joinpath(dep))).as_posix()
+                    fpaths.append(combined)
 
         # Case 2: Bare filename -- use runpaths and fallback paths
         else:
@@ -233,6 +229,7 @@ def establish_relationships(
 
                 # Check for exact installPath equivalence with any computed dep path
                 for fp in fpaths:
+                    # ruff: disable[SIM102] Simplify IF
                     if isinstance(item.installPath, Iterable) and fp in (item.installPath or []):
                         # software matching requirements to be the loaded dependency was found
                         if item.UUID != software.UUID:
@@ -260,7 +257,7 @@ def establish_relationships(
     return relationships
 
 
-def generate_search_paths(sw: Software, md) -> List[pathlib.PurePosixPath]:
+def generate_search_paths(sw: Software, md) -> list[pathlib.PurePosixPath]:
     """
     Generates a list of search paths for locating runtime libraries.
 
@@ -311,7 +308,7 @@ def generate_search_paths(sw: Software, md) -> List[pathlib.PurePosixPath]:
     return [p if isinstance(p, pathlib.PurePosixPath) else pathlib.PurePosixPath(p) for p in paths]
 
 
-def generate_runpaths(sw: Software, md) -> List[pathlib.PurePosixPath]:
+def generate_runpaths(sw: Software, md) -> list[pathlib.PurePosixPath]:
     """
     Generate a list of resolved runpaths based on the metadata from
     an ELF file and the provided software object.
@@ -366,9 +363,9 @@ def generate_runpaths(sw: Software, md) -> List[pathlib.PurePosixPath]:
     rp_to_use = []
     rpath = None
     runpath = None
-    if "elfRpath" in md and md["elfRpath"]:
+    if md.get("elfRpath"):
         rpath = md["elfRpath"]
-    if "elfRunpath" in md and md["elfRunpath"]:
+    if md.get("elfRunpath"):
         runpath = md["elfRunpath"]
 
     # 1. Search using directories in DT_RPATH if present and no DT_RUNPATH exists (use of DT_RPATH is deprecated)
@@ -418,7 +415,7 @@ def replace_dst(origstr, dvar, newval) -> str:
     return origstr.replace("$" + dvar, newval).replace("${" + dvar + "}", newval)
 
 
-def substitute_all_dst(sw: Software, md, path) -> List[pathlib.PurePosixPath]:
+def substitute_all_dst(sw: Software, md, path) -> list[pathlib.PurePosixPath]:
     """
     Expands dynamic string tokens (DSTs) in ELF search paths like $ORIGIN, $LIB, $PLATFORM.
 
@@ -465,7 +462,7 @@ def substitute_all_dst(sw: Software, md, path) -> List[pathlib.PurePosixPath]:
     Returns:
         List[pathlib.PurePosixPath]: All normalized, substituted search paths.
     """
-    pathlist: List[pathlib.PurePosixPath] = []
+    pathlist: list[pathlib.PurePosixPath] = []
 
     has_origin = "$ORIGIN" in path or "${ORIGIN}" in path
     has_lib = "$LIB" in path or "${LIB}" in path

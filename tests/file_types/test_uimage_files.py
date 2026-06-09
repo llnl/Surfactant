@@ -2,7 +2,6 @@
 # See the top-level LICENSE file for details.
 #
 # SPDX-License-Identifier: MIT
-import os
 import pathlib
 
 from surfactant.filetypeid.id_magic import identify_file_type
@@ -32,9 +31,9 @@ _uimage_files = {
 
 def test_uimage_files():
     base_path = pathlib.Path(__file__).parent.absolute()
-    data_dir = os.path.join(base_path, "..", "data", "uimage_files")
+    data_dir = base_path.parent / "data" / "uimage_files"
     for file_name, expected_values in _uimage_files.items():
-        file_path = os.path.join(data_dir, file_name)
+        file_path = data_dir / file_name
         file_type = identify_file_type(file_path)
         assert file_type == ["UIMAGE"]
         sw_field_hints = []
@@ -57,7 +56,7 @@ def test_uimage_files():
 
 def test_bad_uimage_file():
     base_path = pathlib.Path(__file__).parent.absolute()
-    file_path = os.path.join(base_path, "..", "data", "uimage_files", "bad1.img")
+    file_path = base_path.parent / "data" / "uimage_files" / "bad1.img"
     file_type = identify_file_type(file_path)
     assert file_type == ["UIMAGE"]
     sw_field_hints = []

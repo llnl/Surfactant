@@ -14,9 +14,8 @@ from surfactant.sbomtypes import SBOM, Software
 
 @pytest.fixture(name="test_sbom")
 def fixture_test_sbom():
-    with open(pathlib.Path(__file__).parent / "../data/sample_sboms/helics_sbom.json", "r") as f:
-        sbom = SBOM.from_json(f.read())
-        return sbom
+    with (pathlib.Path(__file__).parent / "../data/sample_sboms/helics_sbom.json").open() as f:
+        return SBOM.from_json(f.read())
 
 
 def _compare_sboms(one: SBOM, two: SBOM) -> bool:

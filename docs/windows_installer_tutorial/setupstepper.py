@@ -1,10 +1,10 @@
 """setupstepper.py"""
 
+import subprocess
 from json import loads
 from logging import DEBUG, basicConfig, exception, info
 from ntpath import basename
-from os import listdir, remove, system
-from os.path import exists
+from pathlib import Path
 from re import sub
 from shutil import copy, copy2
 from time import sleep
@@ -290,26 +290,26 @@ def handle_transfers() -> None:
     """
 
     # Copy each file into the shared folder
-    with open(f"{DRIVE}/{FILE_LIST}", "r", encoding="utf-8") as f_handle:
-        for line in f_handle.readlines():
+    with Path(f"{DRIVE}/{FILE_LIST}").open(encoding="utf-8") as f_handle:
+        for line in f_handle:
             # The name for each file is changed to a variant of its path
             file = line.strip()
             newname = file[3:].replace("/", "!SEP!")
 
             try:
                 copy2(file, f"{DRIVE}/{newname}")
-            except IOError as err:
+            except OSError as err:
                 exception(err)
 
     # Signal to the host that each file has finished copying
-    with open(FILE_SIGNAL, "w", encoding="utf-8") as f_handle:
+    with Path(FILE_SIGNAL).open("w", encoding="utf-8") as f_handle:
         f_handle.write("done")
 
     copy(FILE_SIGNAL, f"{DRIVE}/{FILE_SIGNAL}")
-    remove(FILE_SIGNAL)
+    Path(FILE_SIGNAL).unlink()
 
     # "Sleep" until the host has finished processing files
-    while exists(f"{DRIVE}/{FILE_SIGNAL}"):
+    while Path(f"{DRIVE}/{FILE_SIGNAL}").exists():
         sleep(0.5)
 
 
@@ -345,16 +345,16 @@ def handle_file(fname: str) -> None:
 
             # Stop capturing output after a bit
             sleep(10)
-            system("taskkill /f /im minifilter.exe")
+            subprocess.run(["taskkill", "/f", "/im", "minifilter.exe"], check=False)
 
             # Move results into the shared folder and cleanup
-            remove(fname)
+            Path(fname).unlink()
             sleep(5)
             copy(UNFILTERED, f"{DRIVE}/{UNFILTERED}")
-            remove(UNFILTERED)
+            Path(UNFILTERED).unlink()
 
             # Wait for results.txt to transfer
-            while exists(f"{DRIVE}/{UNFILTERED}"):
+            while Path(f"{DRIVE}/{UNFILTERED}").exists():
                 sleep(0.5)
 
             info(f"{UNFILTERED} file move complete")
@@ -367,13 +367,13 @@ def handle_file(fname: str) -> None:
     # Parse txt into dict as json
     try:
         info("Processing text file as args...")
-        with open(fname, "r", encoding="utf-8") as f_handle:
+        with Path(fname).open(encoding="utf-8") as f_handle:
             argstr = f_handle.readlines()[0]
             arguments.update(loads(argstr))
 
         # Remove file from folder
-        remove(fname)
-    except IOError as err:
+        Path(fname).unlink()
+    except OSError as err:
         exception(err)
         sleep(0.5)
 
@@ -392,13 +392,13 @@ def main() -> None:
 
     while True:
         # Retry if the shared folder doesn't exist
-        if not exists(f"{DRIVE}/"):
+        if not Path(f"{DRIVE}/").exists():
             continue
 
         try:
             # Check for any files in the shared folder
-            files = listdir(f"{DRIVE}/")
 
+            files = list(Path(f"{DRIVE}/").iterdir())
             if len(files) == 0:
                 continue
 

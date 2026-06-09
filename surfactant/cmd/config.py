@@ -1,4 +1,4 @@
-from typing import Any, List, Optional
+from typing import Any
 
 import click
 
@@ -8,7 +8,7 @@ from surfactant.configmanager import ConfigManager
 @click.command("config")
 @click.argument("key", required=True)
 @click.argument("values", nargs=-1)
-def config(key: str, values: Optional[List[str]]):
+def config(key: str, values: list[str] | None):
     """Get or set a configuration value.
 
     If only KEY is provided, the current value is displayed.
@@ -31,7 +31,7 @@ def config(key: str, values: Optional[List[str]]):
     else:
         # Set the configuration value
         # Convert 'true' and 'false' strings to boolean
-        converted_values: List[Any] = []
+        converted_values: list[Any] = []
         for value in values:
             if value.lower() == "true":
                 converted_values.append(True)

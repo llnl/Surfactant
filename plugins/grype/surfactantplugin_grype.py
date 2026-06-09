@@ -5,7 +5,7 @@
 import gzip
 import subprocess
 import tempfile
-from typing import List, Optional
+from pathlib import Path
 
 from loguru import logger
 
@@ -76,8 +76,8 @@ def run_grype(filename: str) -> object:
 
 @surfactant.plugin.hookimpl
 def extract_file_info(
-    sbom: SBOM, software: Software, filename: str, filetype: List[str], children: list
-) -> Optional[List[Software]]:
+    sbom: SBOM, software: Software, filename: str, filetype: list[str], children: list
+) -> list[Software] | None:
     if disable_plugin:
         return None
 
@@ -87,7 +87,7 @@ def extract_file_info(
     try:
         if "DOCKER_GZIP" in filetype:
             logger.debug(f"Decompressing gzip file: {filename}")
-            with open(filename, "rb") as gzip_in:
+            with Path(filename).open("rb") as gzip_in:
                 gzip_data = gzip_in.read()
             with tempfile.NamedTemporaryFile() as gzip_out:
                 gzip_out.write(gzip.decompress(gzip_data))

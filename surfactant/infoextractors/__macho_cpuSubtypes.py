@@ -210,8 +210,7 @@ def get_cpu_subtype_name(cpuType: CPU_Type, cpuSubtype) -> str:
         return "UNKNOWN"
 
     try:
-        subtype_name = subtype_enum(cpuSubtype).name
-        return subtype_name
+        return subtype_enum(cpuSubtype).name
     except ValueError:
         return "UNKNOWN"
 

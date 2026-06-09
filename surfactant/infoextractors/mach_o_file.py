@@ -12,15 +12,14 @@ Config Options:
     include_signature_content(bool): Include signature content for Mach-O files.
 """
 
+import contextlib
 from sys import modules
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from loguru import logger
 
-try:
+with contextlib.suppress(ModuleNotFoundError):
     import lief
-except ModuleNotFoundError:
-    pass
 
 import surfactant.plugin
 from surfactant.configmanager import ConfigManager
@@ -33,16 +32,13 @@ __include_bindings_exports = __config_manager.get("macho", "include_bindings_exp
 __include_signature_content = __config_manager.get("macho", "include_signature_content", False)
 
 
-def supports_file(filetype: List[str]) -> bool:
+def supports_file(filetype: list[str]) -> bool:
     supported_types = ("MACHOFAT", "MACHOFAT64", "MACHO32", "MACHO64")
-    for ft in filetype:
-        if ft in supported_types:
-            return True
-    return False
+    return any(ft in supported_types for ft in filetype)
 
 
 @surfactant.plugin.hookimpl
-def extract_file_info(sbom: SBOM, software: Software, filename: str, filetype: List[str]) -> object:
+def extract_file_info(sbom: SBOM, software: Software, filename: str, filetype: list[str]) -> object:
     if not supports_file(filetype):
         return None
     if "lief" not in modules:
@@ -57,7 +53,7 @@ def extract_mach_o_info(filename: str) -> object:
     except OSError:
         return {}
 
-    file_details: Dict[str, Any] = {"OS": "MacOS", "numBinaries": binaries.size, "binaries": []}
+    file_details: dict[str, Any] = {"OS": "MacOS", "numBinaries": binaries.size, "binaries": []}
 
     # Iterate over all binaries in the FAT binary
     for binary in binaries:
@@ -205,5 +201,5 @@ def get_bindings(bindings):
 
 
 @surfactant.plugin.hookimpl
-def settings_name() -> Optional[str]:
+def settings_name() -> str | None:
     return "macho"

@@ -1,5 +1,3 @@
-from typing import Optional
-
 import numbat
 
 import surfactant.plugin
@@ -39,5 +37,5 @@ def write_sbom(sbom: SBOM, outfile) -> None:
 
 
 @surfactant.plugin.hookimpl
-def short_name() -> Optional[str]:
+def short_name() -> str | None:
     return "sourcetrail_db"

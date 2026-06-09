@@ -8,7 +8,7 @@
 # https://github.com/u-boot/u-boot/blob/master/boot/image.c
 
 import struct
-from typing import List, Tuple
+from pathlib import Path
 
 from loguru import logger
 
@@ -170,7 +170,7 @@ def _parse_uimage_header(fname: str) -> dict:
     # struct layout (big-endian):
     # magic(4), header_crc(4), timestamp(4), size(4), load(4), ep(4), data_crc(4),
     # os(1), arch(1), im_type(1), comp_type(1), name(32)
-    with open(fname, "rb") as f:
+    with Path(fname).open("rb") as f:
         data = f.read(64)
     try:
         (
@@ -218,7 +218,7 @@ def _parse_uimage_header(fname: str) -> dict:
     }
 
 
-def supports_file(filetype: List[str]) -> bool:
+def supports_file(filetype: list[str]) -> bool:
     return "UIMAGE" in filetype
 
 
@@ -227,8 +227,8 @@ def extract_file_info(
     sbom: SBOM,
     software: Software,
     filename: str,
-    filetype: List[str],
-    software_field_hints: List[Tuple[str, object, int]],
+    filetype: list[str],
+    software_field_hints: list[tuple[str, object, int]],
 ) -> object:
     if not supports_file(filetype):
         return None

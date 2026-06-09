@@ -4,7 +4,7 @@
 # SPDX-License-Identifier: MIT
 from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Any, Optional
+from typing import Any
 
 from ..utils.capture_time import validate_capture_time
 
@@ -12,9 +12,9 @@ from ..utils.capture_time import validate_capture_time
 @dataclass
 class CommentEntry:
     comment: str
-    fieldName: Optional[str] = None
-    author: Optional[str] = None
-    timestamp: Optional[str] = None
+    fieldName: str | None = None
+    author: str | None = None
+    timestamp: str | None = None
 
     def validate(self) -> None:
         """Validate this comment entry against the CyTRICS field constraints."""

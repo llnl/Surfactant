@@ -4,12 +4,13 @@
 # SPDX-License-Identifier: MIT
 
 import json
+from pathlib import Path
 
 from surfactant.sbomtypes import SBOM
 
 
 def test_generate_result_no_install_prefix(output_path: str, extract_path: str):
-    with open(output_path) as f:
+    with Path(output_path).open() as f:
         generated_sbom = json.load(f)
 
     assert len(generated_sbom["software"]) == 2
