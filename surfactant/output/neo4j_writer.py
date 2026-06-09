@@ -30,9 +30,10 @@ import hashlib
 import json
 import os
 import re
+from collections.abc import Iterable, Mapping
 from dataclasses import asdict, is_dataclass
 from pathlib import PurePosixPath
-from typing import Any, Dict, Iterable, List, Mapping, Optional, Tuple
+from typing import Any
 
 from loguru import logger
 
@@ -52,7 +53,7 @@ _SAFE_REL_TYPE_RE = re.compile(r"[^A-Za-z0-9_]")
 
 
 @surfactant.plugin.hookimpl
-def short_name() -> Optional[str]:
+def short_name() -> str | None:
     return "neo4j"
 
 
@@ -66,7 +67,9 @@ def write_sbom(sbom: SBOM, outfile) -> None:
     logger.info("Neo4j writer selected")
 
     if GraphDatabase is None:
-        raise RuntimeError("Install the Neo4j Python driver first: pip install neo4j") from _NEO4J_IMPORT_ERROR
+        raise RuntimeError(
+            "Install the Neo4j Python driver first: pip install neo4j"
+        ) from _NEO4J_IMPORT_ERROR
 
     uri = os.environ.get("NEO4J_URI")
     user = os.environ.get("NEO4J_USER", "neo4j")
@@ -92,7 +95,9 @@ def write_sbom(sbom: SBOM, outfile) -> None:
     if password is None:
         raise RuntimeError("NEO4J_PASSWORD is required")
 
-    logger.info(f"Connecting to Neo4j uri={uri} database={database} user={user} batch_size={batch_size}")
+    logger.info(
+        f"Connecting to Neo4j uri={uri} database={database} user={user} batch_size={batch_size}"
+    )
 
     with GraphDatabase.driver(uri, auth=(user, password)) as driver:
         logger.debug("Verifying Neo4j connectivity")
@@ -115,7 +120,9 @@ def write_sbom(sbom: SBOM, outfile) -> None:
     logger.info(f"Wrote Neo4j import summary to {getattr(outfile, 'name', '<stream>')}")
 
 
-def export_sbom_to_neo4j(sbom: SBOM, *, driver, database: str = "neo4j", batch_size: int = 1000) -> Dict[str, int]:
+def export_sbom_to_neo4j(
+    sbom: SBOM, *, driver, database: str = "neo4j", batch_size: int = 1000
+) -> dict[str, int]:
     """Export sbom.graph and sbom.fs_tree to Neo4j.
 
     Model:
@@ -164,8 +171,7 @@ def export_sbom_to_neo4j(sbom: SBOM, *, driver, database: str = "neo4j", batch_s
             logger.info(f"Importing {len(rows)} Neo4j nodes with label {label}")
             for batch_number, chunk in enumerate(_chunks(rows, batch_size), start=1):
                 logger.debug(
-                    f"Merging Neo4j node batch label={label} "
-                    f"batch={batch_number} size={len(chunk)}"
+                    f"Merging Neo4j node batch label={label} batch={batch_number} size={len(chunk)}"
                 )
                 session.execute_write(_merge_nodes, label, chunk)
 
@@ -188,8 +194,22 @@ def export_sbom_to_neo4j(sbom: SBOM, *, driver, database: str = "neo4j", batch_s
         "software": len(nodes_by_label.get("Software", [])),
         "paths": len(nodes_by_label.get("Path", [])),
         "hashes": len(nodes_by_label.get("Hash", [])),
-        "logical_graph_edges": len([r for rows in rels_by_type.values() for r in rows if r["props"].get("source_graph") == "graph"]),
-        "fs_tree_edges": len([r for rows in rels_by_type.values() for r in rows if r["props"].get("source_graph") == "fs_tree"]),
+        "logical_graph_edges": len(
+            [
+                r
+                for rows in rels_by_type.values()
+                for r in rows
+                if r["props"].get("source_graph") == "graph"
+            ]
+        ),
+        "fs_tree_edges": len(
+            [
+                r
+                for rows in rels_by_type.values()
+                for r in rows
+                if r["props"].get("source_graph") == "fs_tree"
+            ]
+        ),
         "database_nodes_for_bom": database_counts["nodes"],
         "database_relationships_for_bom": database_counts["relationships"],
     }
@@ -197,14 +217,13 @@ def export_sbom_to_neo4j(sbom: SBOM, *, driver, database: str = "neo4j", batch_s
 
 def _create_constraints(tx) -> None:
     result = tx.run(
-        "CREATE CONSTRAINT sbom_entity_id IF NOT EXISTS "
-        "FOR (n:SBOMEntity) REQUIRE n.id IS UNIQUE"
+        "CREATE CONSTRAINT sbom_entity_id IF NOT EXISTS FOR (n:SBOMEntity) REQUIRE n.id IS UNIQUE"
     )
     summary = result.consume()
     logger.debug(f"Constraint query counters: {summary.counters}")
 
 
-def _verify_import_counts(tx, bom_uuid: str) -> Dict[str, int]:
+def _verify_import_counts(tx, bom_uuid: str) -> dict[str, int]:
     rel_prefix = f"{bom_uuid}:rel:"
     record = tx.run(
         """
@@ -224,7 +243,7 @@ def _verify_import_counts(tx, bom_uuid: str) -> Dict[str, int]:
     }
 
 
-def _merge_nodes(tx, label: str, rows: List[Dict[str, Any]]) -> None:
+def _merge_nodes(tx, label: str, rows: list[dict[str, Any]]) -> None:
     label = _safe_label(label)
     query = f"""
     UNWIND $rows AS row
@@ -237,7 +256,7 @@ def _merge_nodes(tx, label: str, rows: List[Dict[str, Any]]) -> None:
     logger.debug(f"Merged node rows label={label} rows={len(rows)} counters={summary.counters}")
 
 
-def _merge_relationships(tx, rel_type: str, rows: List[Dict[str, Any]]) -> None:
+def _merge_relationships(tx, rel_type: str, rows: list[dict[str, Any]]) -> None:
     rel_type = _safe_rel_type(rel_type)
     query = f"""
     UNWIND $rows AS row
@@ -248,15 +267,23 @@ def _merge_relationships(tx, rel_type: str, rows: List[Dict[str, Any]]) -> None:
     """
     result = tx.run(query, rows=rows)
     summary = result.consume()
-    logger.debug(f"Merged relationship rows type={rel_type} rows={len(rows)} counters={summary.counters}")
+    logger.debug(
+        f"Merged relationship rows type={rel_type} rows={len(rows)} counters={summary.counters}"
+    )
 
 
-def _build_import_rows(sbom: SBOM) -> Tuple[Dict[str, List[Dict[str, Any]]], Dict[str, List[Dict[str, Any]]]]:
+def _build_import_rows(
+    sbom: SBOM,
+) -> tuple[dict[str, list[dict[str, Any]]], dict[str, list[dict[str, Any]]]]:
     bom_uuid = getattr(sbom, "bomUUID", "unknown")
-    software_by_uuid = {getattr(sw, "UUID", None): sw for sw in getattr(sbom, "software", []) if getattr(sw, "UUID", None)}
+    software_by_uuid = {
+        getattr(sw, "UUID", None): sw
+        for sw in getattr(sbom, "software", [])
+        if getattr(sw, "UUID", None)
+    }
 
-    node_records: Dict[str, Tuple[str, Dict[str, Any]]] = {}
-    relationships: List[Tuple[str, str, str, Dict[str, Any]]] = []
+    node_records: dict[str, tuple[str, dict[str, Any]]] = {}
+    relationships: list[tuple[str, str, str, dict[str, Any]]] = []
 
     # The SBOM root node.
     sbom_node_id = _node_id(bom_uuid, "sbom", bom_uuid)
@@ -335,7 +362,9 @@ def _build_import_rows(sbom: SBOM) -> Tuple[Dict[str, List[Dict[str, Any]]], Dic
                         nid,
                         "INSTALLED_AT",
                         {
-                            "id": _rel_id(bom_uuid, "installed_at", sw_uuid, raw_node, "INSTALLED_AT"),
+                            "id": _rel_id(
+                                bom_uuid, "installed_at", sw_uuid, raw_node, "INSTALLED_AT"
+                            ),
                             "bomUUID": bom_uuid,
                             "source_graph": "fs_tree",
                             "relationship": "INSTALLED_AT",
@@ -344,8 +373,12 @@ def _build_import_rows(sbom: SBOM) -> Tuple[Dict[str, List[Dict[str, Any]]], Dic
                 )
 
         for u, v, attrs in fs_tree.edges(data=True):
-            source_id, _, _ = _fs_node_from_raw(bom_uuid, u, fs_tree.nodes.get(u, {}), software_by_uuid)
-            target_id, _, _ = _fs_node_from_raw(bom_uuid, v, fs_tree.nodes.get(v, {}), software_by_uuid)
+            source_id, _, _ = _fs_node_from_raw(
+                bom_uuid, u, fs_tree.nodes.get(u, {}), software_by_uuid
+            )
+            target_id, _, _ = _fs_node_from_raw(
+                bom_uuid, v, fs_tree.nodes.get(v, {}), software_by_uuid
+            )
             edge_type = (attrs or {}).get("type") or "contains"
             if edge_type == "symlink":
                 rel_type = "SYMLINK"
@@ -355,7 +388,9 @@ def _build_import_rows(sbom: SBOM) -> Tuple[Dict[str, List[Dict[str, Any]]], Dic
                 rel_type = "FS_CONTAINS"
             rel_props = _clean_props(
                 {
-                    "id": _rel_id(bom_uuid, "fs_tree", u, v, edge_type, (attrs or {}).get("subtype")),
+                    "id": _rel_id(
+                        bom_uuid, "fs_tree", u, v, edge_type, (attrs or {}).get("subtype")
+                    ),
                     "bomUUID": bom_uuid,
                     "source_graph": "fs_tree",
                     "edge_type": edge_type,
@@ -369,12 +404,12 @@ def _build_import_rows(sbom: SBOM) -> Tuple[Dict[str, List[Dict[str, Any]]], Dic
         f"node_records={len(node_records)}, relationships={len(relationships)}"
     )
 
-    nodes_by_label: Dict[str, List[Dict[str, Any]]] = {}
+    nodes_by_label: dict[str, list[dict[str, Any]]] = {}
     for nid, (label, props) in node_records.items():
         props = {**props, "id": nid}
         nodes_by_label.setdefault(label, []).append({"id": nid, "props": props})
 
-    rels_by_type: Dict[str, List[Dict[str, Any]]] = {}
+    rels_by_type: dict[str, list[dict[str, Any]]] = {}
     seen_rel_ids = set()
     for source_id, target_id, rel_type, props in relationships:
         rel_type = _safe_rel_type(rel_type)
@@ -384,17 +419,22 @@ def _build_import_rows(sbom: SBOM) -> Tuple[Dict[str, List[Dict[str, Any]]], Dic
         seen_rel_ids.add(rel_id)
         rel_props = {**props, "id": rel_id}
         rels_by_type.setdefault(rel_type, []).append(
-            {"source_id": source_id, "target_id": target_id, "id": rel_id, "props": _clean_props(rel_props)}
+            {
+                "source_id": source_id,
+                "target_id": target_id,
+                "id": rel_id,
+                "props": _clean_props(rel_props),
+            }
         )
 
     return nodes_by_label, rels_by_type
 
 
 def _upsert_node(
-    node_records: Dict[str, Tuple[str, Dict[str, Any]]],
+    node_records: dict[str, tuple[str, dict[str, Any]]],
     nid: str,
     label: str,
-    props: Dict[str, Any],
+    props: dict[str, Any],
 ) -> None:
     if nid not in node_records:
         node_records[nid] = (label, props)
@@ -411,7 +451,7 @@ def _node_from_raw(
     raw_node: Any,
     attrs: Mapping[str, Any],
     software_by_uuid: Mapping[str, Any],
-) -> Tuple[str, str, Dict[str, Any]]:
+) -> tuple[str, str, dict[str, Any]]:
     raw = str(raw_node)
     if raw in software_by_uuid:
         nid = _node_id(bom_uuid, "software", raw)
@@ -424,7 +464,19 @@ def _node_from_raw(
         return _hash_node(bom_uuid, raw, attrs)
 
     nid = _node_id(bom_uuid, "graph", raw)
-    return nid, "GraphEntity", _clean_props({"id": nid, "bomUUID": bom_uuid, "raw_id": raw, "kind": node_type or "graph", **(attrs or {})})
+    return (
+        nid,
+        "GraphEntity",
+        _clean_props(
+            {
+                "id": nid,
+                "bomUUID": bom_uuid,
+                "raw_id": raw,
+                "kind": node_type or "graph",
+                **(attrs or {}),
+            }
+        ),
+    )
 
 
 def _fs_node_from_raw(
@@ -432,7 +484,7 @@ def _fs_node_from_raw(
     raw_node: Any,
     attrs: Mapping[str, Any],
     software_by_uuid: Mapping[str, Any],
-) -> Tuple[str, str, Dict[str, Any]]:
+) -> tuple[str, str, dict[str, Any]]:
     raw = str(raw_node)
     node_type = str((attrs or {}).get("type") or "").lower()
     if raw in software_by_uuid:
@@ -443,7 +495,9 @@ def _fs_node_from_raw(
     return _path_node(bom_uuid, raw, attrs)
 
 
-def _path_node(bom_uuid: str, path: str, attrs: Mapping[str, Any]) -> Tuple[str, str, Dict[str, Any]]:
+def _path_node(
+    bom_uuid: str, path: str, attrs: Mapping[str, Any]
+) -> tuple[str, str, dict[str, Any]]:
     nid = _node_id(bom_uuid, "path", path)
     return (
         nid,
@@ -462,7 +516,9 @@ def _path_node(bom_uuid: str, path: str, attrs: Mapping[str, Any]) -> Tuple[str,
     )
 
 
-def _hash_node(bom_uuid: str, raw_hash: str, attrs: Mapping[str, Any]) -> Tuple[str, str, Dict[str, Any]]:
+def _hash_node(
+    bom_uuid: str, raw_hash: str, attrs: Mapping[str, Any]
+) -> tuple[str, str, dict[str, Any]]:
     algorithm = None
     digest = raw_hash
     if ":" in raw_hash:
@@ -485,10 +541,10 @@ def _hash_node(bom_uuid: str, raw_hash: str, attrs: Mapping[str, Any]) -> Tuple[
     )
 
 
-def _software_props(sw: Any, bom_uuid: str, nid: str) -> Dict[str, Any]:
+def _software_props(sw: Any, bom_uuid: str, nid: str) -> dict[str, Any]:
     sw_uuid = getattr(sw, "UUID", None)
     data = _plain(sw)
-    props: Dict[str, Any] = {
+    props: dict[str, Any] = {
         "id": nid,
         "bomUUID": bom_uuid,
         "raw_id": sw_uuid,
@@ -509,12 +565,12 @@ def _software_props(sw: Any, bom_uuid: str, nid: str) -> Dict[str, Any]:
     return _clean_props(props)
 
 
-def _name_display(name_value: Any) -> Optional[str]:
+def _name_display(name_value: Any) -> str | None:
     if not name_value:
         return None
     if isinstance(name_value, str):
         return name_value
-    names: List[str] = []
+    names: list[str] = []
     for item in name_value if isinstance(name_value, list) else [name_value]:
         plain = _plain(item)
         if isinstance(plain, dict):
@@ -528,20 +584,22 @@ def _name_display(name_value: Any) -> Optional[str]:
     return ", ".join(dict.fromkeys(names)) if names else None
 
 
-def _clean_props(props: Mapping[str, Any]) -> Dict[str, Any]:
+def _clean_props(props: Mapping[str, Any]) -> dict[str, Any]:
     """Convert values to Neo4j-safe node/relationship properties.
 
     Neo4j properties should be primitives or homogeneous-ish lists of primitives.
     Nested dicts/lists are serialized as JSON strings under the original key.
     """
-    clean: Dict[str, Any] = {}
+    clean: dict[str, Any] = {}
     for key, value in props.items():
         if value is None:
             continue
         value = _plain(value)
-        if isinstance(value, _PRIMITIVE):
-            clean[key] = value
-        elif isinstance(value, list) and all(isinstance(v, _PRIMITIVE) for v in value):
+        if (
+            isinstance(value, _PRIMITIVE)
+            or isinstance(value, list)
+            and all(isinstance(v, _PRIMITIVE) for v in value)
+        ):
             clean[key] = value
         else:
             clean[f"{key}_json"] = json.dumps(value, sort_keys=True, default=str)
@@ -588,8 +646,8 @@ def _safe_rel_type(value: Any) -> str:
     return rel_type
 
 
-def _chunks(rows: Iterable[Dict[str, Any]], size: int) -> Iterable[List[Dict[str, Any]]]:
-    chunk: List[Dict[str, Any]] = []
+def _chunks(rows: Iterable[dict[str, Any]], size: int) -> Iterable[list[dict[str, Any]]]:
+    chunk: list[dict[str, Any]] = []
     for row in rows:
         chunk.append(row)
         if len(chunk) >= size:
