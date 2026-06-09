@@ -1,4 +1,9 @@
 #!/usr/bin/env python3
+# /// script
+# dependencies = [
+#   "neo4j>=5",
+# ]
+# ///
 """Standalone loader for importing an existing CyTRICS SBOM into Neo4j.
 
 Usage:
