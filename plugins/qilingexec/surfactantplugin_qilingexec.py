@@ -68,9 +68,7 @@ def handle_help(fd: io.BytesIO) -> list[str] | None:
 def env_mismatch(filetype: str, os: QL_OS) -> bool:
     if "PE" in filetype and os != QL_OS.WINDOWS:
         return True
-    if "ELF" in filetype and os in (QL_OS.WINDOWS, QL_OS.DOS):
-        return True
-    return False
+    return "ELF" in filetype and os in (QL_OS.WINDOWS, QL_OS.DOS)
 
 
 def get_os_arch(context: ContextEntry, filetype: str, def_os) -> tuple[QL_OS, QL_ARCH] | None:

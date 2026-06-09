@@ -73,5 +73,4 @@ class ContextEntry:
                 f"No plugin configuration for {name}: {conf_key}, using default value: {default}"
             )
             return default
-        field = module[conf_key]
-        return field
+        return module[conf_key]
