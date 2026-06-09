@@ -8,7 +8,7 @@
 import io
 import platform
 import re
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 from loguru import logger
 
@@ -29,7 +29,7 @@ except ImportError:
     logger.warning("qiling not installed. QilingExec plugin will be disabled.")
 
 
-def parse_stdout(fd: io.BytesIO, regex: re.Pattern[str]) -> Optional[Tuple[str, str]]:
+def parse_stdout(fd: io.BytesIO, regex: re.Pattern[str]) -> tuple[str, str] | None:
     """Returns a tuple of the words in fd that match the given regex pattern with either the line the match was found or the first line if no match was found.
 
     Args:
@@ -52,7 +52,7 @@ def parse_stdout(fd: io.BytesIO, regex: re.Pattern[str]) -> Optional[Tuple[str, 
     return None
 
 
-def handle_help(fd: io.BytesIO) -> Optional[List[str]]:
+def handle_help(fd: io.BytesIO) -> list[str] | None:
     """Returns a string if there is anything in the input file descriptor
 
     Args:
@@ -60,7 +60,7 @@ def handle_help(fd: io.BytesIO) -> Optional[List[str]]:
     """
     if fd:
         lines = fd.getvalue().decode().splitlines()
-        line_num = 10 if len(lines) >= 10 else len(lines)
+        line_num = min(10, len(lines))
         return lines[:line_num]
     return None
 
@@ -73,7 +73,7 @@ def env_mismatch(filetype: str, os: QL_OS) -> bool:
     return False
 
 
-def get_os_arch(context: ContextEntry, filetype: str, def_os) -> Optional[Tuple[QL_OS, QL_ARCH]]:
+def get_os_arch(context: ContextEntry, filetype: str, def_os) -> tuple[QL_OS, QL_ARCH] | None:
     """Returns a tuple of the OS and architecture to use for the binary associated with the current ContextEntry and checks that the current filetype matches the OS being used."""
     operating_system = context.get_pconf(__name__, "os_type", def_os)
     arch = context.get_pconf(__name__, "arch_type", "x64")
@@ -120,10 +120,10 @@ def extract_file_info(  # pylint: disable=too-many-positional-arguments
     sbom: SBOM,
     software: Software,
     filename: str,
-    filetype: List[str],
-    software_field_hints: List[Tuple[str, object, int]],
-    current_context: Optional[ContextEntry],
-) -> Optional[Dict[str, Any]]:
+    filetype: list[str],
+    software_field_hints: list[tuple[str, object, int]],
+    current_context: ContextEntry | None,
+) -> dict[str, Any] | None:
     """Extracts information from the given file to add to the given software entry. Return an
     object to be included as part of the metadata field, and potentially used as part of
     selecting default values for other Software entry fields. Returning `None` will not add
@@ -178,7 +178,7 @@ def extract_file_info(  # pylint: disable=too-many-positional-arguments
 
     # Set up static variables for emulation
     regex = re.compile(reg_string)
-    file_details: Dict[str, Any] = {"qilingexec": {}}
+    file_details: dict[str, Any] = {"qilingexec": {}}
 
     # Loop through all the potential version args
     for arg in ver_arg_list:
@@ -207,7 +207,7 @@ def extract_file_info(  # pylint: disable=too-many-positional-arguments
             return None
         # If text was sent to stderr instead of stdout, use stderr for parsing
         result = parse_stdout(out_version_fd, regex) or parse_stdout(err_version_fd, regex)
-        (match, file_details["qilingexec"]["stdout"]) = result if result else (None, None)
+        (match, file_details["qilingexec"]["stdout"]) = result or (None, None)
         if match:  # pylint: disable=no-else-break
             match_arr = match.split(" ")
             name = match_arr[0]
@@ -217,10 +217,9 @@ def extract_file_info(  # pylint: disable=too-many-positional-arguments
             file_details["qilingexec"]["version"] = version
             file_details["qilingexec"]["name"] = name
             break
-        else:
-            logger.info(f'No version information returned by {args_version} with "{arg}"')
-            if not file_details["qilingexec"]["stdout"] and arg == ver_arg_list[-1]:
-                return None
+        logger.info(f'No version information returned by {args_version} with "{arg}"')
+        if not file_details["qilingexec"]["stdout"] and arg == ver_arg_list[-1]:
+            return None
 
     out_help_fd = pipe.SimpleStringBuffer()
     err_help_fd = pipe.SimpleStringBuffer()
