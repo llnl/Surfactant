@@ -40,13 +40,8 @@ from loguru import logger
 import surfactant.plugin
 from surfactant.sbomtypes import SBOM
 
-try:
-    from neo4j import GraphDatabase
-except ImportError as exc:  # pragma: no cover - depends on optional dependency
-    GraphDatabase = None
-    _NEO4J_IMPORT_ERROR = exc
-else:
-    _NEO4J_IMPORT_ERROR = None
+from neo4j import GraphDatabase
+
 
 _PRIMITIVE = (str, int, float, bool)
 _SAFE_REL_TYPE_RE = re.compile(r"[^A-Za-z0-9_]")
@@ -92,11 +87,6 @@ def write_sbom(sbom: SBOM, outfile) -> None:
     given outfile because the real output target is Neo4j.
     """
     logger.info("Neo4j writer selected")
-
-    if GraphDatabase is None:
-        raise RuntimeError(
-            "Install the Neo4j Python driver first: pip install neo4j"
-        ) from _NEO4J_IMPORT_ERROR
 
     uri = os.environ.get("NEO4J_URI")
     user = os.environ.get("NEO4J_USER", "neo4j")
@@ -243,28 +233,9 @@ def export_sbom_to_neo4j(
         "software": len(nodes_by_label.get("Software", [])),
         "paths": len(nodes_by_label.get("Path", [])),
         "hashes": len(nodes_by_label.get("Hash", [])),
-<<<<<<< HEAD
         "logical_graph_edges": logical_graph_edge_count,
         "fs_tree_edges": fs_tree_edge_count,
         "installed_at_edges": installed_at_count,
-=======
-        "logical_graph_edges": len(
-            [
-                r
-                for rows in rels_by_type.values()
-                for r in rows
-                if r["props"].get("source_graph") == "graph"
-            ]
-        ),
-        "fs_tree_edges": len(
-            [
-                r
-                for rows in rels_by_type.values()
-                for r in rows
-                if r["props"].get("source_graph") == "fs_tree"
-            ]
-        ),
->>>>>>> 12bbc902c51c159db77392e723052e0f33a1cffd
         "database_nodes_for_bom": database_counts["nodes"],
         "database_relationships_for_bom": database_counts["relationships"],
     }

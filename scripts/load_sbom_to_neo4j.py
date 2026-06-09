@@ -19,16 +19,7 @@ import argparse
 import json
 import os
 
-<<<<<<< HEAD
-try:
-    from neo4j import GraphDatabase
-except ImportError as exc:
-    raise SystemExit("Install the Neo4j Python driver first: pip install neo4j") from exc
-
-from surfactant.input_readers.cytrics_reader import read_sbom
-=======
 from neo4j import GraphDatabase
->>>>>>> 12bbc902c51c159db77392e723052e0f33a1cffd
 
 from surfactant.input_readers.cytrics_reader import read_sbom
 from surfactant.output.neo4j_writer import export_sbom_to_neo4j
