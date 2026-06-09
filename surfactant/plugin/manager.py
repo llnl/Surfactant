@@ -36,6 +36,7 @@ def _register_plugins(pm: pluggy.PluginManager) -> None:
         csv_writer,
         cyclonedx_writer,
         cytrics_writer,
+        neo4j_writer,
         spdx_writer,
     )
     from surfactant.relationships import (
@@ -70,6 +71,7 @@ def _register_plugins(pm: pluggy.PluginManager) -> None:
         cytrics_writer,
         cyclonedx_writer,
         spdx_writer,
+        neo4j_writer,
         cytrics_reader,
         native_lib_file,
         file_decompression,

@@ -518,6 +518,15 @@ def sbom(
     output_writer = find_io_plugin(pm, output_format, "write_sbom")
     input_reader = find_io_plugin(pm, input_format, "read_sbom")
 
+    logger.info(
+        f'Using SBOM output writer "{pm.get_canonical_name(output_writer)}" '
+        f'for output_format="{output_format}"'
+    )
+    logger.info(
+        f'Using SBOM input reader "{pm.get_canonical_name(input_reader)}" '
+        f'for input_format="{input_format}"'
+    )
+
     contextQ: queue.Queue[ContextEntry] = queue.Queue()
 
     for cfg_entry in specimen_context:
@@ -527,9 +536,24 @@ def sbom(
     new_sbom: SBOM
     # Click has Sentinel.UNSET type that doesn't have READ attribute, which may appear when running regression test script
     if not input_sbom or not hasattr(input_sbom, "read"):
+        logger.info("No input SBOM supplied; creating a new empty SBOM")
         new_sbom = SBOM()
     else:
+        logger.info(f"Reading input SBOM from {getattr(input_sbom, 'name', '<stream>')}")
         new_sbom = input_reader.read_sbom(input_sbom)
+
+        graph = getattr(new_sbom, "graph", None)
+        fs_tree = getattr(new_sbom, "fs_tree", None)
+
+        logger.info(
+            "Loaded input SBOM: "
+            f"software={len(getattr(new_sbom, 'software', []) or [])}, "
+            f"relationships={len(getattr(new_sbom, '_loaded_relationships', []) or [])}, "
+            f"graph_nodes={graph.number_of_nodes() if graph is not None else 'None'}, "
+            f"graph_edges={graph.number_of_edges() if graph is not None else 'None'}, "
+            f"fs_tree_nodes={fs_tree.number_of_nodes() if fs_tree is not None else 'None'}, "
+            f"fs_tree_edges={fs_tree.number_of_edges() if fs_tree is not None else 'None'}"
+        )
 
     _set_sbom_author(new_sbom, author_name, author_type)
 
@@ -889,7 +913,12 @@ def sbom(
         logger.info("Skipping relationships based on imports metadata")
 
     # TODO should contents from different containers go in different SBOM files, so new portions can be added bit-by-bit with a final merge?
+    logger.info(
+        f"Calling output writer {pm.get_canonical_name(output_writer)} "
+        f"for {getattr(sbom_outfile, 'name', '<stream>')}"
+    )
     output_writer.write_sbom(new_sbom, sbom_outfile)
+    logger.info(f"Finished writing SBOM output to {getattr(sbom_outfile, 'name', '<stream>')}")
 
 
 def resolve_link(
