@@ -7,7 +7,7 @@ import pathlib
 import queue
 import re
 import sys
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Mapping, Optional, Tuple, Union
 
 import click
 from loguru import logger
@@ -157,6 +157,33 @@ def _normalize_author_value(value: Optional[str], option_name: str) -> Optional[
 
     value = value.strip()
     return value or None
+
+
+def _is_path_graph_node(attrs: Mapping[str, Any]) -> bool:
+    return str((attrs or {}).get("type") or "").lower() == "path"
+
+
+def _is_logical_graph_edge(graph: Any, u: Any, v: Any, key: Any) -> bool:
+    if str(key).lower() == "symlink":
+        return False
+
+    if _is_path_graph_node(graph.nodes.get(u, {})):
+        return False
+    if _is_path_graph_node(graph.nodes.get(v, {})):
+        return False
+
+    return True
+
+
+def _count_logical_graph_edges(graph: Any) -> int:
+    if graph is None:
+        return 0
+
+    return sum(
+        1
+        for u, v, key in graph.edges(keys=True)
+        if _is_logical_graph_edge(graph, u, v, key)
+    )
 
 
 # pylint: disable-next=redefined-outer-name
@@ -548,9 +575,9 @@ def sbom(
         logger.info(
             "Loaded input SBOM: "
             f"software={len(getattr(new_sbom, 'software', []) or [])}, "
-            f"relationships={len(getattr(new_sbom, '_loaded_relationships', []) or [])}, "
+            f"logical_relationships={_count_logical_graph_edges(graph)}, "
             f"graph_nodes={graph.number_of_nodes() if graph is not None else 'None'}, "
-            f"graph_edges={graph.number_of_edges() if graph is not None else 'None'}, "
+            f"graph_edges_total={graph.number_of_edges() if graph is not None else 'None'}, "
             f"fs_tree_nodes={fs_tree.number_of_nodes() if fs_tree is not None else 'None'}, "
             f"fs_tree_edges={fs_tree.number_of_edges() if fs_tree is not None else 'None'}"
         )
@@ -910,6 +937,18 @@ def sbom(
         logger.info("Skipping relationships based on imports metadata")
 
     # TODO should contents from different containers go in different SBOM files, so new portions can be added bit-by-bit with a final merge?
+    graph = getattr(new_sbom, "graph", None)
+    fs_tree = getattr(new_sbom, "fs_tree", None)
+
+    logger.info(
+        "Prepared SBOM for output: "
+        f"software={len(getattr(new_sbom, 'software', []) or [])}, "
+        f"logical_relationships={_count_logical_graph_edges(graph)}, "
+        f"graph_nodes={graph.number_of_nodes() if graph is not None else 'None'}, "
+        f"graph_edges_total={graph.number_of_edges() if graph is not None else 'None'}, "
+        f"fs_tree_nodes={fs_tree.number_of_nodes() if fs_tree is not None else 'None'}, "
+        f"fs_tree_edges={fs_tree.number_of_edges() if fs_tree is not None else 'None'}"
+    )
     logger.info(
         f"Calling output writer {pm.get_canonical_name(output_writer)} "
         f"for {getattr(sbom_outfile, 'name', '<stream>')}"

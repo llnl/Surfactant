@@ -56,6 +56,33 @@ def short_name() -> Optional[str]:
     return "neo4j"
 
 
+def _is_path_graph_node(attrs: Mapping[str, Any]) -> bool:
+    return str((attrs or {}).get("type") or "").lower() == "path"
+
+
+def _is_logical_graph_edge(graph: Any, u: Any, v: Any, key: Any) -> bool:
+    if str(key).lower() == "symlink":
+        return False
+
+    if _is_path_graph_node(graph.nodes.get(u, {})):
+        return False
+    if _is_path_graph_node(graph.nodes.get(v, {})):
+        return False
+
+    return True
+
+
+def _count_logical_graph_edges(graph: Any) -> int:
+    if graph is None:
+        return 0
+
+    return sum(
+        1
+        for u, v, key in graph.edges(keys=True)
+        if _is_logical_graph_edge(graph, u, v, key)
+    )
+
+
 @surfactant.plugin.hookimpl
 def write_sbom(sbom: SBOM, outfile) -> None:
     """Write the SBOM's NetworkX graphs into Neo4j.
@@ -72,7 +99,13 @@ def write_sbom(sbom: SBOM, outfile) -> None:
     user = os.environ.get("NEO4J_USER", "neo4j")
     password = os.environ.get("NEO4J_PASSWORD")
     database = os.environ.get("NEO4J_DATABASE", "neo4j")
-    batch_size = int(os.environ.get("NEO4J_BATCH_SIZE", "1000"))
+    try:
+        batch_size = int(os.environ.get("NEO4J_BATCH_SIZE", "1000"))
+    except ValueError as exc:
+        raise RuntimeError("NEO4J_BATCH_SIZE must be an integer") from exc
+
+    if batch_size <= 0:
+        raise RuntimeError("NEO4J_BATCH_SIZE must be greater than zero")
 
     graph = getattr(sbom, "graph", None)
     fs_tree = getattr(sbom, "fs_tree", None)
@@ -80,9 +113,9 @@ def write_sbom(sbom: SBOM, outfile) -> None:
     logger.info(
         "Neo4j writer received SBOM: "
         f"software={len(getattr(sbom, 'software', []) or [])}, "
-        f"relationships={len(getattr(sbom, '_loaded_relationships', []) or [])}, "
+        f"logical_relationships={_count_logical_graph_edges(graph)}, "
         f"graph_nodes={graph.number_of_nodes() if graph is not None else 'None'}, "
-        f"graph_edges={graph.number_of_edges() if graph is not None else 'None'}, "
+        f"graph_edges_total={graph.number_of_edges() if graph is not None else 'None'}, "
         f"fs_tree_nodes={fs_tree.number_of_nodes() if fs_tree is not None else 'None'}, "
         f"fs_tree_edges={fs_tree.number_of_edges() if fs_tree is not None else 'None'}"
     )
@@ -127,6 +160,8 @@ def export_sbom_to_neo4j(sbom: SBOM, *, driver, database: str = "neo4j", batch_s
 
     Logical SBOM relationships from sbom.graph become relationships whose type is
     the sanitized NetworkX MultiDiGraph edge key, for example CONTAINS or USES.
+    Filesystem/path edges mirrored into sbom.graph are skipped here because
+    sbom.fs_tree is the authoritative source for filesystem topology.
 
     Filesystem edges from sbom.fs_tree become:
       FS_CONTAINS       for structural parent -> child edges
@@ -182,14 +217,29 @@ def export_sbom_to_neo4j(sbom: SBOM, *, driver, database: str = "neo4j", batch_s
 
     logger.info(f"Verified Neo4j database counts for bomUUID={bom_uuid}: {database_counts}")
 
+    relationship_rows = [r for rows in rels_by_type.values() for r in rows]
+    logical_graph_edge_count = sum(
+        1 for r in relationship_rows if r["props"].get("source_graph") == "graph"
+    )
+    fs_tree_edge_count = sum(
+        1
+        for r in relationship_rows
+        if r["props"].get("source_graph") == "fs_tree"
+        and r["props"].get("edge_type") is not None
+    )
+    installed_at_count = sum(
+        1 for r in relationship_rows if r["props"].get("relationship") == "INSTALLED_AT"
+    )
+
     return {
         "nodes": node_count,
         "relationships": rel_count,
         "software": len(nodes_by_label.get("Software", [])),
         "paths": len(nodes_by_label.get("Path", [])),
         "hashes": len(nodes_by_label.get("Hash", [])),
-        "logical_graph_edges": len([r for rows in rels_by_type.values() for r in rows if r["props"].get("source_graph") == "graph"]),
-        "fs_tree_edges": len([r for rows in rels_by_type.values() for r in rows if r["props"].get("source_graph") == "fs_tree"]),
+        "logical_graph_edges": logical_graph_edge_count,
+        "fs_tree_edges": fs_tree_edge_count,
+        "installed_at_edges": installed_at_count,
         "database_nodes_for_bom": database_counts["nodes"],
         "database_relationships_for_bom": database_counts["relationships"],
     }
@@ -300,10 +350,15 @@ def _build_import_rows(sbom: SBOM) -> Tuple[Dict[str, List[Dict[str, Any]]], Dic
     graph = getattr(sbom, "graph", None)
     if graph is not None:
         for raw_node, attrs in graph.nodes(data=True):
+            if _is_path_graph_node(attrs):
+                continue
             nid, label, props = _node_from_raw(bom_uuid, raw_node, attrs, software_by_uuid)
             _upsert_node(node_records, nid, label, props)
 
         for u, v, key, attrs in graph.edges(keys=True, data=True):
+            if not _is_logical_graph_edge(graph, u, v, key):
+                continue
+
             source_id, _, _ = _node_from_raw(bom_uuid, u, graph.nodes.get(u, {}), software_by_uuid)
             target_id, _, _ = _node_from_raw(bom_uuid, v, graph.nodes.get(v, {}), software_by_uuid)
             rel_type = _safe_rel_type(key or "RELATED_TO")

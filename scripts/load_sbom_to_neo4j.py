@@ -9,8 +9,8 @@ Usage:
     python load_sbom_to_neo4j.py existing-sbom.json
 
 This script assumes it is run inside a Surfactant checkout or environment where
-`surfactant` is importable. It imports `export_sbom_to_neo4j` from the sibling
-neo4j_writer.py file.
+`surfactant` is importable. It imports `export_sbom_to_neo4j` from the
+surfactant.output.neo4j_writer module.
 """
 
 from __future__ import annotations
@@ -19,7 +19,11 @@ import argparse
 import json
 import os
 
-from neo4j import GraphDatabase
+try:
+    from neo4j import GraphDatabase
+except ImportError as exc:
+    raise SystemExit("Install the Neo4j Python driver first: pip install neo4j") from exc
+
 from surfactant.input_readers.cytrics_reader import read_sbom
 
 from surfactant.output.neo4j_writer import export_sbom_to_neo4j
@@ -31,6 +35,9 @@ def main() -> None:
     parser.add_argument("--database", default=os.environ.get("NEO4J_DATABASE", "neo4j"))
     parser.add_argument("--batch-size", type=int, default=int(os.environ.get("NEO4J_BATCH_SIZE", "1000")))
     args = parser.parse_args()
+
+    if args.batch_size <= 0:
+        raise SystemExit("--batch-size must be greater than zero")
 
     uri = os.environ.get("NEO4J_URI")
     user = os.environ.get("NEO4J_USER", "neo4j")
