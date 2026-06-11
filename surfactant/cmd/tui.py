@@ -198,7 +198,7 @@ class GenerateTab(textual.widgets.Static):
             return
         args = [
             str(self.specimen_context.input_path),
-            str(self.output_dir.input_path/self.output_name.value),
+            str(self.output_dir.input_path / self.output_name.value),
         ]
         if self.input_sbom.input_path:
             args.append(self.input_sbom.input_path)
@@ -329,7 +329,7 @@ class MergeTab(textual.widgets.Static):
                     self.app.notify("One or more inputs not given")
                     return
                 args.append(str(path))
-        args.append(str(self.output_dir.input_path/self.output_name.value))
+        args.append(str(self.output_dir.input_path / self.output_name.value))
         args.append("--input_format")
         args.append(self.input_format.value)
         args.append("--output_format")
