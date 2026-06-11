@@ -1,0 +1,3286 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>SBOM Workbench</title>
+
+<!-- Fonts -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Serif:wght@500&display=swap" rel="stylesheet">
+
+<!-- Libs -->
+<script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/@babel/standalone@7.24.7/babel.min.js" crossorigin></script>
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js" crossorigin></script>
+
+<style>
+  :root {
+    --bg: #0b0d10;
+    --bg-1: #11141a;
+    --bg-2: #161a22;
+    --bg-3: #1d2230;
+    --border: #2a3040;
+    --border-2: #364056;
+    --fg: #e6e9ef;
+    --fg-2: #aab2c0;
+    --fg-3: #6a7383;
+    --accent: #fcb317;   /* Innovation Yellow */
+    --accent-2: #3366cc; /* High Energy Azure */
+    --accent-3: #84c342; /* Gamma Green */
+    --danger: #ff5468;
+    --warn: #ff7900;
+    --modified: #fcb317;
+    --added: #84c342;
+    --removed: #ff5468;
+    --btn-primary-bg: #fcb317;
+    --accent-contrast: #1a1407;
+    --accent-hover: #ffc640;
+    --scroll-thumb: #2a3040;
+    --scroll-thumb-h: #3a4256;
+    --btn-hover-bg: #232a3c;
+    --btn-hover-border: #475068;
+    --btn-active-bg: #1a2030;
+    --danger-border: #4a2530;
+    --danger-hover-bg: #2a1820;
+    --danger-hover-border: #663040;
+    --sel-bg: #1a2538;
+    --blue-text: #6f9bf0;
+    --grid-line: rgba(255,255,255,0.015);
+    --mono: 'IBM Plex Mono', ui-monospace, 'JetBrains Mono', SFMono-Regular, Menlo, monospace;
+    --sans: 'IBM Plex Sans', system-ui, -apple-system, sans-serif;
+    --serif: 'IBM Plex Serif', serif;
+  }
+  [data-theme="light"] {
+    --bg: #f3f4f7;
+    --bg-1: #ffffff;
+    --bg-2: #eceef3;
+    --bg-3: #e2e5ec;
+    --border: #d6dae2;
+    --border-2: #bac2cf;
+    --fg: #1b2330;
+    --fg-2: #48536a;
+    --fg-3: #7c869b;
+    --accent: #9c6400;
+    --accent-2: #2b56b3;
+    --accent-3: #4a8a17;
+    --danger: #cc2440;
+    --warn: #b45309;
+    --modified: #b07300;
+    --added: #4a8a17;
+    --removed: #cc2440;
+    --scroll-thumb: #c5cbd6;
+    --scroll-thumb-h: #aab2c2;
+    --btn-hover-bg: #dde1e9;
+    --btn-hover-border: #9aa5b6;
+    --btn-active-bg: #d2d7e1;
+    --danger-border: #e3b3bc;
+    --danger-hover-bg: #f7e3e7;
+    --danger-hover-border: #d98a98;
+    --sel-bg: #dbe6f7;
+    --blue-text: #2b56b3;
+    --grid-line: rgba(0,0,0,0.025);
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    background: var(--bg);
+    color: var(--fg);
+    font-family: var(--sans);
+    font-size: 13px;
+    line-height: 1.45;
+    overflow: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+  #root { height: 100%; }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--scroll-thumb); border-radius: 4px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--scroll-thumb-h); }
+
+  /* Reusable utility classes */
+  .mono { font-family: var(--mono); }
+  .serif { font-family: var(--serif); }
+  .muted { color: var(--fg-2); }
+  .dim { color: var(--fg-3); }
+  .accent { color: var(--accent); }
+  .nowrap { white-space: nowrap; }
+
+  /* Surfaces */
+  .panel { background: var(--bg-1); border: 1px solid var(--border); }
+  .panel-inset { background: var(--bg-2); border: 1px solid var(--border); }
+  .divider-r { border-right: 1px solid var(--border); }
+  .divider-b { border-bottom: 1px solid var(--border); }
+  .divider-t { border-top: 1px solid var(--border); }
+
+  /* Buttons */
+  .btn {
+    font-family: var(--sans);
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--fg);
+    background: var(--bg-3);
+    border: 1px solid var(--border-2);
+    padding: 5px 10px;
+    border-radius: 3px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: background 0.1s, border-color 0.1s;
+    user-select: none;
+  }
+  .btn:hover { background: var(--btn-hover-bg); border-color: var(--btn-hover-border); }
+  .btn:active { background: var(--btn-active-bg); }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn-primary {
+    background: var(--btn-primary-bg);
+    border-color: var(--btn-primary-bg);
+    color: var(--accent-contrast);
+  }
+  .btn-primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
+  .btn-danger { color: var(--danger); border-color: var(--danger-border); }
+  .btn-danger:hover { background: var(--danger-hover-bg); border-color: var(--danger-hover-border); }
+  .btn-ghost {
+    background: transparent;
+    border-color: transparent;
+    color: var(--fg-2);
+  }
+  .btn-ghost:hover { background: var(--bg-2); color: var(--fg); }
+  .btn-sm { padding: 3px 7px; font-size: 11px; }
+
+  /* Inputs */
+  .input, .textarea, .select {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--fg);
+    background: var(--bg);
+    border: 1px solid var(--border-2);
+    padding: 5px 8px;
+    border-radius: 2px;
+    width: 100%;
+    outline: none;
+    transition: border-color 0.1s;
+  }
+  .input:focus, .textarea:focus, .select:focus { border-color: var(--accent); }
+  .textarea { resize: vertical; min-height: 60px; line-height: 1.5; }
+  .field-label {
+    font-family: var(--sans);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--fg-3);
+    font-weight: 600;
+    margin-bottom: 3px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .field { margin-bottom: 12px; }
+
+  /* Indicator dots */
+  .dot {
+    display: inline-block;
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .dot-modified { background: var(--modified); }
+  .dot-added { background: var(--added); }
+  .dot-online { background: var(--accent-3); box-shadow: 0 0 6px var(--accent-3); }
+  .dot-offline { background: var(--fg-3); }
+  .dot-error { background: var(--danger); }
+
+  /* Tabs */
+  .tabs { display: flex; gap: 0; border-bottom: 1px solid var(--border); background: var(--bg-1); }
+  .tab {
+    padding: 9px 14px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--fg-3);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    user-select: none;
+    transition: color 0.1s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .tab:hover { color: var(--fg-2); }
+  .tab.active { color: var(--fg); border-bottom-color: var(--accent); }
+  .tab .badge {
+    background: var(--bg-3);
+    color: var(--fg-2);
+    font-family: var(--mono);
+    font-size: 10px;
+    padding: 1px 5px;
+    border-radius: 2px;
+  }
+  .tab.active .badge { background: var(--btn-primary-bg); color: var(--accent-contrast); }
+
+  /* List */
+  .list-row {
+    padding: 7px 12px;
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+    user-select: none;
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    transition: background 0.05s;
+  }
+  .list-row:hover { background: var(--bg-2); }
+  .list-row.selected { background: var(--sel-bg); }
+  .list-row.selected::before {
+    content: '';
+    position: absolute; left: 0;
+    width: 2px; height: 100%;
+    background: var(--accent);
+  }
+
+  /* Badge */
+  .badge {
+    font-family: var(--mono);
+    font-size: 10px;
+    padding: 1px 5px;
+    border-radius: 2px;
+    background: var(--bg-3);
+    color: var(--fg-2);
+    border: 1px solid var(--border);
+    display: inline-block;
+  }
+  .badge-yellow { background: rgba(252, 179, 23, 0.15); color: var(--accent); border-color: rgba(252, 179, 23, 0.3); }
+  .badge-green { background: rgba(132, 195, 66, 0.15); color: var(--accent-3); border-color: rgba(132, 195, 66, 0.3); }
+  .badge-blue { background: rgba(51, 102, 204, 0.18); color: var(--blue-text); border-color: rgba(51, 102, 204, 0.35); }
+  .badge-red { background: rgba(255, 84, 104, 0.15); color: var(--danger); border-color: rgba(255, 84, 104, 0.3); }
+
+  /* Modal */
+  .modal-bg {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.6);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 100;
+    backdrop-filter: blur(2px);
+  }
+  .modal {
+    background: var(--bg-1);
+    border: 1px solid var(--border-2);
+    border-radius: 4px;
+    max-width: 92vw;
+    max-height: 90vh;
+    overflow: hidden;
+    display: flex; flex-direction: column;
+    box-shadow: 0 24px 64px rgba(0,0,0,0.6);
+  }
+
+  /* Header */
+  .app-header {
+    background: var(--bg-1);
+    border-bottom: 1px solid var(--border);
+    padding: 8px 14px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  .app-brand {
+    font-family: var(--serif);
+    font-weight: 500;
+    font-size: 15px;
+    letter-spacing: 0.01em;
+  }
+
+  /* Op log row */
+  .op-row {
+    padding: 6px 10px;
+    border-bottom: 1px solid var(--border);
+    font-family: var(--mono);
+    font-size: 11px;
+    display: flex;
+    gap: 8px;
+    align-items: baseline;
+  }
+  .op-type {
+    color: var(--accent);
+    font-weight: 600;
+    flex-shrink: 0;
+    min-width: 140px;
+  }
+
+  /* Splash */
+  .splash {
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background:
+      radial-gradient(ellipse at top, rgba(51, 102, 204, 0.08), transparent 60%),
+      radial-gradient(ellipse at bottom, rgba(252, 179, 23, 0.05), transparent 60%),
+      var(--bg);
+  }
+  .splash-card {
+    width: 480px;
+    max-width: 92vw;
+    background: var(--bg-1);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 30px 32px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+  }
+  .splash-title {
+    font-family: var(--serif);
+    font-size: 24px;
+    font-weight: 500;
+    margin-bottom: 4px;
+  }
+  .splash-sub {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--fg-3);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 28px;
+  }
+
+  /* Diff/highlight */
+  .field-modified {
+    box-shadow: inset 3px 0 0 var(--modified);
+    padding-left: 6px;
+  }
+  .field-added {
+    box-shadow: inset 3px 0 0 var(--added);
+    padding-left: 6px;
+  }
+
+  /* Subtle textures */
+  .grid-bg {
+    background-image:
+      linear-gradient(var(--grid-line) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+    background-size: 24px 24px;
+  }
+
+  /* Anchor pill */
+  .anchor-pill {
+    font-family: var(--mono);
+    font-size: 10px;
+    background: var(--bg-2);
+    border: 1px solid var(--border);
+    padding: 2px 6px;
+    border-radius: 2px;
+    color: var(--fg-2);
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .anchor-pill .label {
+    color: var(--accent-3);
+    font-weight: 600;
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  /* Toast */
+  .toast-stack {
+    position: fixed;
+    right: 14px; bottom: 14px;
+    z-index: 200;
+    display: flex; flex-direction: column;
+    gap: 8px;
+    max-width: 380px;
+  }
+  .toast {
+    background: var(--bg-1);
+    border: 1px solid var(--border-2);
+    border-left: 3px solid var(--accent);
+    padding: 8px 12px;
+    font-size: 12px;
+    border-radius: 3px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+    animation: toastIn 0.2s ease-out;
+  }
+  .toast.error { border-left-color: var(--danger); }
+  .toast.success { border-left-color: var(--accent-3); }
+  @keyframes toastIn {
+    from { transform: translateX(20px); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+  }
+
+  /* Tag chip */
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: var(--bg-2);
+    border: 1px solid var(--border);
+    padding: 2px 4px 2px 8px;
+    border-radius: 11px;
+    font-family: var(--mono);
+    font-size: 11px;
+    margin: 2px 4px 2px 0;
+  }
+  .chip button {
+    background: transparent;
+    border: none;
+    color: var(--fg-3);
+    cursor: pointer;
+    padding: 0 4px;
+    font-size: 14px;
+    line-height: 1;
+  }
+  .chip button:hover { color: var(--danger); }
+
+  /* Inline kvp */
+  .kvp { display: flex; gap: 8px; align-items: baseline; }
+  .kvp .k { color: var(--fg-3); font-size: 11px; min-width: 80px; }
+  .kvp .v { font-family: var(--mono); font-size: 12px; color: var(--fg); }
+
+  /* Suggestion combobox */
+  .suggest-wrap { position: relative; flex: 1; min-width: 0; }
+  .suggest-pop {
+    position: absolute;
+    top: calc(100% + 2px); left: 0; right: 0;
+    background: var(--bg-1);
+    border: 1px solid var(--border-2);
+    border-radius: 3px;
+    z-index: 120;
+    max-height: 180px;
+    overflow-y: auto;
+    box-shadow: 0 10px 28px rgba(0,0,0,0.45);
+    font-family: var(--mono);
+    font-size: 11px;
+  }
+  .suggest-item { padding: 5px 8px; cursor: pointer; white-space: nowrap;
+                  overflow: hidden; text-overflow: ellipsis; }
+  .suggest-item.hi { background: var(--sel-bg); }
+
+  /* Inline validation note */
+  .vnote {
+    font-size: 10px;
+    color: var(--warn);
+    margin-top: 3px;
+    font-family: var(--mono);
+  }
+
+  /* Wave/blink */
+  @keyframes blink { 50% { opacity: 0.3; } }
+  .blink { animation: blink 1.2s infinite; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel" data-presets="env,react">
+/* ============================================================================
+   CyTRICS SBOM Collaborative Editor (single-file build)
+
+   ARCHITECTURE OVERVIEW
+   ---------------------
+   currentSBOM = applyAll(baseSBOM, opLog)
+
+   Every manual edit is an Operation. Operations reference entities by ANCHOR
+   (a stable fingerprint), not UUID, so the op log can be re-applied to a
+   regenerated SBOM whose UUIDs have changed.
+
+   ANCHOR DESIGN
+   -------------
+   Software (tiered, most-stable first):
+     1) sha256 of file content
+     2) sha1 of file content
+     3) md5 of file content
+     4) composite SHA-256 over a stable fingerprint:
+          {names, fileNames, size, softwareType, vendors, metadataDigest}
+        Deliberately EXCLUDED from composite:
+          - UUID, captureTime          (change per run)
+          - containerPath              (embeds other UUIDs)
+          - installPath                (often capture-specific)
+          - version                    (user frequently edits)
+   Hardware:
+     - composite SHA-256 over (identifiers, names, hardwareType, vendor, packageType)
+
+   Relationship anchor: (srcAnchor, dstAnchor, relationship) triple.
+
+   The patch is order-sensitive: anchors are re-indexed after each op during
+   replay, so a later op that depends on a field changed by an earlier op
+   resolves correctly.
+
+   COLLABORATION
+   -------------
+   Mesh via PeerJS. Each peer broadcasts ops; dedup by op.id.
+   Total ordering: Lamport clock + peerId tiebreak.
+   Password gates the room: HMAC challenge on connect + AES-GCM message stream.
+
+============================================================================ */
+
+const { useState, useEffect, useMemo, useCallback, useRef, useReducer } = React;
+
+/* ========================================================================= *
+ *  1. CORE UTILITIES                                                        *
+ * ========================================================================= */
+
+function genUUID() {
+  if (crypto.randomUUID) return crypto.randomUUID();
+  // RFC4122 v4 fallback
+  return ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g, c =>
+    (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16));
+}
+
+const _te = new TextEncoder();
+const _td = new TextDecoder();
+const _hex = a => Array.from(new Uint8Array(a)).map(b => b.toString(16).padStart(2,'0')).join('');
+const _unhex = s => new Uint8Array(s.match(/.{1,2}/g).map(b => parseInt(b,16)));
+
+async function sha256Hex(input) {
+  const data = typeof input === 'string' ? _te.encode(input) : input;
+  const buf = await crypto.subtle.digest('SHA-256', data);
+  return _hex(buf);
+}
+async function hmacSha256Hex(keyStr, message) {
+  const key = await crypto.subtle.importKey('raw', _te.encode(keyStr),
+    { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+  const sig = await crypto.subtle.sign('HMAC', key, _te.encode(message));
+  return _hex(sig);
+}
+
+function deepClone(o) {
+  if (o === null || typeof o !== 'object') return o;
+  if (Array.isArray(o)) return o.map(deepClone);
+  const r = {};
+  for (const k in o) r[k] = deepClone(o[k]);
+  return r;
+}
+function deepEqual(a, b) {
+  if (a === b) return true;
+  if (a === null || b === null || typeof a !== typeof b) return false;
+  if (typeof a !== 'object') return false;
+  if (Array.isArray(a) !== Array.isArray(b)) return false;
+  const ak = Object.keys(a), bk = Object.keys(b);
+  if (ak.length !== bk.length) return false;
+  for (const k of ak) if (!deepEqual(a[k], b[k])) return false;
+  return true;
+}
+function isoNow() { return new Date().toISOString(); }
+function shortId(s, n=8) { return s ? String(s).slice(0,n) : ''; }
+function downloadJSON(filename, obj) {
+  const blob = new Blob([JSON.stringify(obj, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 100);
+}
+
+/* ----- Schema-derived suggestion lists (from CyTRICS 1.0.1 `examples`) ----- */
+const SUGGEST = {
+  swNameType: ['common platform enumeration (CPE)', 'package URL (purl)', 'product name'],
+  hwNameType: ['manufacturer part number (MPN)', 'model number', 'serial number',
+               'catalog number', 'stock keeping unit (SKU)',
+               'universal product code (UPC)', 'product name'],
+  softwareType: ['discrete','embedded','file','static library','dynamic library',
+                 'data','source code','python'],
+  hardwareType: ['Actuator','Circuit board','Flash','EEPROM','Display device','Memory',
+                 'Step-down converter','Voltage regulator','Programmable logic',
+                 'Processor','Sensor','System-on-a-chip','Transistors'],
+  relationship: ['Contains','Downloads','Uses','Mounted on'],
+  swVendor: ['ABB','GE','Microsoft','Rockwell Collins','Schneider Electric',
+             'Schweitzer Engineering Laboratories','Siemens'],
+  hwVendor: ['ABB','Alliance Memory','Altera','Analog Devices','Cypress Semiconductors',
+             'Everspin','ISSI','ITE','Intel','International Rectifier','Intersil',
+             'Lattice Semiconductor','Linear Technology','Macronix','Maxim Integrated',
+             'Microchip Technology','Micron Technology','Murata Power Solutions',
+             'NXP Semiconductors','Nexperia','ON Semiconductor','PLX Technology',
+             'Phillips','Pulse Electronics','STMicroelectronics','Seiko Epson',
+             'Texas Instruments','Vishay Intertechnology','XILINX'],
+  authorType: ['name','organization','program'],
+  country: ['Canada','China','US','UK'],
+  packageType: ['DIP-8','SMD-4','VQFN-24','BGA','SOIC-8','FBGA-484','TSSOP-16'],
+  // Field names a comment's fieldName can reference, straight from the schema.
+  swFields: ['UUID','softwareType','name','size','fileName','installPath','containerPath',
+             'captureTime','version','vendor','description','sha1','sha256','md5',
+             'notHashable','relationshipAssertion','comments','metadata','supplementaryFiles'],
+  hwFields: ['UUID','name','captureTime','countryOfOrigin','countryOfOriginSource','quantity',
+             'description','vendor','identifiers','hardwareType','comments','metadata',
+             'supplementaryFiles','packageType','boardLocation'],
+};
+
+// Combobox: a text input with a suggestion dropdown that opens on the FIRST
+// click (focus), filters live as you type, and toggles closed on a subsequent
+// click. Free entry is always allowed; suggestions are never mandatory.
+function SuggestInput({ value, onChange, suggestions = [], placeholder, mono,
+                        wrapStyle, inputStyle, onEnter }) {
+  const [open, setOpen] = useState(false);
+  const [hi, setHi] = useState(-1);
+  const wrapRef = useRef(null);
+
+  const matches = useMemo(() => {
+    const q = (value || '').toLowerCase().trim();
+    const list = q ? suggestions.filter(s => s.toLowerCase().includes(q)) : suggestions;
+    return list.slice(0, 60);
+  }, [value, suggestions]);
+
+  useEffect(() => {
+    function onDocDown(e) {
+      if (wrapRef.current && !wrapRef.current.contains(e.target)) { setOpen(false); setHi(-1); }
+    }
+    document.addEventListener('mousedown', onDocDown);
+    return () => document.removeEventListener('mousedown', onDocDown);
+  }, []);
+
+  function pick(s) { onChange(s); setOpen(false); setHi(-1); }
+
+  return (
+    <div className="suggest-wrap" style={wrapStyle} ref={wrapRef}>
+      <input className={"input" + (mono ? " mono" : "")} style={inputStyle}
+             value={value || ''} placeholder={placeholder}
+             onFocus={() => { setOpen(true); setHi(-1); }}
+             onMouseDown={e => {
+               // Already focused → this click toggles the list (dismiss/reopen).
+               if (document.activeElement === e.target) setOpen(o => !o);
+             }}
+             onChange={e => { onChange(e.target.value); setOpen(true); setHi(-1); }}
+             onKeyDown={e => {
+               if (e.key === 'ArrowDown') {
+                 e.preventDefault();
+                 if (!open) setOpen(true);
+                 setHi(h => Math.min(h + 1, matches.length - 1));
+               } else if (e.key === 'ArrowUp') {
+                 e.preventDefault();
+                 setHi(h => Math.max(h - 1, 0));
+               } else if (e.key === 'Escape') {
+                 setOpen(false); setHi(-1);
+               } else if (e.key === 'Enter') {
+                 if (open && hi >= 0 && matches[hi]) { e.preventDefault(); pick(matches[hi]); }
+                 else if (onEnter) { setOpen(false); onEnter(); }
+               }
+             }} />
+      {open && matches.length > 0 && (
+        <div className="suggest-pop">
+          {matches.map((s, i) => (
+            <div key={s}
+                 className={"suggest-item" + (i === hi ? " hi" : "")}
+                 onMouseDown={e => { e.preventDefault(); pick(s); }}
+                 onMouseEnter={() => setHi(i)}>
+              {s}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ----- Format validators ----- */
+const VALID = {
+  sha256: v => /^[0-9a-fA-F]{64}$/.test(v),
+  sha1:   v => /^[0-9a-fA-F]{40}$/.test(v),
+  md5:    v => /^[0-9a-fA-F]{32}$/.test(v),
+  // ISO-8601 date-time with timezone (schema format: date-time)
+  isoTime: v => /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:?\d{2})$/.test(v)
+                && !isNaN(Date.parse(v)),
+  // CPE 2.3 formatted string, or legacy CPE 2.2 URI binding
+  cpe: v => /^cpe:2\.3:[aho*\-](:[^:]*){10}$/.test(v)
+         || /^cpe:\/[aho](:[^:]*){0,6}$/.test(v),
+  // purl: pkg:type/namespace?/name@version? (pragmatic check)
+  purl: v => /^pkg:[A-Za-z][A-Za-z0-9.+-]*\/[^@\s]+(@[^?\s#]+)?(\?[^#\s]*)?(#\S*)?$/.test(v),
+};
+function Vnote({ show, children }) {
+  if (!show) return null;
+  return <div className="vnote">⚠ {children}</div>;
+}
+// Issue (or null) for a {nameType, nameValue} row based on the selected type.
+function nameRowIssue(n) {
+  const t = (n.nameType || '').toLowerCase();
+  const v = n.nameValue || '';
+  if (!v) return null;
+  if ((t.includes('cpe') || t.includes('platform enumeration')) && !VALID.cpe(v))
+    return "doesn't look like a valid CPE (expected cpe:2.3:… with 11 components, or cpe:/…)";
+  if ((t.includes('purl') || t.includes('package url')) && !VALID.purl(v))
+    return "doesn't look like a valid purl (expected pkg:type/name[@version])";
+  return null;
+}
+
+/* ----- Date/time field with picker + Now button ----- */
+function isoToLocalInput(iso) {
+  const d = new Date(iso);
+  if (isNaN(d)) return '';
+  const p = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
+}
+function DateTimeField({ value, onChange }) {
+  // `value` is the ISO-8601 string stored in the SBOM (or empty).
+  const [raw, setRaw] = useState(value || '');
+  useEffect(() => { setRaw(value || ''); }, [value]);
+  const rawOk = !raw || VALID.isoTime(raw);
+  return (
+    <div>
+      <div style={{display:'flex', gap:6}}>
+        <input className="input mono" type="datetime-local" step="1"
+               value={isoToLocalInput(value)}
+               onChange={e => {
+                 const v = e.target.value;
+                 onChange(v ? new Date(v).toISOString() : null);
+               }} />
+        <button className="btn btn-sm" title="Set to current time"
+                onClick={() => onChange(new Date().toISOString())}>
+          <Icon name="clock" size={11}/> Now
+        </button>
+        <button className="btn btn-sm btn-ghost" title="Clear"
+                onClick={() => onChange(null)}>
+          <Icon name="x" size={11}/>
+        </button>
+      </div>
+      <input className="input mono" style={{marginTop:4, fontSize:11}}
+             placeholder="2024-12-10T19:39:10Z (ISO 8601, manual entry)"
+             value={raw}
+             onChange={e => {
+               const v = e.target.value;
+               setRaw(v);
+               if (!v) onChange(null);
+               else if (VALID.isoTime(v)) onChange(v);
+             }} />
+      <Vnote show={!rawOk}>not a valid ISO-8601 date-time (needs a timezone, e.g. Z or +01:00)</Vnote>
+    </div>
+  );
+}
+
+/* ----- Browser document cache (IndexedDB) -----
+   Documents live in IndexedDB, not localStorage: no ~5 MB ceiling, structured
+   clone instead of JSON stringification, and eligibility for persistent
+   storage (navigator.storage.persist) so the browser won't auto-evict.
+   Two object stores: 'meta' (lightweight listing) and 'data' (full payload),
+   so the splash screen can enumerate without loading every SBOM into memory. */
+const IDB_NAME = 'sbom-workbench';
+const IDB_VER = 1;
+
+function idbOpen() {
+  return new Promise((res, rej) => {
+    const r = indexedDB.open(IDB_NAME, IDB_VER);
+    r.onupgradeneeded = () => {
+      const db = r.result;
+      if (!db.objectStoreNames.contains('meta')) db.createObjectStore('meta', { keyPath: 'id' });
+      if (!db.objectStoreNames.contains('data')) db.createObjectStore('data', { keyPath: 'id' });
+    };
+    r.onsuccess = () => res(r.result);
+    r.onerror = () => rej(r.error || new Error('IndexedDB open failed'));
+  });
+}
+
+async function saveCacheEntry(state) {
+  const id = state.baseSBOMHash;
+  if (!id) return { ok: false, err: 'no base hash' };
+  try {
+    const db = await idbOpen();
+    await new Promise((res, rej) => {
+      const tx = db.transaction(['meta', 'data'], 'readwrite');
+      tx.objectStore('data').put({
+        id, fileName: state.fileName,
+        baseSBOM: state.baseSBOM, baseSBOMHash: state.baseSBOMHash, ops: state.ops,
+      });
+      tx.objectStore('meta').put({
+        id, fileName: state.fileName, savedAt: isoNow(),
+        swCount: state.currentSBOM?.software?.length || 0,
+        opCount: state.ops.length,
+      });
+      tx.oncomplete = () => res();
+      tx.onerror = () => rej(tx.error);
+      tx.onabort = () => rej(tx.error || new Error('transaction aborted'));
+    });
+    db.close();
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, err: e?.message || String(e) };
+  }
+}
+
+async function listCacheEntries() {
+  try {
+    const db = await idbOpen();
+    const metas = await new Promise((res, rej) => {
+      const rq = db.transaction('meta', 'readonly').objectStore('meta').getAll();
+      rq.onsuccess = () => res(rq.result || []);
+      rq.onerror = () => rej(rq.error);
+    });
+    db.close();
+    return metas.sort((a, b) => (b.savedAt || '').localeCompare(a.savedAt || ''));
+  } catch { return []; }
+}
+
+async function loadCacheEntry(id) {
+  try {
+    const db = await idbOpen();
+    const entry = await new Promise((res, rej) => {
+      const rq = db.transaction('data', 'readonly').objectStore('data').get(id);
+      rq.onsuccess = () => res(rq.result || null);
+      rq.onerror = () => rej(rq.error);
+    });
+    db.close();
+    return entry;
+  } catch { return null; }
+}
+
+async function deleteCacheEntry(id) {
+  try {
+    const db = await idbOpen();
+    await new Promise((res, rej) => {
+      const tx = db.transaction(['meta', 'data'], 'readwrite');
+      tx.objectStore('meta').delete(id);
+      tx.objectStore('data').delete(id);
+      tx.oncomplete = () => res();
+      tx.onerror = () => rej(tx.error);
+    });
+    db.close();
+  } catch {}
+}
+
+/* ----- Persistent storage (opt-in eviction protection) ----- */
+async function getPersistence() {
+  if (!navigator.storage?.persisted) return { supported: false, persisted: false };
+  try { return { supported: true, persisted: await navigator.storage.persisted() }; }
+  catch { return { supported: false, persisted: false }; }
+}
+async function requestPersistence() {
+  if (!navigator.storage?.persist) return { supported: false, persisted: false };
+  try { return { supported: true, persisted: await navigator.storage.persist() }; }
+  catch { return { supported: true, persisted: false }; }
+}
+async function storageEstimate() {
+  try { return await navigator.storage.estimate(); } catch { return null; }
+}
+
+/* ========================================================================= *
+ *  2. ANCHOR SYSTEM                                                         *
+ * ========================================================================= */
+
+const ANCHOR_TIERS = ['sha256','sha1','md5','composite'];
+
+function normHex(s) { return s ? String(s).toLowerCase().trim() : ''; }
+
+// Stable JSON: keys sorted recursively; arrays in given order (caller pre-sorts).
+function stableStringify(v) {
+  if (v === null || typeof v !== 'object') return JSON.stringify(v);
+  if (Array.isArray(v)) return '[' + v.map(stableStringify).join(',') + ']';
+  const keys = Object.keys(v).sort();
+  return '{' + keys.map(k => JSON.stringify(k) + ':' + stableStringify(v[k])).join(',') + '}';
+}
+
+async function computeSoftwareAnchor(sw) {
+  if (sw.sha256) return { type: 'sha256', value: normHex(sw.sha256) };
+  if (sw.sha1)   return { type: 'sha1',   value: normHex(sw.sha1) };
+  if (sw.md5)    return { type: 'md5',    value: normHex(sw.md5) };
+  // Composite fingerprint
+  const names = (sw.name || []).map(n => `${n.nameType||''}::${n.nameValue||''}`).sort();
+  const fileNames = [...(sw.fileName || [])].sort();
+  const softwareType = [...(sw.softwareType || [])].sort();
+  const vendors = [...(sw.vendor || [])].sort();
+  const metadataDigest = sw.metadata && sw.metadata.length
+    ? await sha256Hex(stableStringify(sw.metadata))
+    : null;
+  const fp = { kind: 'software', names, fileNames, size: sw.size ?? null,
+               softwareType, vendors, metadataDigest };
+  return { type: 'composite', value: await sha256Hex(stableStringify(fp)) };
+}
+
+async function computeHardwareAnchor(hw) {
+  const identifiers = [...(hw.identifiers || [])].sort();
+  const names = (hw.name || []).map(n => `${n.nameType||''}::${n.nameValue||''}`).sort();
+  const hardwareType = [...(hw.hardwareType || [])].sort();
+  const vendors = [...(hw.vendor || [])].sort();
+  const fp = { kind: 'hardware', identifiers, names, hardwareType,
+               vendors, packageType: hw.packageType ?? null };
+  return { type: 'composite', value: await sha256Hex(stableStringify(fp)) };
+}
+
+function anchorKey(a) { return `${a.type}:${a.value}`; }
+
+// Build maps of anchor->uuid (per tier) for fast resolution
+async function buildAnchorIndex(sbom) {
+  const swIdx = new Map();   // anchorKey -> uuid
+  const swByUUID = new Map(); // uuid -> { sw, anchor, allAnchors }
+  for (const sw of sbom.software || []) {
+    // Compute primary anchor (highest tier present)
+    const primary = await computeSoftwareAnchor(sw);
+    // Also register lower-tier hash entries so a patch with sha1 anchor
+    // still resolves if the regenerated SBOM has sha256.
+    const all = [];
+    if (sw.sha256) all.push({ type: 'sha256', value: normHex(sw.sha256) });
+    if (sw.sha1)   all.push({ type: 'sha1',   value: normHex(sw.sha1) });
+    if (sw.md5)    all.push({ type: 'md5',    value: normHex(sw.md5) });
+    if (!all.length) all.push(primary); // composite-only
+    for (const a of all) swIdx.set(anchorKey(a), sw.UUID);
+    swByUUID.set(sw.UUID, { sw, primary, all });
+  }
+  const hwIdx = new Map();
+  const hwByUUID = new Map();
+  for (const hw of sbom.hardware || []) {
+    const a = await computeHardwareAnchor(hw);
+    hwIdx.set(anchorKey(a), hw.UUID);
+    hwByUUID.set(hw.UUID, { hw, primary: a });
+  }
+  return { swIdx, swByUUID, hwIdx, hwByUUID };
+}
+
+function resolveAnchor(anchor, index) {
+  if (!anchor) return null;
+  return index.swIdx.get(anchorKey(anchor))
+      || index.hwIdx.get(anchorKey(anchor))
+      || null;
+}
+
+/* ========================================================================= *
+ *  3. OPERATIONS                                                            *
+ * ========================================================================= */
+
+const OP = {
+  // Software
+  SW_ADD: 'sw.add',
+  SW_REMOVE: 'sw.remove',
+  SW_SET_FIELD: 'sw.setField',
+  // Hardware
+  HW_ADD: 'hw.add',
+  HW_REMOVE: 'hw.remove',
+  HW_SET_FIELD: 'hw.setField',
+  // Relationships
+  REL_ADD: 'rel.add',
+  REL_REMOVE: 'rel.remove',
+  REL_SET_COMMENTS: 'rel.setComments',
+  // BOM-level
+  BOM_SET_FIELD: 'bom.setField',
+};
+
+function makeOp({ type, peerId, lamport, payload }) {
+  return {
+    id: genUUID(),
+    type,
+    ts: lamport,
+    peerId,
+    rev: 0,            // bumped when sequential edits to the same field coalesce
+    wallTime: isoNow(),
+    ...payload,
+  };
+}
+
+// Apply a single op against current SBOM. Returns { sbom, status, message }.
+// `index` is the anchor index of `sbom` at this moment.
+function applyOpToSBOM(sbom, op, index) {
+  const s = sbom; // we'll mutate clones inside
+  function clone(o){ return deepClone(o); }
+
+  switch (op.type) {
+    case OP.SW_ADD: {
+      const sw = clone(op.software);
+      if (!sw.UUID) sw.UUID = genUUID();
+      // If an entry with same anchor already exists, treat as no-op (idempotent).
+      if (op.anchor && resolveAnchor(op.anchor, index)) {
+        return { sbom: s, status: 'skipped', message: 'entry with same anchor already present' };
+      }
+      const next = clone(s);
+      next.software = next.software || [];
+      next.software.push(sw);
+      return { sbom: next, status: 'applied' };
+    }
+    case OP.SW_REMOVE: {
+      const uuid = resolveAnchor(op.anchor, index);
+      if (!uuid) return { sbom: s, status: 'unresolved', message: 'anchor not found' };
+      const next = clone(s);
+      next.software = (next.software || []).filter(x => x.UUID !== uuid);
+      next.relationships = (next.relationships || []).filter(r => r.xUUID !== uuid && r.yUUID !== uuid);
+      return { sbom: next, status: 'applied' };
+    }
+    case OP.SW_SET_FIELD: {
+      const uuid = resolveAnchor(op.anchor, index);
+      if (!uuid) return { sbom: s, status: 'unresolved', message: 'anchor not found' };
+      const next = clone(s);
+      const sw = (next.software || []).find(x => x.UUID === uuid);
+      if (!sw) return { sbom: s, status: 'unresolved', message: 'entry vanished' };
+      if (op.value === undefined || op.value === null) delete sw[op.field];
+      else sw[op.field] = clone(op.value);
+      return { sbom: next, status: 'applied' };
+    }
+    case OP.HW_ADD: {
+      const hw = clone(op.hardware);
+      if (!hw.UUID) hw.UUID = genUUID();
+      if (op.anchor && resolveAnchor(op.anchor, index)) {
+        return { sbom: s, status: 'skipped', message: 'entry with same anchor already present' };
+      }
+      const next = clone(s);
+      next.hardware = next.hardware || [];
+      next.hardware.push(hw);
+      return { sbom: next, status: 'applied' };
+    }
+    case OP.HW_REMOVE: {
+      const uuid = resolveAnchor(op.anchor, index);
+      if (!uuid) return { sbom: s, status: 'unresolved', message: 'anchor not found' };
+      const next = clone(s);
+      next.hardware = (next.hardware || []).filter(x => x.UUID !== uuid);
+      next.relationships = (next.relationships || []).filter(r => r.xUUID !== uuid && r.yUUID !== uuid);
+      return { sbom: next, status: 'applied' };
+    }
+    case OP.HW_SET_FIELD: {
+      const uuid = resolveAnchor(op.anchor, index);
+      if (!uuid) return { sbom: s, status: 'unresolved', message: 'anchor not found' };
+      const next = clone(s);
+      const hw = (next.hardware || []).find(x => x.UUID === uuid);
+      if (!hw) return { sbom: s, status: 'unresolved', message: 'entry vanished' };
+      if (op.value === undefined || op.value === null) delete hw[op.field];
+      else hw[op.field] = clone(op.value);
+      return { sbom: next, status: 'applied' };
+    }
+    case OP.REL_ADD: {
+      const x = resolveAnchor(op.srcAnchor, index);
+      const y = resolveAnchor(op.dstAnchor, index);
+      if (!x || !y) return { sbom: s, status: 'unresolved', message: 'endpoint anchor not found' };
+      const next = clone(s);
+      next.relationships = next.relationships || [];
+      // Idempotent: skip if exact triple already exists.
+      if (next.relationships.some(r => r.xUUID === x && r.yUUID === y && r.relationship === op.relationship)) {
+        return { sbom: s, status: 'skipped', message: 'relationship already present' };
+      }
+      const rel = { xUUID: x, yUUID: y, relationship: op.relationship };
+      if (op.comments) rel.comments = clone(op.comments);
+      next.relationships.push(rel);
+      return { sbom: next, status: 'applied' };
+    }
+    case OP.REL_REMOVE: {
+      const x = resolveAnchor(op.srcAnchor, index);
+      const y = resolveAnchor(op.dstAnchor, index);
+      if (!x || !y) return { sbom: s, status: 'unresolved', message: 'endpoint anchor not found' };
+      const next = clone(s);
+      next.relationships = (next.relationships || []).filter(r =>
+        !(r.xUUID === x && r.yUUID === y && r.relationship === op.relationship));
+      return { sbom: next, status: 'applied' };
+    }
+    case OP.REL_SET_COMMENTS: {
+      const x = resolveAnchor(op.srcAnchor, index);
+      const y = resolveAnchor(op.dstAnchor, index);
+      if (!x || !y) return { sbom: s, status: 'unresolved', message: 'endpoint anchor not found' };
+      const next = clone(s);
+      const rel = (next.relationships || []).find(r =>
+        r.xUUID === x && r.yUUID === y && r.relationship === op.relationship);
+      if (!rel) return { sbom: s, status: 'unresolved', message: 'relationship not found' };
+      if (op.comments === null || op.comments === undefined || op.comments.length === 0) delete rel.comments;
+      else rel.comments = clone(op.comments);
+      return { sbom: next, status: 'applied' };
+    }
+    case OP.BOM_SET_FIELD: {
+      const next = clone(s);
+      if (op.value === undefined || op.value === null) delete next[op.field];
+      else next[op.field] = clone(op.value);
+      return { sbom: next, status: 'applied' };
+    }
+    default:
+      return { sbom: s, status: 'unresolved', message: 'unknown op type ' + op.type };
+  }
+}
+
+// Apply an ordered list of ops with anchor re-indexing between each op.
+async function replayOps(baseSBOM, ops) {
+  let cur = deepClone(baseSBOM);
+  const report = [];
+  for (const op of ops) {
+    const idx = await buildAnchorIndex(cur);
+    const r = applyOpToSBOM(cur, op, idx);
+    cur = r.sbom;
+    report.push({ opId: op.id, type: op.type, status: r.status, message: r.message || null });
+  }
+  return { sbom: cur, report };
+}
+
+/* ========================================================================= *
+ *  4. CRYPTO for P2P                                                        *
+ * ========================================================================= */
+
+async function deriveKey(password, saltHex) {
+  const salt = _unhex(saltHex);
+  const baseKey = await crypto.subtle.importKey('raw', _te.encode(password),
+    { name: 'PBKDF2' }, false, ['deriveKey']);
+  return await crypto.subtle.deriveKey(
+    { name: 'PBKDF2', salt, iterations: 200000, hash: 'SHA-256' },
+    baseKey,
+    { name: 'AES-GCM', length: 256 },
+    false, ['encrypt','decrypt']);
+}
+async function encryptPayload(key, obj) {
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const ct = await crypto.subtle.encrypt({ name: 'AES-GCM', iv },
+    key, _te.encode(JSON.stringify(obj)));
+  return { iv: _hex(iv), ct: _hex(new Uint8Array(ct)) };
+}
+async function decryptPayload(key, blob) {
+  const pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: _unhex(blob.iv) },
+    key, _unhex(blob.ct));
+  return JSON.parse(_td.decode(pt));
+}
+
+/* ========================================================================= *
+ *  5. PEER NETWORKING                                                       *
+ *  Mesh: every peer connects to every known peer.                            *
+ *  Auth: HMAC challenge over password.                                       *
+ *  Stream: AES-GCM encrypted JSON messages.                                  *
+ *  Sync-on-join: incoming peer requests state, host sends {baseSBOM, ops}.   *
+ * ========================================================================= */
+
+class PeerNet {
+  constructor({ roomId, password, peerName, onEvent }) {
+    this.roomId = roomId;
+    this.password = password;
+    this.peerName = peerName;
+    this.onEvent = onEvent;
+    this.peer = null;
+    this.myPeerId = null;
+    this.connections = new Map(); // peerId -> { conn, authed, name }
+    this.seenOps = new Map(); // op.id -> highest rev seen
+    this.key = null;
+    this.salt = null;
+    this.gotState = false;
+  }
+
+  async start({ asHost }) {
+    this.asHost = asHost;
+    // Salt fixed-per-room derived from roomId so all peers share it.
+    this.salt = (await sha256Hex('cytrics-sbom-room/' + this.roomId)).slice(0, 32);
+    this.key = await deriveKey(this.password, this.salt);
+
+    // PeerJS peer ID
+    const myId = asHost ? this.roomId : 'cytrics-' + genUUID().slice(0,8);
+    this.peer = new Peer(myId, { debug: 1 });
+
+    return new Promise((resolve, reject) => {
+      let resolved = false;
+      this.peer.on('open', id => {
+        this.myPeerId = id;
+        this.onEvent({ type: 'log', level: 'info', msg: `Peer open as ${id}` });
+        resolved = true;
+        resolve(id);
+      });
+      this.peer.on('error', err => {
+        this.onEvent({ type: 'log', level: 'error', msg: `Peer error: ${err.type} ${err.message||''}` });
+        if (!resolved) reject(err);
+      });
+      this.peer.on('connection', conn => this._onIncoming(conn));
+      // Host doesn't need to dial; client dials host on `connectTo`.
+    });
+  }
+
+  async connectTo(targetPeerId) {
+    this.onEvent({ type: 'log', level: 'info', msg: `Dialing ${targetPeerId}…` });
+    const conn = this.peer.connect(targetPeerId, { reliable: true });
+    this._registerConn(conn, true);
+  }
+
+  _onIncoming(conn) {
+    this.onEvent({ type: 'log', level: 'info', msg: `Incoming connection ${conn.peer}` });
+    this._registerConn(conn, false);
+  }
+
+  _registerConn(conn, weDialed) {
+    const entry = { conn, authed: false, name: '?', weDialed };
+    this.connections.set(conn.peer, entry);
+    this._broadcastEvent();
+
+    conn.on('open', async () => {
+      // Send AUTH:
+      // Either side may initiate; we send our challenge nonce, expect peer to return HMAC.
+      const nonce = genUUID();
+      entry.nonce = nonce;
+      conn.send({ kind: 'hello', nonce, peerName: this.peerName, salt: this.salt });
+    });
+    conn.on('data', data => this._onData(conn, entry, data));
+    conn.on('close', () => {
+      this.connections.delete(conn.peer);
+      this.onEvent({ type: 'log', level: 'info', msg: `Disconnected ${conn.peer}` });
+      this._broadcastEvent();
+    });
+    conn.on('error', e => {
+      this.onEvent({ type: 'log', level: 'error', msg: `Conn error ${conn.peer}: ${e.message||e}` });
+    });
+  }
+
+  async _onData(conn, entry, msg) {
+    try {
+      if (msg.kind === 'hello') {
+        if (msg.salt && msg.salt !== this.salt) {
+          this.onEvent({ type: 'log', level: 'error', msg: 'Salt mismatch (different room?)' });
+          conn.close(); return;
+        }
+        const auth = await hmacSha256Hex(this.password, msg.nonce);
+        conn.send({ kind: 'authResp', auth, peerName: this.peerName });
+      } else if (msg.kind === 'authResp') {
+        const expected = await hmacSha256Hex(this.password, entry.nonce);
+        if (expected !== msg.auth) {
+          this.onEvent({ type: 'log', level: 'error', msg: `Bad password from ${conn.peer}` });
+          conn.send({ kind: 'authFail' });
+          conn.close(); return;
+        }
+        entry.authed = true;
+        entry.name = msg.peerName || '?';
+        this.onEvent({ type: 'log', level: 'info', msg: `Authed ${entry.name} (${conn.peer})` });
+        this._broadcastEvent();
+        // If we (client) dialed and haven't received state yet, request it.
+        if (entry.weDialed && !this.gotState) {
+          const env = await encryptPayload(this.key, { kind: 'requestState' });
+          conn.send({ kind: 'enc', env });
+        }
+      } else if (msg.kind === 'authFail') {
+        this.onEvent({ type: 'log', level: 'error', msg: `Auth rejected by ${conn.peer}` });
+        conn.close();
+      } else if (msg.kind === 'enc') {
+        if (!entry.authed) return; // ignore pre-auth
+        let payload;
+        try { payload = await decryptPayload(this.key, msg.env); }
+        catch (e) { this.onEvent({ type: 'log', level: 'error', msg: 'decrypt failed' }); return; }
+        this._onPayload(conn, entry, payload);
+      }
+    } catch (e) {
+      this.onEvent({ type: 'log', level: 'error', msg: `data handler: ${e.message}` });
+    }
+  }
+
+  _onPayload(conn, entry, payload) {
+    if (payload.kind === 'requestState') {
+      this.onEvent({ type: 'sendStateTo', conn, peer: entry });
+    } else if (payload.kind === 'state') {
+      this.onEvent({ type: 'gotState', baseSBOM: payload.baseSBOM, ops: payload.ops, fromPeer: entry.name });
+      this.gotState = true;
+      // After we got state, also gossip our connection's known peers so we mesh.
+      this._broadcastPeerList();
+    } else if (payload.kind === 'op') {
+      const op = payload.op;
+      const known = this.seenOps.get(op.id);
+      if (known !== undefined && known >= (op.rev || 0)) return;
+      this.seenOps.set(op.id, op.rev || 0);
+      this.onEvent({ type: 'remoteOp', op, fromPeer: entry.name });
+      // Gossip forward
+      this._broadcast(payload, conn.peer);
+    } else if (payload.kind === 'peerList') {
+      for (const pid of payload.peers) {
+        if (pid === this.myPeerId) continue;
+        if (this.connections.has(pid)) continue;
+        this.connectTo(pid);
+      }
+    }
+  }
+
+  async sendStateTo(conn, baseSBOM, ops) {
+    const env = await encryptPayload(this.key, { kind: 'state', baseSBOM, ops });
+    conn.send({ kind: 'enc', env });
+  }
+
+  async broadcastOp(op) {
+    this.seenOps.set(op.id, op.rev || 0);
+    await this._broadcast({ kind: 'op', op }, null);
+  }
+
+  async _broadcast(payload, exceptPeerId) {
+    if (!this.key) return;
+    const env = await encryptPayload(this.key, payload);
+    for (const [pid, entry] of this.connections) {
+      if (pid === exceptPeerId) continue;
+      if (!entry.authed) continue;
+      try { entry.conn.send({ kind: 'enc', env }); } catch {}
+    }
+  }
+  async _broadcastPeerList() {
+    const peers = [...this.connections.keys(), this.myPeerId];
+    await this._broadcast({ kind: 'peerList', peers }, null);
+  }
+  _broadcastEvent() {
+    this.onEvent({
+      type: 'peers',
+      list: [...this.connections.values()].map(e =>
+        ({ peerId: e.conn.peer, name: e.name, authed: e.authed }))
+    });
+  }
+  disconnect() {
+    if (this.peer) this.peer.destroy();
+    this.peer = null;
+    this.connections.clear();
+  }
+}
+
+/* ========================================================================= *
+ *  6. STATE / REDUCER                                                       *
+ * ========================================================================= */
+
+function emptySBOM() {
+  return {
+    bomFormat: 'cytrics',
+    specVersion: '1.0.1',
+    bomUUID: genUUID(),
+    bomDescription: '',
+    tools: [],
+    authors: [],
+    hardware: [],
+    software: [],
+    relationships: [],
+  };
+}
+
+function initialState() {
+  return {
+    started: false,
+    baseSBOM: null,
+    baseSBOMHash: null,
+    currentSBOM: null,
+    ops: [],            // append-only, ordered by (ts, peerId, id)
+    lamport: 0,
+    peerId: 'local-' + genUUID().slice(0,6),
+    peerName: 'me',
+    fileName: null,
+    selectedSoftwareUUID: null,
+    selectedHardwareUUID: null,
+    selectedRelIdx: null,
+    tab: 'software',
+    searchTerm: '',
+    softwareFilter: 'all', // all|modified|added
+    toasts: [],
+    peers: [],
+    log: [],
+    schemaErrors: [],
+  };
+}
+
+function reducer(state, a) {
+  switch (a.type) {
+    case 'INIT_FROM_FILE': {
+      return { ...state, started: true, baseSBOM: a.baseSBOM, baseSBOMHash: a.hash,
+               currentSBOM: a.baseSBOM, ops: [], fileName: a.fileName };
+    }
+    case 'RESET_TO_BLANK': {
+      const blank = emptySBOM();
+      return { ...state, started: true, baseSBOM: blank, baseSBOMHash: a.hash,
+               currentSBOM: blank, ops: [], fileName: 'new-sbom.json' };
+    }
+    case 'SET_TAB': return { ...state, tab: a.tab };
+    case 'SELECT_SOFTWARE': return { ...state, selectedSoftwareUUID: a.uuid };
+    case 'SELECT_HARDWARE': return { ...state, selectedHardwareUUID: a.uuid };
+    case 'SELECT_REL': return { ...state, selectedRelIdx: a.idx };
+    case 'SET_SEARCH': return { ...state, searchTerm: a.term };
+    case 'SET_FILTER': return { ...state, softwareFilter: a.filter };
+    case 'SET_PEER_NAME': return { ...state, peerName: a.name };
+    case 'APPEND_OPS_REBUILD': {
+      // a.ops is an array to merge (with dedup). a.newCurrent is precomputed.
+      return {
+        ...state,
+        ops: a.allOps,
+        currentSBOM: a.newCurrent,
+        lamport: Math.max(state.lamport, ...a.allOps.map(o => o.ts), 0),
+      };
+    }
+    case 'INGEST_STATE': {
+      return { ...state, started: true, baseSBOM: a.baseSBOM,
+               baseSBOMHash: a.hash, currentSBOM: a.currentSBOM,
+               ops: a.ops, fileName: a.fileName || state.fileName,
+               lamport: Math.max(state.lamport, ...a.ops.map(o => o.ts), 0) };
+    }
+    case 'TOAST': {
+      const id = genUUID();
+      const t = { id, msg: a.msg, level: a.level || 'info' };
+      return { ...state, toasts: [...state.toasts, t] };
+    }
+    case 'TOAST_DISMISS': {
+      return { ...state, toasts: state.toasts.filter(t => t.id !== a.id) };
+    }
+    case 'PEERS': return { ...state, peers: a.list };
+    case 'LOG': {
+      const log = [...state.log, { ts: isoNow(), level: a.level || 'info', msg: a.msg }];
+      return { ...state, log: log.slice(-500) };
+    }
+    case 'CLEAR_LOG': return { ...state, log: [] };
+    case 'PATCH_APPLIED': {
+      // Loaded a patch on top of new base (regenerated SBOM)
+      return { ...state, baseSBOM: a.baseSBOM, baseSBOMHash: a.hash,
+               currentSBOM: a.currentSBOM, ops: a.ops,
+               fileName: a.fileName || state.fileName,
+               lamport: Math.max(state.lamport, ...a.ops.map(o => o.ts), 0) };
+    }
+    default: return state;
+  }
+}
+
+/* ========================================================================= *
+ *  7. REACT COMPONENTS                                                      *
+ * ========================================================================= */
+
+// ----- small UI primitives -----
+function Icon({ name, size = 14 }) {
+  // tiny SVG glyph set
+  const s = size;
+  const props = { width:s, height:s, viewBox:'0 0 16 16', fill:'none',
+                  stroke:'currentColor', strokeWidth:1.5, strokeLinecap:'round',
+                  strokeLinejoin:'round' };
+  const map = {
+    plus: <><path d="M8 3v10M3 8h10"/></>,
+    x:    <><path d="M3 3l10 10M13 3L3 13"/></>,
+    search: <><circle cx="7" cy="7" r="4"/><path d="M10 10l3 3"/></>,
+    upload: <><path d="M8 12V3M4 7l4-4 4 4"/><path d="M2 13h12"/></>,
+    download: <><path d="M8 3v9M4 8l4 4 4-4"/><path d="M2 13h12"/></>,
+    link: <><path d="M6 10H4a3 3 0 010-6h2M10 6h2a3 3 0 010 6h-2M5 7h6"/></>,
+    chevron: <><path d="M5 6l3 3 3-3"/></>,
+    chevronR: <><path d="M6 4l3 3-3 3"/></>,
+    trash: <><path d="M3 4h10M6 4V2h4v2M5 4l1 10h4l1-10"/></>,
+    edit: <><path d="M3 13l1.5-1.5L11 5 9 3 2.5 9.5 1 11l2 2z"/></>,
+    folder: <><path d="M1 4l2-2h3l1 1h7v9H1z"/></>,
+    history: <><circle cx="8" cy="8" r="5"/><path d="M8 5v3l2 2M3 3v2h2"/></>,
+    relations: <><circle cx="3" cy="3" r="1.5"/><circle cx="13" cy="8" r="1.5"/><circle cx="3" cy="13" r="1.5"/><path d="M4 4l8 4M4 12l8-4"/></>,
+    chip: <><rect x="3" y="3" width="10" height="10"/><path d="M1 6h2M1 10h2M13 6h2M13 10h2M6 1v2M10 1v2M6 13v2M10 13v2"/></>,
+    cube: <><path d="M8 1L2 4v8l6 3 6-3V4z"/><path d="M2 4l6 3 6-3M8 7v8"/></>,
+    users: <><circle cx="6" cy="6" r="2.5"/><path d="M2 13c0-2.2 1.8-4 4-4s4 1.8 4 4"/><circle cx="11" cy="5" r="2"/><path d="M10 9c2 0 4 1.5 4 4"/></>,
+    info: <><circle cx="8" cy="8" r="6"/><path d="M8 7v4M8 5h0"/></>,
+    check: <><path d="M3 8l3 3 7-7"/></>,
+    clock: <><circle cx="8" cy="8" r="6"/><path d="M8 4.5V8l2.5 1.5"/></>,
+    sun: <><circle cx="8" cy="8" r="3"/><path d="M8 1v2M8 13v2M1 8h2M13 8h2M3 3l1.4 1.4M11.6 11.6L13 13M13 3l-1.4 1.4M4.4 11.6L3 13"/></>,
+    moon: <><path d="M13 9.5A5.5 5.5 0 116.5 3a4.5 4.5 0 006.5 6.5z"/></>,
+    db: <><ellipse cx="8" cy="3.5" rx="5" ry="2"/><path d="M3 3.5v9c0 1.1 2.2 2 5 2s5-.9 5-2v-9M3 8c0 1.1 2.2 2 5 2s5-.9 5-2"/></>,
+  };
+  return <svg {...props}>{map[name] || null}</svg>;
+}
+
+function Field({ label, hint, children, modified }) {
+  return (
+    <div className={"field " + (modified ? "field-modified" : "")}>
+      <div className="field-label">
+        <span>{label}{modified && <span className="dot dot-modified" style={{marginLeft:6}}/>}</span>
+        {hint && <span style={{textTransform:'none', letterSpacing:0, fontWeight:400, color:'var(--fg-3)'}}>{hint}</span>}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function StringArrayEditor({ value, onChange, placeholder, suggestions }) {
+  const arr = value || [];
+  const [draft, setDraft] = useState('');
+  function add() {
+    if (!draft.trim()) return;
+    onChange([...arr, draft.trim()]);
+    setDraft('');
+  }
+  return (
+    <div>
+      {arr.length > 0 && (
+        <div style={{marginBottom:6}}>
+          {arr.map((v, i) =>
+            <span key={i} className="chip">
+              {v}
+              <button onClick={() => onChange(arr.filter((_,j)=>j!==i))}>×</button>
+            </span>
+          )}
+        </div>
+      )}
+      <div style={{display:'flex', gap:6}}>
+        {suggestions
+          ? <SuggestInput value={draft} suggestions={suggestions}
+                          placeholder={placeholder||'add value'}
+                          onChange={setDraft} onEnter={add} />
+          : <input className="input" value={draft}
+                   placeholder={placeholder||'add value'}
+                   onChange={e => setDraft(e.target.value)}
+                   onKeyDown={e => e.key==='Enter' && add()} />}
+        <button className="btn btn-sm" onClick={add}><Icon name="plus" size={11}/></button>
+      </div>
+    </div>
+  );
+}
+
+function NameEditor({ value, onChange, typeSuggestions }) {
+  // value = [{nameType, nameValue}]
+  const arr = value || [];
+  const [draft, setDraft] = useState({ nameType: '', nameValue: '' });
+  function add() {
+    if (!draft.nameValue.trim()) return;
+    onChange([...arr, { nameType: draft.nameType.trim(), nameValue: draft.nameValue.trim() }]);
+    setDraft({ nameType:'', nameValue:'' });
+  }
+  const draftIssue = nameRowIssue(draft);
+  return (
+    <div>
+      {arr.map((n,i) => {
+        const issue = nameRowIssue(n);
+        return (
+          <div key={i} style={{marginBottom:4}}>
+            <div style={{display:'flex', gap:6}}>
+              <SuggestInput wrapStyle={{flex:'0 0 150px'}} value={n.nameType||''}
+                     suggestions={typeSuggestions || []}
+                     onChange={v => onChange(arr.map((x,j) => j===i ? {...x, nameType: v} : x))}
+                     placeholder="nameType (e.g. purl)" />
+              <input className="input" value={n.nameValue||''}
+                     onChange={e => onChange(arr.map((x,j) => j===i ? {...x, nameValue: e.target.value} : x))}
+                     placeholder="nameValue" />
+              <button className="btn btn-sm" onClick={() => onChange(arr.filter((_,j)=>j!==i))}>
+                <Icon name="trash" size={11}/>
+              </button>
+            </div>
+            <Vnote show={!!issue}>{issue}</Vnote>
+          </div>
+        );
+      })}
+      <div style={{marginTop:6, paddingTop:6, borderTop:'1px dashed var(--border)'}}>
+        <div style={{display:'flex', gap:6}}>
+          <SuggestInput wrapStyle={{flex:'0 0 150px'}} value={draft.nameType}
+                 suggestions={typeSuggestions || []}
+                 onChange={v => setDraft({...draft, nameType:v})}
+                 placeholder="nameType" />
+          <input className="input" value={draft.nameValue}
+                 onChange={e => setDraft({...draft, nameValue:e.target.value})}
+                 placeholder="nameValue"
+                 onKeyDown={e => e.key==='Enter' && add()} />
+          <button className="btn btn-sm" onClick={add}><Icon name="plus" size={11}/></button>
+        </div>
+        <Vnote show={!!draftIssue}>{draftIssue}</Vnote>
+      </div>
+    </div>
+  );
+}
+
+function CommentEditor({ value, onChange, peerName, fieldSuggestions }) {
+  const arr = value || [];
+  const [draft, setDraft] = useState({ fieldName:'', comment:'' });
+  function add() {
+    if (!draft.comment.trim()) return;
+    const entry = { comment: draft.comment.trim(), author: peerName, timestamp: isoNow() };
+    if (draft.fieldName.trim()) entry.fieldName = draft.fieldName.trim();
+    onChange([...arr, entry]);
+    setDraft({ fieldName:'', comment:'' });
+  }
+  return (
+    <div>
+      {arr.map((c,i) => (
+        <div key={i} className="panel-inset" style={{padding:8, marginBottom:6, borderRadius:3}}>
+          <div style={{display:'flex', justifyContent:'space-between', marginBottom:4}}>
+            <span style={{fontSize:11, color:'var(--fg-3)'}}>
+              {c.author || '?'} · {c.timestamp ? new Date(c.timestamp).toLocaleString() : ''}
+              {c.fieldName && <> · <span className="badge">{c.fieldName}</span></>}
+            </span>
+            <button className="btn btn-sm btn-ghost" onClick={() => onChange(arr.filter((_,j)=>j!==i))}>
+              <Icon name="trash" size={11}/>
+            </button>
+          </div>
+          <div className="mono" style={{fontSize:12, whiteSpace:'pre-wrap'}}>{c.comment}</div>
+        </div>
+      ))}
+      <div style={{marginTop:6, paddingTop:6, borderTop:'1px dashed var(--border)'}}>
+        <div style={{display:'flex', gap:6, marginBottom:4}}>
+          <SuggestInput wrapStyle={{flex:'0 0 200px'}} value={draft.fieldName}
+                 suggestions={fieldSuggestions || SUGGEST.swFields}
+                 onChange={v => setDraft({...draft, fieldName:v})}
+                 placeholder="fieldName (optional)" />
+        </div>
+        <textarea className="textarea" value={draft.comment}
+                  onChange={e => setDraft({...draft, comment:e.target.value})}
+                  placeholder="Add a comment…" />
+        <div style={{marginTop:4, textAlign:'right'}}>
+          <button className="btn btn-sm" onClick={add}>
+            <Icon name="plus" size={11}/> Add comment
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MetadataEditor({ value, onChange }) {
+  // metadata is array<object>. We let user edit raw JSON for each entry.
+  const arr = value || [];
+  function update(i, txt) {
+    try {
+      const obj = JSON.parse(txt);
+      onChange(arr.map((x,j) => j===i ? obj : x));
+    } catch { /* ignore parse errors while typing — value stays */ }
+  }
+  return (
+    <div>
+      {arr.map((m,i) => (
+        <div key={i} className="panel-inset" style={{padding:6, marginBottom:6, borderRadius:3}}>
+          <div style={{display:'flex', justifyContent:'space-between', marginBottom:4}}>
+            <span className="badge">metadata[{i}]</span>
+            <button className="btn btn-sm btn-ghost" onClick={() => onChange(arr.filter((_,j)=>j!==i))}>
+              <Icon name="trash" size={11}/>
+            </button>
+          </div>
+          <textarea className="textarea" style={{minHeight:80, fontFamily:'var(--mono)'}}
+                    defaultValue={JSON.stringify(m, null, 2)}
+                    onBlur={e => update(i, e.target.value)} />
+        </div>
+      ))}
+      <button className="btn btn-sm" onClick={() => onChange([...arr, {}])}>
+        <Icon name="plus" size={11}/> Add metadata entry
+      </button>
+    </div>
+  );
+}
+
+// ----- splash / startup -----
+function Splash({ dispatch, theme, toggleTheme }) {
+  const fileInputRef = useRef();
+  const [cached, setCached] = useState([]);
+  const [persist, setPersist] = useState({ supported: false, persisted: false });
+  const [estimate, setEstimate] = useState(null);
+
+  useEffect(() => {
+    listCacheEntries().then(setCached);
+    getPersistence().then(setPersist);
+    storageEstimate().then(setEstimate);
+  }, []);
+
+  async function openCached(id) {
+    const entry = await loadCacheEntry(id);
+    if (!entry) {
+      alert('Cache entry missing or corrupt.');
+      setCached(await listCacheEntries());
+      return;
+    }
+    const replayed = await replayOps(entry.baseSBOM, entry.ops || []);
+    dispatch({ type:'INGEST_STATE', baseSBOM: entry.baseSBOM, hash: entry.baseSBOMHash,
+               ops: entry.ops || [], currentSBOM: replayed.sbom, fileName: entry.fileName });
+  }
+
+  async function enablePersistence() {
+    const r = await requestPersistence();
+    setPersist(r);
+    if (!r.persisted) {
+      alert('The browser declined persistent storage. Chromium typically grants it ' +
+            'only to sites with engagement (installed as a PWA, bookmarked, or with ' +
+            'notification permission). Firefox shows a permission prompt.');
+    }
+  }
+
+  async function onFile(e) {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    try {
+      const text = await f.text();
+      const obj = JSON.parse(text);
+      const hash = await sha256Hex(text);
+      // Normalize required arrays so the app can rely on their presence.
+      obj.software ||= [];
+      obj.hardware ||= [];
+      obj.relationships ||= [];
+      obj.tools ||= [];
+      obj.authors ||= [];
+      if (!obj.bomFormat) obj.bomFormat = 'cytrics';
+      if (!obj.specVersion) obj.specVersion = '1.0.1';
+      dispatch({ type:'INIT_FROM_FILE', baseSBOM: obj, hash, fileName: f.name });
+    } catch (err) {
+      alert('Failed to parse SBOM JSON: ' + err.message);
+    }
+  }
+
+  async function startBlank() {
+    const blank = emptySBOM();
+    const hash = await sha256Hex(JSON.stringify(blank));
+    dispatch({ type:'RESET_TO_BLANK', hash });
+  }
+
+  return (
+    <div className="splash grid-bg">
+      <div className="splash-card">
+        <div style={{display:'flex', alignItems:'flex-start'}}>
+          <div className="splash-title">SBOM <span style={{color:'var(--accent)'}}>Workbench</span></div>
+          <div style={{flex:1}}/>
+          <button className="btn btn-sm btn-ghost" title="Toggle light/dark mode" onClick={toggleTheme}>
+            <Icon name={theme==='dark' ? 'sun' : 'moon'} size={13}/>
+          </button>
+        </div>
+        <div className="splash-sub">Client-side · P2P · Anchor-stable modifications</div>
+
+        <div style={{display:'grid', gap:10}}>
+          <button className="btn btn-primary" style={{padding:'10px 14px', justifyContent:'center'}}
+                  onClick={() => fileInputRef.current.click()}>
+            <Icon name="upload" size={14}/> Load SBOM (.json)
+          </button>
+          <input ref={fileInputRef} type="file" accept=".json,application/json"
+                 onChange={onFile} style={{display:'none'}} />
+          <button className="btn" style={{padding:'8px 14px', justifyContent:'center'}}
+                  onClick={startBlank}>
+            <Icon name="plus" size={12}/> Start blank
+          </button>
+        </div>
+
+        {cached.length > 0 && (
+          <div style={{marginTop:18}}>
+            <div className="muted" style={{fontSize:10, textTransform:'uppercase',
+                                           letterSpacing:'0.08em', marginBottom:6}}>
+              Cached in this browser
+            </div>
+            <div className="panel-inset" style={{borderRadius:3, maxHeight:170, overflowY:'auto'}}>
+              {cached.map(e => (
+                <div key={e.id} style={{display:'flex', alignItems:'center', gap:8,
+                                        padding:'6px 8px', borderBottom:'1px solid var(--border)'}}>
+                  <Icon name="db" size={12}/>
+                  <div style={{flex:1, minWidth:0}}>
+                    <div style={{fontSize:12, overflow:'hidden', textOverflow:'ellipsis',
+                                 whiteSpace:'nowrap'}}>{e.fileName || '(untitled)'}</div>
+                    <div className="dim mono" style={{fontSize:10}}>
+                      {e.swCount} sw · {e.opCount} mods · {new Date(e.savedAt).toLocaleString()}
+                    </div>
+                  </div>
+                  <button className="btn btn-sm" onClick={() => openCached(e.id)}>Open</button>
+                  <button className="btn btn-sm btn-ghost" title="Delete cached copy"
+                          onClick={async () => { await deleteCacheEntry(e.id); setCached(await listCacheEntries()); }}>
+                    <Icon name="trash" size={11}/>
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <div style={{marginTop:14, display:'flex', alignItems:'center', gap:8,
+                     fontSize:11, flexWrap:'wrap'}} className="muted">
+          <Icon name="db" size={11}/>
+          {persist.persisted
+            ? <span>Persistent storage <span style={{color:'var(--accent-3)', fontWeight:600}}>enabled</span> —
+                the browser won't auto-evict cached SBOMs.</span>
+            : persist.supported
+              ? <>
+                  <span>Cached SBOMs can be evicted under storage pressure.</span>
+                  <button className="btn btn-sm" onClick={enablePersistence}>
+                    Enable persistent storage
+                  </button>
+                </>
+              : <span>Persistent-storage API unavailable in this browser.</span>}
+          {estimate && estimate.quota > 0 && (
+            <span className="dim mono" style={{marginLeft:'auto'}}>
+              {(estimate.usage/1048576).toFixed(1)} / {(estimate.quota/1073741824).toFixed(1)} GB used
+            </span>
+          )}
+        </div>
+
+        <div style={{marginTop:14, fontSize:11, color:'var(--fg-3)', lineHeight:1.6}}>
+          <strong style={{color:'var(--fg-2)'}}>Heads-up:</strong> All data stays in your browser.
+          When you collaborate via PeerJS the data travels peer-to-peer over WebRTC,
+          with an additional AES-GCM layer keyed from your room password.
+          Re-derived modification sets reference entries by content hash or composite
+          fingerprint — not UUID — so they survive SBOM regeneration.
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ----- top header -----
+function Header({ state, dispatch, peerNet, onExportSBOM, onExportPatch, onOpenPatch, onOpenCollab,
+                  theme, toggleTheme, autoCache, setAutoCache }) {
+  const peerCount = state.peers.filter(p => p.authed).length;
+  return (
+    <div className="app-header">
+      <div className="app-brand">
+        SBOM <span className="muted">Workbench</span>
+      </div>
+      <div className="muted mono" style={{fontSize:11}}>
+        {state.fileName} <span className="dim">· sha256:{shortId(state.baseSBOMHash, 10)}</span>
+      </div>
+      <div style={{flex:1}}/>
+      <div className="muted" style={{fontSize:11, display:'flex', gap:14, alignItems:'center'}}>
+        <span><span className="dim">ops</span> <strong style={{color:'var(--accent)'}}>{state.ops.length}</strong></span>
+        <span><span className="dim">software</span> <strong>{state.currentSBOM?.software?.length || 0}</strong></span>
+        <span><span className="dim">relationships</span> <strong>{state.currentSBOM?.relationships?.length || 0}</strong></span>
+        <span><span className="dim">peers</span> <strong>{peerCount}</strong></span>
+      </div>
+      <button className="btn btn-sm" onClick={onOpenPatch}>
+        <Icon name="history" size={11}/> Modifications
+      </button>
+      <button className="btn btn-sm" onClick={onOpenCollab}>
+        <Icon name="users" size={11}/> Collab
+      </button>
+      <button className="btn btn-sm" onClick={onExportPatch}>
+        <Icon name="download" size={11}/> Export mods
+      </button>
+      <button className="btn btn-sm btn-primary" onClick={onExportSBOM}>
+        <Icon name="download" size={11}/> Export SBOM
+      </button>
+      <button className="btn btn-sm btn-ghost"
+              title={autoCache ? 'Browser caching ON — SBOM + mods auto-saved locally' : 'Browser caching OFF'}
+              style={{color: autoCache ? 'var(--accent-3)' : 'var(--fg-3)'}}
+              onClick={() => setAutoCache(v => !v)}>
+        <Icon name="db" size={12}/>
+      </button>
+      <button className="btn btn-sm btn-ghost" title="Toggle light/dark mode" onClick={toggleTheme}>
+        <Icon name={theme==='dark' ? 'sun' : 'moon'} size={12}/>
+      </button>
+    </div>
+  );
+}
+
+// ----- tab bar -----
+function TabBar({ state, dispatch }) {
+  const tabs = [
+    { id: 'software',    label: 'Software',      icon: 'cube',      count: state.currentSBOM?.software?.length || 0 },
+    { id: 'relationships', label: 'Relationships', icon: 'relations', count: state.currentSBOM?.relationships?.length || 0 },
+    { id: 'hardware',    label: 'Hardware',      icon: 'chip',      count: state.currentSBOM?.hardware?.length || 0 },
+    { id: 'metadata',    label: 'Metadata',      icon: 'info',      count: null },
+    { id: 'history',     label: 'History',       icon: 'history',   count: state.ops.length },
+  ];
+  return (
+    <div className="tabs">
+      {tabs.map(t => (
+        <div key={t.id}
+             className={"tab " + (state.tab===t.id ? 'active' : '')}
+             onClick={() => dispatch({type:'SET_TAB', tab:t.id})}>
+          <Icon name={t.icon} size={11}/>
+          {t.label}
+          {t.count !== null && <span className="badge">{t.count}</span>}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ----- software list/detail -----
+function softwareLabel(sw) {
+  const n = sw.name?.find(x => x.nameType === 'product name')?.nameValue
+         || sw.name?.[0]?.nameValue
+         || sw.fileName?.[0]
+         || '(unnamed)';
+  return n;
+}
+function softwareSubLabel(sw) {
+  const parts = [];
+  if (sw.version) parts.push(`v${sw.version}`);
+  if (sw.softwareType?.length) parts.push(sw.softwareType.join(', '));
+  if (sw.fileName?.length && !parts.length) parts.push(sw.fileName[0]);
+  if (sw.size) parts.push(`${sw.size} bytes`);
+  return parts.join(' · ');
+}
+
+function SoftwareTab({ state, dispatch, emit, peerName }) {
+  const list = state.currentSBOM?.software || [];
+  const baseByUUID = useMemo(() => {
+    const m = new Map();
+    for (const sw of state.baseSBOM?.software || []) m.set(sw.UUID, sw);
+    return m;
+  }, [state.baseSBOM]);
+
+  const filtered = useMemo(() => {
+    const q = state.searchTerm.toLowerCase().trim();
+    return list.filter(sw => {
+      // Filter
+      if (state.softwareFilter === 'modified') {
+        const base = baseByUUID.get(sw.UUID);
+        if (!base) return true; // added counts as modified
+        if (deepEqual(sw, base)) return false;
+      } else if (state.softwareFilter === 'added') {
+        if (baseByUUID.has(sw.UUID)) return false;
+      }
+      if (!q) return true;
+      const hay = JSON.stringify(sw).toLowerCase();
+      return hay.includes(q);
+    });
+  }, [list, state.searchTerm, state.softwareFilter, baseByUUID]);
+
+  const selected = list.find(s => s.UUID === state.selectedSoftwareUUID);
+
+  function addSoftware() {
+    const sw = {
+      UUID: genUUID(),
+      softwareType: [],
+      name: [{ nameType: 'product name', nameValue: 'New software entry' }],
+      fileName: [],
+      installPath: [],
+      captureTime: isoNow(),
+      version: '',
+      vendor: [],
+      description: '',
+      notHashable: true,
+      comments: [],
+      metadata: [],
+    };
+    emit({ type: OP.SW_ADD, software: sw, anchor: null /* will be filled */ })
+      .then(() => dispatch({type:'SELECT_SOFTWARE', uuid: sw.UUID}));
+  }
+
+  return (
+    <div style={{display:'grid', gridTemplateColumns:'380px 1fr', height:'100%', overflow:'hidden'}}>
+      <div className="divider-r" style={{display:'flex', flexDirection:'column', overflow:'hidden'}}>
+        <div style={{padding:'8px 10px', borderBottom:'1px solid var(--border)', display:'flex', gap:6}}>
+          <div style={{position:'relative', flex:1}}>
+            <div style={{position:'absolute', top:7, left:8, color:'var(--fg-3)'}}>
+              <Icon name="search" size={12}/>
+            </div>
+            <input className="input" style={{paddingLeft:26}} placeholder="Search software…"
+                   value={state.searchTerm}
+                   onChange={e => dispatch({type:'SET_SEARCH', term:e.target.value})} />
+          </div>
+          <button className="btn btn-sm btn-primary" onClick={addSoftware} title="Add software entry">
+            <Icon name="plus" size={11}/>
+          </button>
+        </div>
+        <div style={{padding:'4px 10px', borderBottom:'1px solid var(--border)', fontSize:10,
+                     display:'flex', gap:8, alignItems:'center'}}>
+          <span style={{color:'var(--fg-3)', textTransform:'uppercase', letterSpacing:'0.06em'}}>Filter</span>
+          {['all','modified','added'].map(f => (
+            <button key={f} className={"btn btn-sm btn-ghost " + (state.softwareFilter===f ? '' : '')}
+                    style={{
+                      color: state.softwareFilter===f ? 'var(--accent)' : 'var(--fg-3)',
+                      fontWeight: state.softwareFilter===f ? 600 : 400,
+                    }}
+                    onClick={() => dispatch({type:'SET_FILTER', filter:f})}>
+              {f}
+            </button>
+          ))}
+          <span style={{marginLeft:'auto', color:'var(--fg-3)', fontFamily:'var(--mono)'}}>
+            {filtered.length}/{list.length}
+          </span>
+        </div>
+        <div style={{flex:1, overflowY:'auto', position:'relative'}}>
+          {filtered.map(sw => {
+            const base = baseByUUID.get(sw.UUID);
+            const isAdded = !base;
+            const isModified = base && !deepEqual(sw, base);
+            return (
+              <div key={sw.UUID}
+                   className={"list-row " + (state.selectedSoftwareUUID===sw.UUID ? 'selected' : '')}
+                   style={{position:'relative'}}
+                   onClick={() => dispatch({type:'SELECT_SOFTWARE', uuid: sw.UUID})}>
+                <div style={{paddingTop:3}}>
+                  {isAdded ? <span className="dot dot-added" title="Added"/>
+                    : isModified ? <span className="dot dot-modified" title="Modified"/>
+                    : <span className="dot" style={{background:'var(--border-2)'}}/>}
+                </div>
+                <div style={{flex:1, minWidth:0}}>
+                  <div style={{fontWeight:500, fontSize:12, overflow:'hidden',
+                               textOverflow:'ellipsis', whiteSpace:'nowrap'}}>
+                    {softwareLabel(sw)}
+                  </div>
+                  <div className="mono dim" style={{fontSize:10}}>{shortId(sw.UUID, 8)}</div>
+                  <div className="muted" style={{fontSize:11, overflow:'hidden',
+                                                 textOverflow:'ellipsis', whiteSpace:'nowrap'}}>
+                    {softwareSubLabel(sw)}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+      <div style={{overflowY:'auto'}}>
+        {selected
+          ? <SoftwareDetail key={selected.UUID} sw={selected} base={baseByUUID.get(selected.UUID)}
+                            emit={emit} state={state} peerName={peerName} />
+          : <div style={{padding:40, color:'var(--fg-3)', textAlign:'center'}}>
+              Select a software entry, or click + to add one.
+            </div>}
+      </div>
+    </div>
+  );
+}
+
+function SoftwareDetail({ sw, base, emit, state, peerName }) {
+  // Quick edits emit a setField op against the entry's current anchor.
+  const [anchor, setAnchor] = useState(null);
+  useEffect(() => {
+    computeSoftwareAnchor(sw).then(setAnchor);
+  }, [sw]);
+
+  function isModified(field) {
+    if (!base) return true; // added entries are entirely "modified"
+    return !deepEqual(sw[field], base[field]);
+  }
+
+  function setField(field, value) {
+    emit({ type: OP.SW_SET_FIELD, anchorEntity: 'software', uuid: sw.UUID, field, value });
+  }
+  function remove() {
+    if (!confirm(`Remove software entry "${softwareLabel(sw)}"?`)) return;
+    emit({ type: OP.SW_REMOVE, anchorEntity: 'software', uuid: sw.UUID });
+  }
+
+  return (
+    <div style={{padding:16, maxWidth:920}}>
+      <div style={{display:'flex', alignItems:'baseline', gap:10, marginBottom:14, flexWrap:'wrap'}}>
+        <div className="serif" style={{fontSize:18, fontWeight:500}}>{softwareLabel(sw)}</div>
+        <span className="anchor-pill">
+          <span className="label">{anchor?.type || '...'}</span>
+          <span>{anchor ? shortId(anchor.value, 16) : ''}</span>
+        </span>
+        <span className="badge mono">{sw.UUID}</span>
+        {!base && <span className="badge badge-green">added</span>}
+        <div style={{marginLeft:'auto'}}>
+          <button className="btn btn-sm btn-danger" onClick={remove}>
+            <Icon name="trash" size={11}/> Remove
+          </button>
+        </div>
+      </div>
+
+      <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:14}}>
+        <Field label="Version" modified={isModified('version')}>
+          <input className="input" value={sw.version || ''}
+                 onChange={e => setField('version', e.target.value)} />
+        </Field>
+        <Field label="Size (bytes)" modified={isModified('size')}>
+          <input className="input" value={sw.size ?? ''}
+                 onChange={e => {
+                   const v = e.target.value;
+                   setField('size', v === '' ? null : Number(v));
+                 }} />
+        </Field>
+        <Field label="Description" modified={isModified('description')}>
+          <textarea className="textarea" value={sw.description || ''}
+                    onChange={e => setField('description', e.target.value)} />
+        </Field>
+        <Field label="Relationship assertion" modified={isModified('relationshipAssertion')}>
+          <select className="select" value={sw.relationshipAssertion || 'Unknown'}
+                  onChange={e => setField('relationshipAssertion', e.target.value)}>
+            {['Unknown','Root','Partial','Known'].map(x => <option key={x}>{x}</option>)}
+          </select>
+        </Field>
+
+        <Field label="Name entries" modified={isModified('name')}>
+          <NameEditor value={sw.name} onChange={v => setField('name', v)}
+                      typeSuggestions={SUGGEST.swNameType} />
+        </Field>
+        <Field label="Software type" modified={isModified('softwareType')}>
+          <StringArrayEditor value={sw.softwareType} onChange={v => setField('softwareType', v)}
+                             suggestions={SUGGEST.softwareType}
+                             placeholder="e.g. file, static library" />
+        </Field>
+
+        <Field label="File names" modified={isModified('fileName')}>
+          <StringArrayEditor value={sw.fileName} onChange={v => setField('fileName', v)} />
+        </Field>
+        <Field label="Vendor" modified={isModified('vendor')}>
+          <StringArrayEditor value={sw.vendor} onChange={v => setField('vendor', v)}
+                             suggestions={SUGGEST.swVendor} />
+        </Field>
+
+        <Field label="Install paths" modified={isModified('installPath')}>
+          <StringArrayEditor value={sw.installPath} onChange={v => setField('installPath', v)} />
+        </Field>
+        <Field label="Container paths" modified={isModified('containerPath')}>
+          <StringArrayEditor value={sw.containerPath} onChange={v => setField('containerPath', v)} />
+        </Field>
+
+        <Field label="SHA-256" modified={isModified('sha256')}>
+          <input className="input mono" value={sw.sha256 || ''}
+                 onChange={e => setField('sha256', e.target.value || null)} />
+          <Vnote show={!!sw.sha256 && !VALID.sha256(sw.sha256)}>
+            SHA-256 should be 64 hex characters
+          </Vnote>
+        </Field>
+        <Field label="SHA-1" modified={isModified('sha1')}>
+          <input className="input mono" value={sw.sha1 || ''}
+                 onChange={e => setField('sha1', e.target.value || null)} />
+          <Vnote show={!!sw.sha1 && !VALID.sha1(sw.sha1)}>
+            SHA-1 should be 40 hex characters
+          </Vnote>
+        </Field>
+        <Field label="MD5" modified={isModified('md5')}>
+          <input className="input mono" value={sw.md5 || ''}
+                 onChange={e => setField('md5', e.target.value || null)} />
+          <Vnote show={!!sw.md5 && !VALID.md5(sw.md5)}>
+            MD5 should be 32 hex characters
+          </Vnote>
+        </Field>
+        <Field label="Not hashable" modified={isModified('notHashable')}>
+          <label style={{display:'flex', alignItems:'center', gap:8, marginTop:5}}>
+            <input type="checkbox" checked={!!sw.notHashable}
+                   onChange={e => setField('notHashable', e.target.checked || null)} />
+            <span className="muted">Flag as intentionally not hashable</span>
+          </label>
+        </Field>
+
+        <Field label="Capture time" modified={isModified('captureTime')}>
+          <DateTimeField value={sw.captureTime} onChange={v => setField('captureTime', v)} />
+        </Field>
+
+        <div style={{gridColumn:'1 / -1'}}>
+          <Field label="Comments" modified={isModified('comments')}>
+            <CommentEditor value={sw.comments} onChange={v => setField('comments', v)}
+                           peerName={peerName} fieldSuggestions={SUGGEST.swFields} />
+          </Field>
+        </div>
+
+        <div style={{gridColumn:'1 / -1'}}>
+          <Field label="Metadata (raw JSON entries)"
+                 hint="Tool-specific extra info; sub-fields can be anything."
+                 modified={isModified('metadata')}>
+            <MetadataEditor value={sw.metadata} onChange={v => setField('metadata', v)} />
+          </Field>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ----- relationships -----
+function RelationshipsTab({ state, dispatch, emit }) {
+  const rels = state.currentSBOM?.relationships || [];
+  const swByUUID = useMemo(() => {
+    const m = new Map();
+    for (const sw of state.currentSBOM?.software || []) m.set(sw.UUID, sw);
+    return m;
+  }, [state.currentSBOM]);
+  const hwByUUID = useMemo(() => {
+    const m = new Map();
+    for (const hw of state.currentSBOM?.hardware || []) m.set(hw.UUID, hw);
+    return m;
+  }, [state.currentSBOM]);
+  function nameForUUID(uuid) {
+    const sw = swByUUID.get(uuid);
+    if (sw) return softwareLabel(sw);
+    const hw = hwByUUID.get(uuid);
+    if (hw) return hw.name?.[0]?.nameValue || hw.identifiers?.[0] || '(hardware)';
+    return uuid;
+  }
+  function entityKind(uuid) {
+    return swByUUID.has(uuid) ? 'sw' : (hwByUUID.has(uuid) ? 'hw' : '?');
+  }
+
+  const baseRels = useMemo(() =>
+    new Set((state.baseSBOM?.relationships || []).map(r =>
+      `${r.xUUID}::${r.yUUID}::${r.relationship}`)),
+    [state.baseSBOM]);
+
+  const [showAdd, setShowAdd] = useState(false);
+  const q = state.searchTerm.toLowerCase().trim();
+  const filtered = useMemo(() => rels
+    .map((r, i) => ({r, i}))
+    .filter(({r}) => {
+      if (!q) return true;
+      return [r.relationship, nameForUUID(r.xUUID), nameForUUID(r.yUUID),
+              r.xUUID, r.yUUID].some(v => String(v).toLowerCase().includes(q));
+    }), [rels, q, swByUUID, hwByUUID]);
+
+  function removeRel(idx) {
+    const r = rels[idx];
+    if (!r) return;
+    if (!confirm(`Remove relationship "${nameForUUID(r.xUUID)} ${r.relationship} ${nameForUUID(r.yUUID)}"?`))
+      return;
+    emit({ type: OP.REL_REMOVE, xUUID: r.xUUID, yUUID: r.yUUID, relationship: r.relationship });
+  }
+
+  return (
+    <div style={{display:'grid', gridTemplateRows:'auto 1fr', height:'100%', overflow:'hidden'}}>
+      <div style={{padding:'8px 12px', borderBottom:'1px solid var(--border)',
+                   display:'flex', gap:8, alignItems:'center'}}>
+        <div style={{position:'relative', flex:'0 1 360px'}}>
+          <div style={{position:'absolute', top:7, left:8, color:'var(--fg-3)'}}>
+            <Icon name="search" size={12}/>
+          </div>
+          <input className="input" style={{paddingLeft:26}} placeholder="Search relationships…"
+                 value={state.searchTerm}
+                 onChange={e => dispatch({type:'SET_SEARCH', term:e.target.value})} />
+        </div>
+        <span className="muted mono" style={{fontSize:11}}>
+          {filtered.length}/{rels.length}
+        </span>
+        <div style={{flex:1}}/>
+        <button className="btn btn-sm btn-primary" onClick={() => setShowAdd(true)}>
+          <Icon name="plus" size={11}/> Add relationship
+        </button>
+      </div>
+      <div style={{overflowY:'auto'}}>
+        <table style={{width:'100%', borderCollapse:'collapse', fontSize:12}}>
+          <thead>
+            <tr style={{position:'sticky', top:0, background:'var(--bg-1)', zIndex:1}}>
+              <th style={th()}></th>
+              <th style={th()}>Source</th>
+              <th style={th({width:140})}>Relationship</th>
+              <th style={th()}>Destination</th>
+              <th style={th({width:60})}></th>
+            </tr>
+          </thead>
+          <tbody>
+            {filtered.map(({r, i}) => {
+              const key = `${r.xUUID}::${r.yUUID}::${r.relationship}`;
+              const isAdded = !baseRels.has(key);
+              return (
+                <tr key={i} style={{borderBottom:'1px solid var(--border)'}}>
+                  <td style={td({width:18, paddingLeft:12})}>
+                    {isAdded && <span className="dot dot-added" title="Added"/>}
+                  </td>
+                  <td style={td()}>
+                    <div>
+                      <span className="badge" style={{marginRight:6}}>{entityKind(r.xUUID)}</span>
+                      {nameForUUID(r.xUUID)}
+                    </div>
+                    <div className="mono dim" style={{fontSize:10}}>{shortId(r.xUUID, 8)}</div>
+                  </td>
+                  <td style={td()}>
+                    <span className="badge badge-yellow mono">{r.relationship}</span>
+                  </td>
+                  <td style={td()}>
+                    <div>
+                      <span className="badge" style={{marginRight:6}}>{entityKind(r.yUUID)}</span>
+                      {nameForUUID(r.yUUID)}
+                    </div>
+                    <div className="mono dim" style={{fontSize:10}}>{shortId(r.yUUID, 8)}</div>
+                  </td>
+                  <td style={td()}>
+                    <button className="btn btn-sm btn-ghost" onClick={() => removeRel(i)}>
+                      <Icon name="trash" size={11}/>
+                    </button>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+      {showAdd && <AddRelationshipModal state={state} onClose={()=>setShowAdd(false)} emit={emit}/>}
+    </div>
+  );
+  function th(extra){return {textAlign:'left', padding:'8px 10px', fontSize:10,
+    textTransform:'uppercase', letterSpacing:'0.06em', color:'var(--fg-3)',
+    borderBottom:'1px solid var(--border)', fontWeight:600, ...extra};}
+  function td(extra){return {padding:'8px 10px', verticalAlign:'top', ...extra};}
+}
+
+function AddRelationshipModal({ state, onClose, emit }) {
+  const [src, setSrc] = useState('');
+  const [dst, setDst] = useState('');
+  const [rel, setRel] = useState('Contains');
+  const all = useMemo(() => {
+    const list = [];
+    for (const sw of state.currentSBOM?.software || [])
+      list.push({ uuid: sw.UUID, kind: 'sw', label: softwareLabel(sw) });
+    for (const hw of state.currentSBOM?.hardware || [])
+      list.push({ uuid: hw.UUID, kind: 'hw', label: hw.name?.[0]?.nameValue || hw.identifiers?.[0] || hw.UUID });
+    return list;
+  }, [state.currentSBOM]);
+
+  const [srcQ, setSrcQ] = useState('');
+  const [dstQ, setDstQ] = useState('');
+  const srcMatches = all.filter(x => x.label.toLowerCase().includes(srcQ.toLowerCase())
+                                  || x.uuid.includes(srcQ)).slice(0, 12);
+  const dstMatches = all.filter(x => x.label.toLowerCase().includes(dstQ.toLowerCase())
+                                  || x.uuid.includes(dstQ)).slice(0, 12);
+
+  function commit() {
+    if (!src || !dst) return;
+    emit({ type: OP.REL_ADD, xUUID: src, yUUID: dst, relationship: rel || 'Contains' });
+    onClose();
+  }
+
+  return (
+    <div className="modal-bg" onClick={onClose}>
+      <div className="modal" style={{width:680}} onClick={e => e.stopPropagation()}>
+        <div style={{padding:'12px 16px', borderBottom:'1px solid var(--border)',
+                     display:'flex', alignItems:'center'}}>
+          <span className="serif" style={{fontSize:15, fontWeight:500}}>Add relationship</span>
+          <div style={{flex:1}}/>
+          <button className="btn btn-sm btn-ghost" onClick={onClose}><Icon name="x" size={11}/></button>
+        </div>
+        <div style={{padding:16, display:'grid', gridTemplateColumns:'1fr auto 1fr', gap:14}}>
+          <div>
+            <Field label="Source entity">
+              <input className="input" placeholder="search by name or UUID"
+                     value={srcQ} onChange={e => setSrcQ(e.target.value)} />
+              <div className="panel-inset" style={{marginTop:6, maxHeight:200, overflowY:'auto', padding:4}}>
+                {srcMatches.map(m => (
+                  <div key={m.uuid} className="list-row"
+                       style={{padding:'4px 6px', borderBottom:'none',
+                               background: src===m.uuid ? 'var(--sel-bg)' : 'transparent'}}
+                       onClick={() => setSrc(m.uuid)}>
+                    <span className="badge">{m.kind}</span>
+                    <div style={{flex:1, minWidth:0}}>
+                      <div style={{fontSize:11, overflow:'hidden', textOverflow:'ellipsis'}}>{m.label}</div>
+                      <div className="mono dim" style={{fontSize:10}}>{shortId(m.uuid,8)}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Field>
+          </div>
+          <div style={{alignSelf:'center', textAlign:'center'}}>
+            <Field label="Relationship">
+              <SuggestInput mono value={rel} suggestions={SUGGEST.relationship}
+                     onChange={setRel} />
+              <div className="dim" style={{fontSize:10, marginTop:4}}>
+                e.g. Contains, Uses, Downloads
+              </div>
+            </Field>
+          </div>
+          <div>
+            <Field label="Destination entity">
+              <input className="input" placeholder="search by name or UUID"
+                     value={dstQ} onChange={e => setDstQ(e.target.value)} />
+              <div className="panel-inset" style={{marginTop:6, maxHeight:200, overflowY:'auto', padding:4}}>
+                {dstMatches.map(m => (
+                  <div key={m.uuid} className="list-row"
+                       style={{padding:'4px 6px', borderBottom:'none',
+                               background: dst===m.uuid ? 'var(--sel-bg)' : 'transparent'}}
+                       onClick={() => setDst(m.uuid)}>
+                    <span className="badge">{m.kind}</span>
+                    <div style={{flex:1, minWidth:0}}>
+                      <div style={{fontSize:11, overflow:'hidden', textOverflow:'ellipsis'}}>{m.label}</div>
+                      <div className="mono dim" style={{fontSize:10}}>{shortId(m.uuid,8)}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Field>
+          </div>
+        </div>
+        <div style={{padding:12, borderTop:'1px solid var(--border)',
+                     display:'flex', justifyContent:'flex-end', gap:8}}>
+          <button className="btn" onClick={onClose}>Cancel</button>
+          <button className="btn btn-primary" onClick={commit} disabled={!src || !dst || !rel}>
+            <Icon name="plus" size={11}/> Add
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ----- hardware tab (lightweight editor) -----
+function HardwareTab({ state, dispatch, emit, peerName }) {
+  const list = state.currentSBOM?.hardware || [];
+  const baseByUUID = useMemo(() => {
+    const m = new Map();
+    for (const hw of state.baseSBOM?.hardware || []) m.set(hw.UUID, hw);
+    return m;
+  }, [state.baseSBOM]);
+
+  const q = state.searchTerm.toLowerCase().trim();
+  const filtered = list.filter(hw => {
+    if (!q) return true;
+    return JSON.stringify(hw).toLowerCase().includes(q);
+  });
+  const selected = list.find(h => h.UUID === state.selectedHardwareUUID);
+
+  function addHardware() {
+    const hw = {
+      UUID: genUUID(),
+      name: [{ nameType: 'product name', nameValue: 'New hardware entry' }],
+      identifiers: [],
+      hardwareType: [],
+      captureTime: isoNow(),
+      vendor: [],
+      description: '',
+      quantity: 1,
+      countryOfOrigin: null,
+      countryOfOriginSource: null,
+      comments: [],
+      metadata: [],
+    };
+    emit({ type: OP.HW_ADD, hardware: hw })
+      .then(() => dispatch({type:'SELECT_HARDWARE', uuid: hw.UUID}));
+  }
+
+  function setField(uuid, field, value) {
+    emit({ type: OP.HW_SET_FIELD, uuid, field, value });
+  }
+
+  return (
+    <div style={{display:'grid', gridTemplateColumns:'380px 1fr', height:'100%', overflow:'hidden'}}>
+      <div className="divider-r" style={{display:'flex', flexDirection:'column'}}>
+        <div style={{padding:'8px 10px', borderBottom:'1px solid var(--border)', display:'flex', gap:6}}>
+          <div style={{position:'relative', flex:1}}>
+            <div style={{position:'absolute', top:7, left:8, color:'var(--fg-3)'}}>
+              <Icon name="search" size={12}/>
+            </div>
+            <input className="input" style={{paddingLeft:26}} placeholder="Search hardware…"
+                   value={state.searchTerm}
+                   onChange={e => dispatch({type:'SET_SEARCH', term:e.target.value})} />
+          </div>
+          <button className="btn btn-sm btn-primary" onClick={addHardware}>
+            <Icon name="plus" size={11}/>
+          </button>
+        </div>
+        <div style={{flex:1, overflowY:'auto'}}>
+          {filtered.map(hw => {
+            const base = baseByUUID.get(hw.UUID);
+            const isAdded = !base;
+            const isModified = base && !deepEqual(hw, base);
+            const label = hw.name?.[0]?.nameValue || hw.identifiers?.[0] || '(unnamed hw)';
+            return (
+              <div key={hw.UUID}
+                   className={"list-row " + (state.selectedHardwareUUID===hw.UUID ? 'selected' : '')}
+                   style={{position:'relative'}}
+                   onClick={() => dispatch({type:'SELECT_HARDWARE', uuid: hw.UUID})}>
+                <div style={{paddingTop:3}}>
+                  {isAdded ? <span className="dot dot-added"/>
+                   : isModified ? <span className="dot dot-modified"/>
+                   : <span className="dot" style={{background:'var(--border-2)'}}/>}
+                </div>
+                <div style={{flex:1, minWidth:0}}>
+                  <div style={{fontWeight:500, fontSize:12, overflow:'hidden',
+                               textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{label}</div>
+                  <div className="muted" style={{fontSize:11}}>
+                    {(hw.hardwareType||[]).join(', ')}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+      <div style={{overflowY:'auto'}}>
+        {selected
+         ? <HardwareDetail key={selected.UUID} hw={selected}
+                           base={baseByUUID.get(selected.UUID)}
+                           setField={(f,v) => setField(selected.UUID, f, v)}
+                           remove={() => {
+                             if (confirm('Remove hardware entry?'))
+                               emit({type: OP.HW_REMOVE, uuid: selected.UUID});
+                           }}
+                           peerName={peerName}/>
+         : <div style={{padding:40, color:'var(--fg-3)', textAlign:'center'}}>
+             Select a hardware entry or click + to add one.
+           </div>}
+      </div>
+    </div>
+  );
+}
+
+function HardwareDetail({ hw, base, setField, remove, peerName }) {
+  function isModified(field) {
+    if (!base) return true;
+    return !deepEqual(hw[field], base[field]);
+  }
+  return (
+    <div style={{padding:16, maxWidth:920}}>
+      <div style={{display:'flex', alignItems:'baseline', gap:10, marginBottom:14, flexWrap:'wrap'}}>
+        <div className="serif" style={{fontSize:18, fontWeight:500}}>
+          {hw.name?.[0]?.nameValue || hw.identifiers?.[0] || 'Hardware'}
+        </div>
+        <span className="badge mono">{hw.UUID}</span>
+        {!base && <span className="badge badge-green">added</span>}
+        <div style={{marginLeft:'auto'}}>
+          <button className="btn btn-sm btn-danger" onClick={remove}>
+            <Icon name="trash" size={11}/> Remove
+          </button>
+        </div>
+      </div>
+      <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:14}}>
+        <Field label="Name entries" modified={isModified('name')}>
+          <NameEditor value={hw.name} onChange={v => setField('name', v)}
+                      typeSuggestions={SUGGEST.hwNameType} />
+        </Field>
+        <Field label="Hardware type" modified={isModified('hardwareType')}>
+          <StringArrayEditor value={hw.hardwareType} onChange={v => setField('hardwareType', v)}
+                             suggestions={SUGGEST.hardwareType}/>
+        </Field>
+        <Field label="Identifiers" modified={isModified('identifiers')}>
+          <StringArrayEditor value={hw.identifiers} onChange={v => setField('identifiers', v)}/>
+        </Field>
+        <Field label="Vendor" modified={isModified('vendor')}>
+          <StringArrayEditor value={hw.vendor} onChange={v => setField('vendor', v)}
+                             suggestions={SUGGEST.hwVendor}/>
+        </Field>
+        <Field label="Description" modified={isModified('description')}>
+          <textarea className="textarea" value={hw.description||''}
+                    onChange={e => setField('description', e.target.value)}/>
+        </Field>
+        <Field label="Quantity" modified={isModified('quantity')}>
+          <input className="input" type="number" value={hw.quantity ?? 1}
+                 onChange={e => setField('quantity', Number(e.target.value))}/>
+        </Field>
+        <Field label="Package type" modified={isModified('packageType')}>
+          <SuggestInput value={hw.packageType||''} suggestions={SUGGEST.packageType}
+                 onChange={v => setField('packageType', v||null)}/>
+        </Field>
+        <Field label="Board location" modified={isModified('boardLocation')}>
+          <StringArrayEditor value={hw.boardLocation} onChange={v => setField('boardLocation', v)}/>
+        </Field>
+        <Field label="Country of origin" modified={isModified('countryOfOrigin')}>
+          <StringArrayEditor value={hw.countryOfOrigin} suggestions={SUGGEST.country}
+            onChange={v => setField('countryOfOrigin', v.length ? v : null)}/>
+        </Field>
+        <Field label="Country of origin source" modified={isModified('countryOfOriginSource')}>
+          <input className="input" value={hw.countryOfOriginSource||''}
+                 onChange={e => setField('countryOfOriginSource', e.target.value || null)}/>
+        </Field>
+        <Field label="Capture time" modified={isModified('captureTime')}>
+          <DateTimeField value={hw.captureTime} onChange={v => setField('captureTime', v)} />
+        </Field>
+        <div style={{gridColumn:'1 / -1'}}>
+          <Field label="Comments" modified={isModified('comments')}>
+            <CommentEditor value={hw.comments} onChange={v => setField('comments', v)}
+                           peerName={peerName} fieldSuggestions={SUGGEST.hwFields}/>
+          </Field>
+        </div>
+        <div style={{gridColumn:'1 / -1'}}>
+          <Field label="Metadata (raw JSON)" modified={isModified('metadata')}>
+            <MetadataEditor value={hw.metadata} onChange={v => setField('metadata', v)}/>
+          </Field>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ----- metadata (BOM-level) tab -----
+function MetadataTab({ state, emit, peerName }) {
+  const s = state.currentSBOM || {};
+  const base = state.baseSBOM || {};
+  function mod(f) { return !deepEqual(s[f], base[f]); }
+  function setF(f, v) { emit({ type: OP.BOM_SET_FIELD, field: f, value: v }); }
+
+  return (
+    <div style={{padding:20, maxWidth:760, overflowY:'auto'}}>
+      <div className="serif" style={{fontSize:18, fontWeight:500, marginBottom:14}}>BOM metadata</div>
+
+      <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:14}}>
+        <Field label="BOM UUID" modified={mod('bomUUID')}>
+          <input className="input mono" value={s.bomUUID||''}
+                 onChange={e => setF('bomUUID', e.target.value)}/>
+        </Field>
+        <Field label="Spec version" modified={mod('specVersion')}>
+          <input className="input mono" value={s.specVersion||''}
+                 onChange={e => setF('specVersion', e.target.value)}/>
+        </Field>
+        <Field label="BOM format" modified={mod('bomFormat')}>
+          <input className="input mono" value={s.bomFormat||''}
+                 onChange={e => setF('bomFormat', e.target.value)}/>
+        </Field>
+        <div/>
+        <div style={{gridColumn:'1 / -1'}}>
+          <Field label="Description" modified={mod('bomDescription')}>
+            <textarea className="textarea" value={s.bomDescription||''}
+                      onChange={e => setF('bomDescription', e.target.value)} />
+          </Field>
+        </div>
+
+        <div style={{gridColumn:'1 / -1'}}>
+          <Field label="Authors" modified={mod('authors')}>
+            <AuthorsEditor value={s.authors} onChange={v => setF('authors', v)}/>
+          </Field>
+        </div>
+        <div style={{gridColumn:'1 / -1'}}>
+          <Field label="Tools" modified={mod('tools')}>
+            <ToolsEditor value={s.tools} onChange={v => setF('tools', v)}/>
+          </Field>
+        </div>
+      </div>
+    </div>
+  );
+}
+function AuthorsEditor({ value, onChange }) {
+  const arr = value || [];
+  return (
+    <div>
+      {arr.map((a, i) => (
+        <div key={i} style={{display:'flex', gap:6, marginBottom:4}}>
+          <SuggestInput wrapStyle={{flex:'0 0 160px'}} value={a.authorType||''}
+                 placeholder="authorType" suggestions={SUGGEST.authorType}
+                 onChange={v => onChange(arr.map((x,j)=>j===i?{...x, authorType:v}:x))}/>
+          <input className="input" value={a.authorName||''} placeholder="authorName"
+                 onChange={e => onChange(arr.map((x,j)=>j===i?{...x, authorName:e.target.value}:x))}/>
+          <button className="btn btn-sm" onClick={()=>onChange(arr.filter((_,j)=>j!==i))}>
+            <Icon name="trash" size={11}/>
+          </button>
+        </div>
+      ))}
+      <button className="btn btn-sm"
+              onClick={()=>onChange([...arr, {authorType:'name', authorName:''}])}>
+        <Icon name="plus" size={11}/> Add author
+      </button>
+    </div>
+  );
+}
+function ToolsEditor({ value, onChange }) {
+  const arr = value || [];
+  return (
+    <div>
+      {arr.map((t,i) => (
+        <div key={i} style={{display:'grid', gridTemplateColumns:'160px 120px 1fr auto',
+                             gap:6, marginBottom:4}}>
+          <input className="input" value={t.toolName||''} placeholder="toolName"
+                 onChange={e => onChange(arr.map((x,j)=>j===i?{...x, toolName:e.target.value}:x))}/>
+          <input className="input" value={t.version||''} placeholder="version"
+                 onChange={e => onChange(arr.map((x,j)=>j===i?{...x, version:e.target.value}:x))}/>
+          <input className="input" value={t.externalReference||''} placeholder="externalReference"
+                 onChange={e => onChange(arr.map((x,j)=>j===i?{...x, externalReference:e.target.value}:x))}/>
+          <button className="btn btn-sm" onClick={()=>onChange(arr.filter((_,j)=>j!==i))}>
+            <Icon name="trash" size={11}/>
+          </button>
+        </div>
+      ))}
+      <button className="btn btn-sm"
+              onClick={()=>onChange([...arr, {toolName:''}])}>
+        <Icon name="plus" size={11}/> Add tool
+      </button>
+    </div>
+  );
+}
+
+// ----- history (op log) tab -----
+function HistoryTab({ state }) {
+  function describeOp(op) {
+    switch (op.type) {
+      case OP.SW_SET_FIELD: return `set software.${op.field}`;
+      case OP.HW_SET_FIELD: return `set hardware.${op.field}`;
+      case OP.SW_ADD: return `add software`;
+      case OP.HW_ADD: return `add hardware`;
+      case OP.SW_REMOVE: return `remove software`;
+      case OP.HW_REMOVE: return `remove hardware`;
+      case OP.REL_ADD: return `add relationship "${op.relationship}"`;
+      case OP.REL_REMOVE: return `remove relationship "${op.relationship}"`;
+      case OP.REL_SET_COMMENTS: return `set rel comments`;
+      case OP.BOM_SET_FIELD: return `set bom.${op.field}`;
+      default: return op.type;
+    }
+  }
+  return (
+    <div style={{height:'100%', overflowY:'auto'}}>
+      <div style={{padding:'10px 14px', borderBottom:'1px solid var(--border)'}}>
+        <div className="muted" style={{fontSize:11}}>
+          Every manual change is an operation referencing entries by stable anchor.
+          The modifications export is exactly this stream.
+        </div>
+      </div>
+      {state.ops.length === 0 && (
+        <div style={{padding:30, textAlign:'center', color:'var(--fg-3)'}}>
+          No operations yet. Start editing to see them appear here.
+        </div>
+      )}
+      {state.ops.map(op => (
+        <div key={op.id} className="op-row">
+          <span className="dim">[{op.ts}]</span>
+          <span className="dim">{op.peerId}</span>
+          <span className="op-type">{describeOp(op)}</span>
+          <span style={{flex:1, color:'var(--fg-2)', overflow:'hidden', textOverflow:'ellipsis'}}>
+            {opTarget(op)}
+          </span>
+          <span className="dim">{new Date(op.wallTime).toLocaleTimeString()}</span>
+        </div>
+      ))}
+    </div>
+  );
+  function opTarget(op) {
+    if (op.anchor) return `${op.anchor.type}:${shortId(op.anchor.value, 12)}`;
+    if (op.srcAnchor && op.dstAnchor)
+      return `${shortId(op.srcAnchor.value, 8)} → ${shortId(op.dstAnchor.value, 8)}`;
+    if (op.field) return op.field;
+    return '';
+  }
+}
+
+// ----- Collab panel modal -----
+function CollabModal({ state, dispatch, peerNetRef, onClose, peerNet, setPeerNet, emit, applyRemoteOp, sendStateRef }) {
+  const [mode, setMode] = useState(null); // 'host' | 'join'
+  const [roomId, setRoomId] = useState('');
+  const [password, setPassword] = useState('');
+  const [peerName, setPeerName] = useState(state.peerName);
+  const [error, setError] = useState(null);
+  const [busy, setBusy] = useState(false);
+
+  function gen() {
+    const id = 'cytrics-' + genUUID().slice(0, 12);
+    setRoomId(id);
+  }
+
+  async function startHost() {
+    if (!roomId || !password) { setError('room id and password required'); return; }
+    setBusy(true); setError(null);
+    try {
+      const pn = new PeerNet({ roomId, password, peerName,
+        onEvent: ev => handlePeerEvent(ev, dispatch, peerNet, sendStateRef, applyRemoteOp, state) });
+      await pn.start({ asHost: true });
+      setPeerNet(pn);
+      dispatch({ type:'SET_PEER_NAME', name: peerName });
+      dispatch({ type:'TOAST', msg:`Hosting room ${roomId}` });
+      onClose();
+    } catch (e) {
+      setError(e.message || String(e));
+    } finally { setBusy(false); }
+  }
+  async function startJoin() {
+    if (!roomId || !password) { setError('room id and password required'); return; }
+    setBusy(true); setError(null);
+    try {
+      const pn = new PeerNet({ roomId, password, peerName,
+        onEvent: ev => handlePeerEvent(ev, dispatch, peerNet, sendStateRef, applyRemoteOp, state) });
+      await pn.start({ asHost: false });
+      setPeerNet(pn);
+      dispatch({ type:'SET_PEER_NAME', name: peerName });
+      await pn.connectTo(roomId);
+      dispatch({ type:'TOAST', msg:`Joining room ${roomId}` });
+      onClose();
+    } catch (e) {
+      setError(e.message || String(e));
+    } finally { setBusy(false); }
+  }
+  async function leave() {
+    if (peerNet) { peerNet.disconnect(); setPeerNet(null); }
+    dispatch({type:'PEERS', list:[]});
+    onClose();
+  }
+
+  return (
+    <div className="modal-bg" onClick={onClose}>
+      <div className="modal" style={{width:560}} onClick={e=>e.stopPropagation()}>
+        <div style={{padding:'12px 16px', borderBottom:'1px solid var(--border)',
+                     display:'flex', alignItems:'center'}}>
+          <span className="serif" style={{fontSize:15, fontWeight:500}}>P2P Collaboration</span>
+          <div style={{flex:1}}/>
+          <button className="btn btn-sm btn-ghost" onClick={onClose}><Icon name="x" size={11}/></button>
+        </div>
+
+        {!peerNet && (
+          <div style={{padding:16}}>
+            <div style={{display:'flex', gap:8, marginBottom:14}}>
+              <button className={"btn " + (mode==='host'?'btn-primary':'')}
+                      onClick={() => { setMode('host'); gen(); }}>Host a room</button>
+              <button className={"btn " + (mode==='join'?'btn-primary':'')}
+                      onClick={() => setMode('join')}>Join a room</button>
+            </div>
+            {mode && (
+              <>
+                <Field label="Your name" hint="Shown to other peers">
+                  <input className="input" value={peerName} onChange={e=>setPeerName(e.target.value)}/>
+                </Field>
+                <Field label="Room ID"
+                       hint={mode==='host' ? 'Share this with collaborators' : 'Paste from host'}>
+                  <div style={{display:'flex', gap:6}}>
+                    <input className="input mono" value={roomId} onChange={e=>setRoomId(e.target.value)}/>
+                    {mode==='host' && <button className="btn btn-sm" onClick={gen}>regen</button>}
+                  </div>
+                </Field>
+                <Field label="Password" hint="Must match for both sides">
+                  <input className="input mono" type="password" value={password}
+                         onChange={e=>setPassword(e.target.value)}/>
+                </Field>
+                {mode==='join' && state.ops.length > 0 && (
+                  <div style={{padding:8, background:'rgba(252,179,23,0.06)',
+                               border:'1px solid rgba(252,179,23,0.25)', borderRadius:3,
+                               fontSize:11, color:'var(--accent)', marginBottom:10}}>
+                    ⚠ Joining will replace your current SBOM + edits with the host's state.
+                  </div>
+                )}
+                {error && <div style={{color:'var(--danger)', fontSize:11, marginBottom:8}}>{error}</div>}
+                <button className="btn btn-primary" style={{width:'100%'}}
+                        disabled={busy}
+                        onClick={() => mode==='host' ? startHost() : startJoin()}>
+                  {busy ? 'Connecting…'
+                        : mode==='host' ? 'Start hosting' : 'Connect'}
+                </button>
+                <div className="dim" style={{fontSize:10, marginTop:10, lineHeight:1.5}}>
+                  PeerJS uses a public signaling server (peerjs.com) for discovery only.
+                  Data flows peer-to-peer over WebRTC with an AES-GCM layer keyed from
+                  PBKDF2(your password, sha256("cytrics-sbom-room/" + roomId)).
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
+        {peerNet && (
+          <div style={{padding:16}}>
+            <div style={{display:'flex', gap:14, alignItems:'center', marginBottom:14}}>
+              <span className="dot dot-online"/>
+              <span className="serif" style={{fontSize:14}}>
+                Connected as <strong>{state.peerName}</strong> ({peerNet.myPeerId})
+              </span>
+              <div style={{flex:1}}/>
+              <button className="btn btn-sm btn-danger" onClick={leave}>Leave</button>
+            </div>
+            <div className="muted" style={{fontSize:11, marginBottom:6,
+                         textTransform:'uppercase', letterSpacing:'0.06em'}}>Peers</div>
+            <div className="panel-inset" style={{padding:6, borderRadius:3}}>
+              {state.peers.length === 0 && (
+                <div className="dim" style={{padding:8, fontSize:11}}>No peers connected.</div>
+              )}
+              {state.peers.map(p => (
+                <div key={p.peerId} style={{display:'flex', gap:8, padding:'4px 6px',
+                                            alignItems:'center', fontSize:12}}>
+                  <span className={"dot " + (p.authed?'dot-online':'dot-offline')}/>
+                  <span style={{flex:1}}>{p.name}</span>
+                  <span className="dim mono" style={{fontSize:10}}>{shortId(p.peerId, 14)}</span>
+                </div>
+              ))}
+            </div>
+            <div style={{marginTop:14}}>
+              <div className="muted" style={{fontSize:11, marginBottom:6,
+                           textTransform:'uppercase', letterSpacing:'0.06em'}}>Activity log</div>
+              <div className="panel-inset"
+                   style={{padding:6, borderRadius:3, maxHeight:160, overflowY:'auto',
+                           fontFamily:'var(--mono)', fontSize:11}}>
+                {state.log.slice(-50).map((l,i) => (
+                  <div key={i} style={{padding:'2px 4px',
+                       color: l.level==='error' ? 'var(--danger)' :
+                              l.level==='warn' ? 'var(--warn)' : 'var(--fg-2)'}}>
+                    <span className="dim">{new Date(l.ts).toLocaleTimeString()}</span> · {l.msg}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// Bridge between PeerNet events and React state.
+function handlePeerEvent(ev, dispatch, peerNet, sendStateRef, applyRemoteOp, getState) {
+  switch (ev.type) {
+    case 'log':
+      dispatch({type:'LOG', level: ev.level, msg: ev.msg});
+      break;
+    case 'peers':
+      dispatch({type:'PEERS', list: ev.list});
+      break;
+    case 'sendStateTo':
+      // host (or any peer that has state) responds
+      if (sendStateRef.current) sendStateRef.current(ev.conn);
+      break;
+    case 'gotState':
+      // Replace local state with host's
+      (async () => {
+        const hash = await sha256Hex(JSON.stringify(ev.baseSBOM));
+        const replayed = await replayOps(ev.baseSBOM, ev.ops);
+        dispatch({type:'INGEST_STATE',
+                  baseSBOM: ev.baseSBOM,
+                  hash, ops: ev.ops,
+                  currentSBOM: replayed.sbom});
+        dispatch({type:'TOAST', msg:`Synced state from ${ev.fromPeer}`,
+                  level:'success'});
+      })();
+      break;
+    case 'remoteOp':
+      applyRemoteOp(ev.op);
+      break;
+  }
+}
+
+// ----- Patch tab/modal -----
+function PatchModal({ state, dispatch, onClose, applyPatch }) {
+  const [view, setView] = useState('overview');
+  const [patchPreview, setPatchPreview] = useState(null);
+  const fileRef = useRef();
+
+  function exportPatch() {
+    const patch = buildPatch(state);
+    downloadJSON((state.fileName||'sbom').replace(/\.json$/,'') + '.mods.json', patch);
+  }
+  function exportSBOM() {
+    downloadJSON((state.fileName||'sbom'), state.currentSBOM);
+  }
+  async function onPatchFile(e) {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    try {
+      const obj = JSON.parse(await f.text());
+      if (obj.$schema !== 'cytrics-sbom-mods-v1') {
+        if (!confirm('Not a recognized modifications schema. Try anyway?')) return;
+      }
+      setPatchPreview(obj);
+      setView('apply');
+    } catch (e) {
+      alert('Failed to parse modifications file: ' + e.message);
+    }
+  }
+  async function doApply() {
+    await applyPatch(patchPreview);
+    setPatchPreview(null);
+    onClose();
+  }
+
+  return (
+    <div className="modal-bg" onClick={onClose}>
+      <div className="modal" style={{width:720, maxHeight:'85vh'}} onClick={e=>e.stopPropagation()}>
+        <div style={{padding:'12px 16px', borderBottom:'1px solid var(--border)',
+                     display:'flex', alignItems:'center'}}>
+          <span className="serif" style={{fontSize:15, fontWeight:500}}>Modifications</span>
+          <div style={{flex:1}}/>
+          <button className="btn btn-sm btn-ghost" onClick={onClose}><Icon name="x" size={11}/></button>
+        </div>
+        <div style={{padding:16, overflowY:'auto'}}>
+          {view==='overview' && (
+            <>
+              <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:14, marginBottom:18}}>
+                <div className="panel-inset" style={{padding:14, borderRadius:3}}>
+                  <div className="serif" style={{fontWeight:500, marginBottom:6}}>Export modified SBOM</div>
+                  <div className="muted" style={{fontSize:11, marginBottom:10}}>
+                    The full SBOM with all your edits applied, conforming to the CyTRICS schema.
+                  </div>
+                  <button className="btn btn-primary" onClick={exportSBOM}>
+                    <Icon name="download" size={11}/> Download SBOM
+                  </button>
+                </div>
+                <div className="panel-inset" style={{padding:14, borderRadius:3}}>
+                  <div className="serif" style={{fontWeight:500, marginBottom:6}}>Export modifications</div>
+                  <div className="muted" style={{fontSize:11, marginBottom:10}}>
+                    Just your changes, anchored by content hash / composite fingerprint.
+                    Re-appliable to a regenerated base SBOM.
+                  </div>
+                  <button className="btn" onClick={exportPatch}>
+                    <Icon name="download" size={11}/> Download modifications ({state.ops.length} ops)
+                  </button>
+                </div>
+              </div>
+              <div className="panel-inset" style={{padding:14, borderRadius:3, marginBottom:14}}>
+                <div className="serif" style={{fontWeight:500, marginBottom:6}}>Apply modifications</div>
+                <div className="muted" style={{fontSize:11, marginBottom:10}}>
+                  Re-apply previously exported ops to the <em>currently loaded</em> SBOM.
+                  Use this after regenerating the base SBOM: load the fresh SBOM first,
+                  then apply the modifications here.
+                </div>
+                <input ref={fileRef} type="file" accept=".json" style={{display:'none'}}
+                       onChange={onPatchFile}/>
+                <button className="btn" onClick={()=>fileRef.current.click()}>
+                  <Icon name="upload" size={11}/> Load modifications file
+                </button>
+              </div>
+              <div style={{fontSize:11, lineHeight:1.5}}>
+                <div className="muted" style={{textTransform:'uppercase', letterSpacing:'0.06em',
+                                              fontSize:10, marginBottom:6}}>
+                  Anchor system summary
+                </div>
+                <div className="muted">
+                  Operations reference entries by an anchor, not by UUID. For software:<br/>
+                  &nbsp;1. <span className="mono accent">sha256</span> of file content (most stable)<br/>
+                  &nbsp;2. <span className="mono accent">sha1</span>, then <span className="mono accent">md5</span><br/>
+                  &nbsp;3. <span className="mono accent">composite</span> SHA-256 over
+                  <span className="mono"> {`{names, fileNames, size, softwareType, vendors, metadataDigest}`}</span> —
+                  used when no hash exists. UUID, captureTime, containerPath, installPath, and version are
+                  deliberately excluded so the anchor stays stable across re-runs and version edits.
+                </div>
+              </div>
+            </>
+          )}
+
+          {view==='apply' && patchPreview && (
+            <PatchApplyPreview patch={patchPreview} state={state}
+                               onApply={doApply}
+                               onCancel={()=>{setPatchPreview(null); setView('overview');}}/>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PatchApplyPreview({ patch, state, onApply, onCancel }) {
+  const [report, setReport] = useState(null);
+  const [working, setWorking] = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      setWorking(true);
+      const r = await replayOps(state.currentSBOM, patch.operations || []);
+      setReport(r.report);
+      setWorking(false);
+    })();
+  }, [patch, state.currentSBOM]);
+
+  const counts = useMemo(() => {
+    if (!report) return null;
+    const c = { applied:0, skipped:0, unresolved:0 };
+    for (const x of report) c[x.status] = (c[x.status]||0) + 1;
+    return c;
+  }, [report]);
+
+  return (
+    <div>
+      <div style={{display:'flex', gap:10, marginBottom:14, alignItems:'baseline'}}>
+        <div className="serif" style={{fontSize:14, fontWeight:500}}>Modifications preview</div>
+        <div className="muted" style={{fontSize:11}}>
+          base bom: <span className="mono">{shortId(patch.baseBom?.bomUUID, 12)}</span> ·
+          digest: <span className="mono">{shortId(patch.baseBom?.originalDigest, 12)}</span> ·
+          ops: <strong>{(patch.operations||[]).length}</strong>
+        </div>
+      </div>
+      {working
+       ? <div className="muted">Resolving anchors…</div>
+       : <>
+          <div style={{display:'flex', gap:10, marginBottom:14}}>
+            <span className="badge badge-green">applied {counts.applied||0}</span>
+            <span className="badge badge-yellow">skipped {counts.skipped||0}</span>
+            <span className="badge badge-red">unresolved {counts.unresolved||0}</span>
+          </div>
+          <div className="panel-inset" style={{maxHeight:280, overflowY:'auto', padding:6, borderRadius:3}}>
+            {report.map(r => {
+              const op = (patch.operations||[]).find(o => o.id === r.opId) || {};
+              return (
+                <div key={r.opId} className="op-row" style={{borderBottom:'1px solid var(--border)'}}>
+                  <span className={r.status==='applied' ? 'badge badge-green'
+                                  : r.status==='skipped' ? 'badge badge-yellow'
+                                  : 'badge badge-red'}>{r.status}</span>
+                  <span className="op-type">{op.type}</span>
+                  <span style={{flex:1, color:'var(--fg-2)'}}>
+                    {op.field || ''} {r.message ? `(${r.message})` : ''}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+          <div style={{marginTop:14, display:'flex', justifyContent:'flex-end', gap:8}}>
+            <button className="btn" onClick={onCancel}>Cancel</button>
+            <button className="btn btn-primary" onClick={onApply}>
+              Apply {counts.applied} ops
+            </button>
+          </div>
+        </>}
+    </div>
+  );
+}
+
+/* ========================================================================= *
+ *  PATCH FORMAT                                                             *
+ * ========================================================================= */
+
+function buildPatch(state) {
+  return {
+    $schema: 'cytrics-sbom-mods-v1',
+    baseBom: {
+      bomUUID: state.baseSBOM?.bomUUID || null,
+      originalDigest: state.baseSBOMHash,
+      exportedAt: isoNow(),
+    },
+    anchors: {
+      system: 'Software anchors use sha256 → sha1 → md5 → composite tiers. ' +
+              'Composite hashes a stable fingerprint over: names, fileNames, ' +
+              'size, softwareType, vendors, and a digest of the metadata array. ' +
+              'UUID, captureTime, containerPath, installPath, and version are ' +
+              'deliberately excluded. Hardware uses a composite over ' +
+              '(identifiers, names, hardwareType, vendor, packageType). ' +
+              'Relationships are anchored by the (srcAnchor, dstAnchor, relationship) triple.',
+    },
+    operations: state.ops.map(o => ({...o})),
+  };
+}
+
+/* ========================================================================= *
+ *  8. APP                                                                   *
+ * ========================================================================= */
+
+function App() {
+  const [state, dispatch] = useReducer(reducer, undefined, initialState);
+  const [peerNet, setPeerNet] = useState(null);
+  const [showCollab, setShowCollab] = useState(false);
+  const [showPatch, setShowPatch] = useState(false);
+  const stateRef = useRef(state);
+  stateRef.current = state;
+
+  // ----- Theme -----
+  const [theme, setTheme] = useState(() => {
+    try { return localStorage.getItem('sbomwb:theme') || 'dark'; } catch { return 'dark'; }
+  });
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    try { localStorage.setItem('sbomwb:theme', theme); } catch {}
+  }, [theme]);
+  const toggleTheme = useCallback(() => setTheme(t => t === 'dark' ? 'light' : 'dark'), []);
+
+  // ----- Browser cache (localStorage) -----
+  const [autoCache, setAutoCache] = useState(() => {
+    try { return (localStorage.getItem('sbomwb:autocache') ?? '1') === '1'; } catch { return true; }
+  });
+  useEffect(() => {
+    try { localStorage.setItem('sbomwb:autocache', autoCache ? '1' : '0'); } catch {}
+  }, [autoCache]);
+  const cacheErrRef = useRef(false);
+  useEffect(() => {
+    if (!state.started || !autoCache) return;
+    const h = setTimeout(() => {
+      saveCacheEntry(stateRef.current).then(r => {
+        if (!r.ok && !cacheErrRef.current) {
+          cacheErrRef.current = true; // toast once, not on every keystroke
+          dispatch({ type:'TOAST', level:'error',
+                     msg: 'IndexedDB cache save failed: ' + r.err });
+        }
+      });
+    }, 1200);
+    return () => clearTimeout(h);
+  }, [state.started, state.ops, state.baseSBOMHash, autoCache]);
+
+  // Tracks the most recent locally-emitted op so sequential edits to the
+  // same field coalesce into one history entry (e.g. typing "abc" is one op,
+  // not three). Coalescing only happens while our op is still the newest in
+  // the log; any interleaved op (local or remote) starts a fresh entry.
+  const lastEmitRef = useRef(null);
+
+  // emit: create an op (filling in anchor from current state), apply locally, broadcast.
+  const emit = useCallback(async (partial) => {
+    const cur = stateRef.current;
+    const nextLamport = cur.lamport + 1;
+
+    // ---- Coalescing path ----
+    const COALESCIBLE = [OP.SW_SET_FIELD, OP.HW_SET_FIELD, OP.BOM_SET_FIELD];
+    const last = cur.ops[cur.ops.length - 1];
+    const lt = lastEmitRef.current;
+    if (COALESCIBLE.includes(partial.type) && last && lt &&
+        last.id === lt.opId && last.peerId === cur.peerId &&
+        lt.type === partial.type && lt.field === partial.field &&
+        (partial.type === OP.BOM_SET_FIELD || lt.uuid === partial.uuid)) {
+      // Update the existing op in place: same id/ts/anchor, bumped rev.
+      // Keeping the ORIGINAL anchor is essential — it was computed against the
+      // pre-edit state and is what replay resolves at this op's position.
+      const updated = { ...last, value: deepClone(partial.value),
+                        rev: (last.rev || 0) + 1, wallTime: isoNow() };
+      const allOps = [...cur.ops.slice(0, -1), updated];
+      const { sbom: newCurrent } = await replayOps(cur.baseSBOM, allOps);
+      dispatch({ type:'APPEND_OPS_REBUILD', allOps, newCurrent });
+      if (peerNet) peerNet.broadcastOp(updated);
+      return;
+    }
+
+    // Resolve UUID -> anchor based on current SBOM, for anchor-carrying ops.
+    let payload = { ...partial };
+    if ([OP.SW_SET_FIELD, OP.SW_REMOVE].includes(partial.type)) {
+      const sw = (cur.currentSBOM?.software || []).find(x => x.UUID === partial.uuid);
+      if (!sw) { dispatch({type:'TOAST', level:'error', msg:'entry not found'}); return; }
+      payload.anchor = await computeSoftwareAnchor(sw);
+      delete payload.uuid;
+    } else if ([OP.HW_SET_FIELD, OP.HW_REMOVE].includes(partial.type)) {
+      const hw = (cur.currentSBOM?.hardware || []).find(x => x.UUID === partial.uuid);
+      if (!hw) { dispatch({type:'TOAST', level:'error', msg:'entry not found'}); return; }
+      payload.anchor = await computeHardwareAnchor(hw);
+      delete payload.uuid;
+    } else if (partial.type === OP.SW_ADD) {
+      payload.anchor = await computeSoftwareAnchor(partial.software);
+    } else if (partial.type === OP.HW_ADD) {
+      payload.anchor = await computeHardwareAnchor(partial.hardware);
+    } else if ([OP.REL_ADD, OP.REL_REMOVE, OP.REL_SET_COMMENTS].includes(partial.type)) {
+      // Resolve src/dst UUIDs -> anchors using whichever side (sw or hw) they belong to.
+      const srcSw = (cur.currentSBOM?.software || []).find(s => s.UUID === partial.xUUID);
+      const srcHw = (cur.currentSBOM?.hardware || []).find(h => h.UUID === partial.xUUID);
+      const dstSw = (cur.currentSBOM?.software || []).find(s => s.UUID === partial.yUUID);
+      const dstHw = (cur.currentSBOM?.hardware || []).find(h => h.UUID === partial.yUUID);
+      payload.srcAnchor = srcSw ? await computeSoftwareAnchor(srcSw)
+                          : srcHw ? await computeHardwareAnchor(srcHw) : null;
+      payload.dstAnchor = dstSw ? await computeSoftwareAnchor(dstSw)
+                          : dstHw ? await computeHardwareAnchor(dstHw) : null;
+      delete payload.xUUID; delete payload.yUUID;
+    }
+
+    const op = makeOp({
+      type: partial.type,
+      peerId: cur.peerId,
+      lamport: nextLamport,
+      payload,
+    });
+
+    // Append locally and recompute current SBOM.
+    const allOps = mergeOps(cur.ops, [op]);
+    const { sbom: newCurrent } = await replayOps(cur.baseSBOM, allOps);
+    dispatch({ type:'APPEND_OPS_REBUILD', allOps, newCurrent });
+    lastEmitRef.current = COALESCIBLE.includes(partial.type)
+      ? { opId: op.id, type: partial.type, field: partial.field, uuid: partial.uuid }
+      : null;
+    // Broadcast
+    if (peerNet) peerNet.broadcastOp(op);
+  }, [peerNet]);
+
+  // Receive op from remote peer
+  const applyRemoteOp = useCallback(async (op) => {
+    const cur = stateRef.current;
+    const allOps = mergeOps(cur.ops, [op]);
+    const { sbom: newCurrent } = await replayOps(cur.baseSBOM, allOps);
+    dispatch({ type:'APPEND_OPS_REBUILD', allOps, newCurrent });
+  }, []);
+
+  // Apply a loaded patch on top of currently loaded SBOM.
+  const applyPatch = useCallback(async (patch) => {
+    const cur = stateRef.current;
+    const incoming = patch.operations || [];
+    const allOps = mergeOps(cur.ops, incoming);
+    const { sbom: newCurrent, report } = await replayOps(cur.baseSBOM, allOps);
+    dispatch({ type:'PATCH_APPLIED', baseSBOM: cur.baseSBOM,
+               hash: cur.baseSBOMHash, currentSBOM: newCurrent, ops: allOps });
+    const unresolved = report.filter(r => r.status === 'unresolved').length;
+    dispatch({ type:'TOAST',
+               level: unresolved ? 'error' : 'success',
+               msg: `Applied ${report.length - unresolved}/${report.length} ops` +
+                    (unresolved ? `, ${unresolved} could not be resolved` : '') });
+  }, []);
+
+  // PeerNet needs a way to send our state to incoming peers.
+  const sendStateRef = useRef(null);
+  sendStateRef.current = (conn) => {
+    if (!peerNet) return;
+    const cur = stateRef.current;
+    peerNet.sendStateTo(conn, cur.baseSBOM, cur.ops);
+  };
+
+  // Toast dismiss
+  useEffect(() => {
+    if (!state.toasts.length) return;
+    const t = state.toasts[state.toasts.length-1];
+    const h = setTimeout(() => dispatch({type:'TOAST_DISMISS', id: t.id}), 4500);
+    return () => clearTimeout(h);
+  }, [state.toasts]);
+
+  if (!state.started) return <Splash dispatch={dispatch} theme={theme} toggleTheme={toggleTheme} />;
+
+  function onExportSBOM() {
+    downloadJSON((state.fileName||'sbom'), state.currentSBOM);
+    dispatch({type:'TOAST', msg:'SBOM exported', level:'success'});
+  }
+  function onExportPatch() {
+    const patch = buildPatch(state);
+    downloadJSON((state.fileName||'sbom').replace(/\.json$/,'') + '.mods.json', patch);
+    dispatch({type:'TOAST', msg:`Modifications exported (${state.ops.length} ops)`, level:'success'});
+  }
+
+  return (
+    <div style={{display:'grid', gridTemplateRows:'auto auto 1fr', height:'100%'}}>
+      <Header state={state} dispatch={dispatch} peerNet={peerNet}
+              onExportSBOM={onExportSBOM} onExportPatch={onExportPatch}
+              onOpenPatch={()=>setShowPatch(true)}
+              onOpenCollab={()=>setShowCollab(true)}
+              theme={theme} toggleTheme={toggleTheme}
+              autoCache={autoCache} setAutoCache={setAutoCache} />
+      <TabBar state={state} dispatch={dispatch}/>
+      <div style={{overflow:'hidden'}}>
+        {state.tab === 'software' &&
+          <SoftwareTab state={state} dispatch={dispatch} emit={emit} peerName={state.peerName}/>}
+        {state.tab === 'hardware' &&
+          <HardwareTab state={state} dispatch={dispatch} emit={emit} peerName={state.peerName}/>}
+        {state.tab === 'relationships' &&
+          <RelationshipsTab state={state} dispatch={dispatch} emit={emit}/>}
+        {state.tab === 'metadata' &&
+          <MetadataTab state={state} emit={emit} peerName={state.peerName}/>}
+        {state.tab === 'history' &&
+          <HistoryTab state={state}/>}
+      </div>
+
+      {showCollab && (
+        <CollabModal state={state} dispatch={dispatch}
+                     peerNet={peerNet} setPeerNet={setPeerNet}
+                     emit={emit} applyRemoteOp={applyRemoteOp}
+                     sendStateRef={sendStateRef}
+                     onClose={()=>setShowCollab(false)}/>
+      )}
+      {showPatch && (
+        <PatchModal state={state} dispatch={dispatch}
+                    onClose={()=>setShowPatch(false)}
+                    applyPatch={applyPatch}/>
+      )}
+
+      <div className="toast-stack">
+        {state.toasts.map(t => (
+          <div key={t.id} className={"toast " + (t.level==='error'?'error':t.level==='success'?'success':'')}>
+            {t.msg}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function mergeOps(a, b) {
+  // Upsert semantics: an op with a known id but a higher rev REPLACES the
+  // existing one in place (sequential same-field edits coalesce into one op).
+  const byId = new Map();
+  const merged = [];
+  for (const op of a) { byId.set(op.id, merged.length); merged.push(op); }
+  for (const op of b) {
+    const i = byId.get(op.id);
+    if (i === undefined) { byId.set(op.id, merged.length); merged.push(op); }
+    else if ((op.rev || 0) > (merged[i].rev || 0)) merged[i] = op;
+  }
+  merged.sort((x, y) => {
+    if (x.ts !== y.ts) return x.ts - y.ts;
+    if (x.peerId !== y.peerId) return x.peerId < y.peerId ? -1 : 1;
+    return x.id < y.id ? -1 : 1;
+  });
+  return merged;
+}
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(<App />);
+</script>
+</body>
+</html>
