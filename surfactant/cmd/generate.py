@@ -903,7 +903,7 @@ def resolve_link(
     current_path = pathlib.Path(path)
     steps = 0
 
-    while current_path.is_symlink:
+    while current_path.is_symlink():
         # If we've already seen this then we're in an infinite loop
         if current_path in seen_paths:
             logger.warning(f"Resolving symlink {path} encountered infinite loop at {current_path}")
@@ -928,7 +928,7 @@ def resolve_link(
             dest = dest[1:]
         # Rebase to get the true location
         current_path = pathlib.Path(extract_dir) / dest
-        cur_dir = current_path.parent
+        cur_dir = str(current_path.parent)
     if not current_path.exists():
         logger.warning(f"Resolved symlink {path} to a path that doesn't exist {current_path}")
         return None
