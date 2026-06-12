@@ -10,11 +10,10 @@ Config Options:
     output_path(str): The path to output files to.  Outputs to the current directory if empty.
 """
 
-import os.path
 import pathlib
 import tempfile
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, List, Optional, Tuple
+from typing import TYPE_CHECKING
 
 from loguru import logger
 
@@ -28,11 +27,11 @@ if TYPE_CHECKING:
 
 
 @surfactant.plugin.hookimpl
-def settings_name() -> Optional[str]:
+def settings_name() -> str | None:
     return "srec_hex"
 
 
-def supports_file(filetype: List[str]) -> bool:
+def supports_file(filetype: list[str]) -> bool:
     # We only want to support one of the expected formats at a time
     seen_supported = False
     for ftype in filetype:
@@ -50,9 +49,9 @@ def extract_file_info(
     sbom: SBOM,
     software: Software,
     filename: str,
-    filetype: List[str],
+    filetype: list[str],
     context_queue: "Queue[ContextEntry]",
-    current_context: Optional[ContextEntry],
+    current_context: ContextEntry | None,
 ) -> object:
     if not supports_file(filetype):
         return
@@ -105,8 +104,8 @@ class WriteInfo:
     data: bytearray
 
 
-def read_srecord_info(file: str) -> Optional[List[WriteInfo]]:
-    ret_info: List[WriteInfo] = []
+def read_srecord_info(file: str) -> list[WriteInfo] | None:
+    ret_info: list[WriteInfo] = []
     with pathlib.Path(file).open() as f:
         for raw_line in f:
             line = raw_line.strip()
@@ -151,7 +150,7 @@ def read_srecord_info(file: str) -> Optional[List[WriteInfo]]:
                 bytes_to_read = byte_count - 4 - 1
             else:
                 continue
-            temp_bytes: List[int] = []
+            temp_bytes: list[int] = []
             for byte_no in range(bytes_to_read):
                 start_byte = next_byte + byte_no * 2
                 temp_bytes.append(int(line[start_byte : start_byte + 2], base=16))
@@ -165,8 +164,8 @@ def read_srecord_info(file: str) -> Optional[List[WriteInfo]]:
     return ret_info
 
 
-def read_hex_info(file: str) -> Optional[List[WriteInfo]]:
-    ret_info: List[WriteInfo] = []
+def read_hex_info(file: str) -> list[WriteInfo] | None:
+    ret_info: list[WriteInfo] = []
     with pathlib.Path(file).open() as f:
         addr_top_bytes = 0
         for raw_line in f:
@@ -181,7 +180,7 @@ def read_hex_info(file: str) -> Optional[List[WriteInfo]]:
             bytes_sum += int(line[3:5], base=16) + int(line[5:7], base=16)
             data_type = int(line[7:9], base=16)
             bytes_sum += data_type
-            data_bytes: List[int] = []
+            data_bytes: list[int] = []
             for byte_no in range(byte_count):
                 start_byte = 9 + byte_no * 2
                 data_bytes.append(int(line[start_byte : start_byte + 2], base=16))
@@ -201,7 +200,7 @@ def read_hex_info(file: str) -> Optional[List[WriteInfo]]:
     return ret_info
 
 
-def get_first_and_last_address(data: List[WriteInfo]) -> Tuple[int, int]:
+def get_first_and_last_address(data: list[WriteInfo]) -> tuple[int, int]:
     # Arbitrarly large number so smaller addresses will always compare true
     first_address = 2 << 65
     last_address = 0
@@ -214,7 +213,7 @@ def get_first_and_last_address(data: List[WriteInfo]) -> Tuple[int, int]:
 
 # write_to is a file-like object
 # returns true if the file was successfully written
-def write_write_info_to_file(write_to, data: List[WriteInfo], *, trim_leading_zeros: bool) -> bool:
+def write_write_info_to_file(write_to, data: list[WriteInfo], *, trim_leading_zeros: bool) -> bool:
     first_address, _ = get_first_and_last_address(data)
     if not trim_leading_zeros and first_address > 0:
         write_to.write(b"\x00" * first_address)
