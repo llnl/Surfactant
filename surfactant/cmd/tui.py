@@ -134,7 +134,8 @@ class FileInput(textual.widgets.Static):
                 self.query_one(textual.widgets.Label).update(f"{self.label} {self.input_path}")
 
         base_dir = pathlib.Path("./")
-        if not base_dir and pathlib.Path(self.input_path).is_file():
+        # Start file explorer in the same folder if there's an existing input file
+        if self.input_path and pathlib.Path(self.input_path).is_file():
             base_dir = self.input_path.parent
         self.app.push_screen(SelectFile(self.allow_folder_selection, base_dir), set_path)
 
@@ -418,7 +419,7 @@ class ContextTab(textual.widgets.Static):
         if not self.context_input.input_path:
             self.app.notify("No context file directory")
             return
-        if not self.context_name:
+        if not self.context_name.value:
             self.app.notify("No context filename")
             return
         to_save = []
