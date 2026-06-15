@@ -22,8 +22,8 @@ async def test_generate(tmp_path):
         # No good way to set files from here via the TUI - just set the path directly
         tui.generate_tab.specimen_context.input_path = (
             testing_data / "Windows_dll_test_no1"
-        ).as_posix()
-        tui.generate_tab.output_dir.input_path = tmp_path.as_posix()
+        )
+        tui.generate_tab.output_dir.input_path = tmp_path
         # Type in the filename
         await pilot.click(tui.generate_tab.output_name)
         await pilot.press(*"out.json")
@@ -56,8 +56,8 @@ async def test_merge(tmp_path):
         await pilot.pause(0.2)
         # Set the merge paths
         for i, p in enumerate(tui.merge_tab.merge_paths.input_paths):
-            p.path_selector.input_path = (tmp_path / f"sbom{i}.json").as_posix()
-        tui.merge_tab.output_dir.input_path = tmp_path.as_posix()
+            p.path_selector.input_path = (tmp_path / f"sbom{i}.json")
+        tui.merge_tab.output_dir.input_path = tmp_path
         # Set the output name
         await pilot.click(tui.merge_tab.output_name)
         await pilot.press(*"test_out.json")
@@ -94,7 +94,7 @@ async def test_context_roundtrip(tmp_path):
         await pilot.press(*("right", "right"))
         await pilot.pause(0.1)
         # Load an existing context file
-        tui.context_tab.context_input.input_path = tmp_path.as_posix()
+        tui.context_tab.context_input.input_path = tmp_path
         tui.context_tab.context_name.value = "test_input.json"
         await pilot.click(tui.context_tab.load_btn)
         await pilot.pause(0.1)

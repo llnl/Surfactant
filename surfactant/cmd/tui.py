@@ -70,7 +70,7 @@ class SelectFileButtons(textual.widgets.Static):
             yield textual.widgets.Button("Select directory", id="select_dir")
 
 
-class SelectFile(textual.screen.ModalScreen[textual.widgets.DirectoryTree.FileSelected | None]):
+class SelectFile(textual.screen.ModalScreen[pathlib.Path | None]):
     """Pop-up to select a file"""
 
     def __init__(self, allow_folder_selection: bool, start_path: pathlib.Path):
@@ -98,7 +98,7 @@ class SelectFile(textual.screen.ModalScreen[textual.widgets.DirectoryTree.FileSe
         self.dir_selected = path.path
 
     def on_directory_tree_file_selected(
-        self, path: textual.widgets.DirectoryTree.FileSelected
+        self, path: pathlib.Path
     ) -> None:
         self.dismiss(path.path)
 
@@ -201,7 +201,7 @@ class GenerateTab(textual.widgets.Static):
             str(self.output_dir.input_path / self.output_name.value),
         ]
         if self.input_sbom.input_path:
-            args.append(self.input_sbom.input_path)
+            args.append(str(self.input_sbom.input_path))
         if self.skip_gather.value:
             args.append("--skip_gather")
         if self.skip_relationships.value:
@@ -221,10 +221,10 @@ class GenerateTab(textual.widgets.Static):
             args.append(author_name)
             args.append("--author_type")
             args.append(author_type)
-        args.append("--input_format")
-        args.append(self.input_format.value)
-        args.append("--output_format")
-        args.append(self.output_format.value)
+        # args.append("--input_format")
+        # args.append(self.input_format.value)
+        # args.append("--output_format")
+        # args.append(self.output_format.value)
         # Suspend is not supported in headless mode
         if not self.app.is_headless:
             with self.app.suspend():
