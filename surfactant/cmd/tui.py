@@ -428,14 +428,16 @@ class ContextTab(textual.widgets.Static):
             write_to = to_save[-1]
             archive = entry.archive.input_path
             if archive:
-                write_to["archive"] = str(archive)
+                # Tests look for POSIX paths, str() causes issues in this case on Windows
+                write_to["archive"] = archive.as_posix()
             install_prefix = entry.install_prefix.value
             if install_prefix:
                 write_to["installPrefix"] = install_prefix
             write_to["extractPaths"] = []
             for path in entry.extract_paths.input_paths:
                 if path.path_selector.input_path and path.active:
-                    write_to["extractPaths"].append(str(path.path_selector.input_path))
+                    # Tests look for POSIX paths, str() causes issues in this case on Windows
+                    write_to["extractPaths"].append(path.path_selector.input_path.as_posix())
             container_prefix = entry.container_prefix.value
             if container_prefix:
                 write_to["containerPrefix"] = container_prefix
