@@ -20,9 +20,7 @@ async def test_generate(tmp_path):
     tui = TUI()
     async with tui.run_test() as pilot:
         # No good way to set files from here via the TUI - just set the path directly
-        tui.generate_tab.specimen_context.input_path = (
-            testing_data / "Windows_dll_test_no1"
-        )
+        tui.generate_tab.specimen_context.input_path = testing_data / "Windows_dll_test_no1"
         tui.generate_tab.output_dir.input_path = tmp_path
         # Type in the filename
         await pilot.click(tui.generate_tab.output_name)
@@ -56,7 +54,7 @@ async def test_merge(tmp_path):
         await pilot.pause(0.2)
         # Set the merge paths
         for i, p in enumerate(tui.merge_tab.merge_paths.input_paths):
-            p.path_selector.input_path = (tmp_path / f"sbom{i}.json")
+            p.path_selector.input_path = tmp_path / f"sbom{i}.json"
         tui.merge_tab.output_dir.input_path = tmp_path
         # Set the output name
         await pilot.click(tui.merge_tab.output_name)

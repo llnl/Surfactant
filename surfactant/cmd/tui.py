@@ -97,9 +97,7 @@ class SelectFile(textual.screen.ModalScreen[pathlib.Path | None]):
     ) -> None:
         self.dir_selected = path.path
 
-    def on_directory_tree_file_selected(
-        self, path: pathlib.Path
-    ) -> None:
+    def on_directory_tree_file_selected(self, path: pathlib.Path) -> None:
         self.dismiss(path.path)
 
     def on_key(self, event: textual.events.Key):
