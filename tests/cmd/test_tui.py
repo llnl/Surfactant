@@ -28,7 +28,7 @@ async def test_generate(tmp_path):
         # Run it
         await pilot.click("#run")
     common.test_generate_result_no_install_prefix(
-        (tmp_path / "out.json").as_posix(), (testing_data / "Windows_dll_test_no1").as_posix()
+        str(tmp_path / "out.json"), str(testing_data / "Windows_dll_test_no1")
     )
 
 
