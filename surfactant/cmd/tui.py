@@ -1,4 +1,4 @@
-# Copyright 2025 Lawrence Livermore National Security, LLC
+# Copyright 2026 Lawrence Livermore National Security, LLC
 # See the top-level LICENSE file for details.
 #
 # SPDX-License-Identifier: MIT
@@ -70,13 +70,13 @@ class SelectFileButtons(textual.widgets.Static):
             yield textual.widgets.Button("Select directory", id="select_dir")
 
 
-class SelectFile(textual.screen.ModalScreen[textual.widgets.DirectoryTree.FileSelected | None]):
+class SelectFile(textual.screen.ModalScreen[pathlib.Path | None]):
     """Pop-up to select a file"""
 
-    def __init__(self, allow_folder_selection: bool, start_path: str):
+    def __init__(self, allow_folder_selection: bool, start_path: pathlib.Path):
         super().__init__()
         self.allow_folder_selection = allow_folder_selection
-        self.dir_selected = start_path
+        self.dir_selected: pathlib.Path = start_path
 
     def compose(self) -> textual.app.ComposeResult:
         yield textual.widgets.DirectoryTree(self.dir_selected, id="file_dir")
@@ -95,12 +95,10 @@ class SelectFile(textual.screen.ModalScreen[textual.widgets.DirectoryTree.FileSe
     def on_directory_tree_directory_selected(
         self, path: textual.widgets.DirectoryTree.DirectorySelected
     ) -> None:
-        self.dir_selected = path.path.as_posix()
+        self.dir_selected = path.path
 
-    def on_directory_tree_file_selected(
-        self, path: textual.widgets.DirectoryTree.FileSelected
-    ) -> None:
-        self.dismiss(path.path.as_posix())
+    def on_directory_tree_file_selected(self, path: pathlib.Path) -> None:
+        self.dismiss(path.path)
 
     def on_key(self, event: textual.events.Key):
         if event.key == "escape":
@@ -115,10 +113,10 @@ class FileInput(textual.widgets.Static):
         self.label = label
         self.file_input = file_input
         self.allow_folder_selection = allow_folder_selection
-        self.input_path = ""
+        self.input_path: pathlib.Path | None = None
 
     def compose(self) -> textual.app.ComposeResult:
-        if len(self.input_path) == 0:
+        if not self.input_path:
             yield textual.widgets.Label(f"{self.label} \\[Click to set]")
         else:
             yield textual.widgets.Label(f"{self.label} {self.input_path}")
@@ -135,9 +133,10 @@ class FileInput(textual.widgets.Static):
                     self.input_path = path
                 self.query_one(textual.widgets.Label).update(f"{self.label} {self.input_path}")
 
-        base_dir = "./"
-        if pathlib.Path(self.input_path).is_file():
-            base_dir = pathlib.Path(self.input_path).parent
+        base_dir = pathlib.Path("./")
+        # Start file explorer in the same folder if there's an existing input file
+        if self.input_path and pathlib.Path(self.input_path).is_file():
+            base_dir = self.input_path.parent
         self.app.push_screen(SelectFile(self.allow_folder_selection, base_dir), set_path)
 
 
@@ -187,26 +186,26 @@ class GenerateTab(textual.widgets.Static):
 
     @textual.on(textual.widgets.Button.Pressed, "#run")
     def handle_run(self) -> None:
-        if len(self.specimen_context.input_path) == 0:
+        if not self.specimen_context.input_path:
             self.app.notify("No input file selected")
             return
-        if len(self.output_dir.input_path) == 0:
+        if not self.output_dir.input_path:
             self.app.notify("No output directory selected")
             return
-        if len(self.output_name.value) == 0:
+        if not self.output_name.value:
             self.app.notify("No output name supplied")
             return
         args = [
-            self.specimen_context.input_path,
-            f"{self.output_dir.input_path}/{self.output_name.value}",
+            str(self.specimen_context.input_path),
+            str(self.output_dir.input_path / self.output_name.value),
         ]
-        if len(self.input_sbom.input_path) > 0:
-            args.append(self.input_sbom.input_path)
+        if self.input_sbom.input_path:
+            args.append(str(self.input_sbom.input_path))
         if self.skip_gather.value:
             args.append("--skip_gather")
         if self.skip_relationships.value:
             args.append("--skip_relationships")
-        if len(self.input_format.value) > 0:
+        if self.input_format.value:
             args.append("--input_format")
             args.append(self.input_format.value)
         if self.skip_install_path.value:
@@ -221,10 +220,10 @@ class GenerateTab(textual.widgets.Static):
             args.append(author_name)
             args.append("--author_type")
             args.append(author_type)
-        args.append("--input_format")
-        args.append(self.input_format.value)
-        args.append("--output_format")
-        args.append(self.output_format.value)
+        # args.append("--input_format")
+        # args.append(self.input_format.value)
+        # args.append("--output_format")
+        # args.append(self.output_format.value)
         # Suspend is not supported in headless mode
         if not self.app.is_headless:
             with self.app.suspend():
@@ -273,7 +272,7 @@ class InputPathsHolder(textual.widgets.Static):
         self.input_paths.append(InputPath(self.prompt, self.allow_dir_selection))
         self.mount(self.input_paths[-1], before="#add_input_path")
 
-    def add_path(self, path: str):
+    def add_path(self, path: pathlib.Path):
         self.input_paths.append(InputPath(self.prompt, self.allow_dir_selection))
         self.input_paths[-1].path_selector.input_path = path
 
@@ -313,31 +312,31 @@ class MergeTab(textual.widgets.Static):
     @textual.on(textual.widgets.Button.Pressed, "#run")
     def handle_run(self):
         args = []
-        if len(self.merge_paths.input_paths) == 0:
+        if not self.merge_paths.input_paths:
             self.app.notify("No inputs given")
             return
-        if len(self.output_dir.input_path) == 0:
+        if not self.output_dir.input_path:
             self.app.notify("No output directory given")
             return
-        if len(self.output_name.value) == 0:
+        if not self.output_name.value:
             self.app.notify("No output filename given")
             return
         for m_path in self.merge_paths.input_paths:
             if m_path.active:
                 path = m_path.path_selector.input_path
-                if len(path) == 0:
+                if not path:
                     self.app.notify("One or more inputs not given")
                     return
-                args.append(path)
-        args.append(f"{self.output_dir.input_path}/{self.output_name.value}")
+                args.append(str(path))
+        args.append(str(self.output_dir.input_path / self.output_name.value))
         args.append("--input_format")
         args.append(self.input_format.value)
         args.append("--output_format")
         args.append(self.output_format.value)
         config = self.config_file.input_path
-        if len(config) > 0:
+        if config:
             args.append("--config_file")
-            args.append(config)
+            args.append(str(config))
         # Suspend is not supported in headless mode
         if not self.app.is_headless:
             with self.app.suspend():
@@ -417,26 +416,34 @@ class ContextTab(textual.widgets.Static):
 
     @textual.on(textual.widgets.Button.Pressed, "#save")
     def save(self):
+        if not self.context_input.input_path:
+            self.app.notify("No context file directory")
+            return
+        if not self.context_name.value:
+            self.app.notify("No context filename")
+            return
         to_save = []
         for entry in self.context_entries:
             to_save.append({})
             write_to = to_save[-1]
             archive = entry.archive.input_path
-            if len(archive) > 0:
-                write_to["archive"] = archive
+            if archive:
+                # Tests look for POSIX paths, str() causes issues in this case on Windows
+                write_to["archive"] = archive.as_posix()
             install_prefix = entry.install_prefix.value
-            if len(install_prefix) > 0:
+            if install_prefix:
                 write_to["installPrefix"] = install_prefix
             write_to["extractPaths"] = []
             for path in entry.extract_paths.input_paths:
-                if path.active:
-                    write_to["extractPaths"].append(path.path_selector.input_path)
+                if path.path_selector.input_path and path.active:
+                    # Tests look for POSIX paths, str() causes issues in this case on Windows
+                    write_to["extractPaths"].append(path.path_selector.input_path.as_posix())
             container_prefix = entry.container_prefix.value
-            if len(container_prefix) > 0:
+            if container_prefix:
                 write_to["containerPrefix"] = container_prefix
-        file_to_save = self.context_input.input_path + "/" + self.context_name.value
+        file_to_save = self.context_input.input_path / self.context_name.value
         try:
-            with pathlib.Path(file_to_save).open("w") as f:
+            with file_to_save.open("w") as f:
                 f.write(json.dumps(to_save, indent=2))
         except IsADirectoryError:
             self.app.notify(f"Could not write to {file_to_save}")
@@ -445,9 +452,12 @@ class ContextTab(textual.widgets.Static):
 
     @textual.on(textual.widgets.Button.Pressed, "#load")
     def load(self):
-        file_to_load = self.context_input.input_path + "/" + self.context_name.value
         try:
-            with pathlib.Path(file_to_load).open() as config_file:
+            if not self.context_input.input_path:
+                self.app.notify("No context file directory")
+                return
+            file_to_load = self.context_input.input_path / self.context_name.value
+            with file_to_load.open() as config_file:
                 js = json.load(config_file)
         except (FileNotFoundError, IsADirectoryError):
             self.app.notify(f"Could not find file {file_to_load}")
@@ -465,10 +475,10 @@ class ContextTab(textual.widgets.Static):
             self.context_count += 1
             cur_entry = self.context_entries[-1]
             if "archive" in entry:
-                cur_entry.archive.input_path = entry["archive"]
+                cur_entry.archive.input_path = pathlib.Path(entry["archive"])
             if "extractPaths" in entry:
                 for ep in entry["extractPaths"]:
-                    cur_entry.extract_paths.add_path(ep)
+                    cur_entry.extract_paths.add_path(pathlib.Path(ep))
             if "installPrefix" in entry:
                 cur_entry.install_prefix.value = entry["installPrefix"]
             if "containerPrefix" in entry:
