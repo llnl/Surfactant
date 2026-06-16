@@ -53,11 +53,6 @@ The plugin adds version information and the 1st line of stdout from running the 
 }
 ```
 
-### Key Fields
-
-- **stdout**: 1st line of text sent to stdout
-- **version**: Identified version number
-
 ## Configuration
 
 ### Context File
