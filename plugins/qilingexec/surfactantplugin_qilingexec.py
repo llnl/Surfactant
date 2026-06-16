@@ -170,8 +170,16 @@ def extract_file_info(  # pylint: disable=too-many-positional-arguments
         return None
     timeout = current_context.get_pconf(__name__, "timeout", 150000)
     args_help = [filename, "--help"]
+    # Alphanumeric text (plus parenthesis), followed by an optional comma,
+    # followed by an optional " version" (includes capital V), followed by
+    # a string of text enclosed by parenthesis, followed by an optional v,
+    # followed by a version number containing some numbers, followed by
+    # a period, followed by at least 1  more number, followed optionally by
+    # any non-whitespace character
     reg_string = current_context.get_pconf(
-        __name__, "regex", r"[0-9a-zA-Z\(\)]+( \([0-9a-zA-Z ]*\))? [0-9]+\.[0-9]+"
+        __name__,
+        "regex",
+        r"[0-9a-zA-Z\(\)]+(,)?( (v|V)ersion)?( \([0-9a-zA-Z ]*\))? (v|V)*[0-9]+\.[0-9]+\S*",
     )
 
     # Set up static variables for emulation
@@ -197,23 +205,24 @@ def extract_file_info(  # pylint: disable=too-many-positional-arguments
         # Emulate executable
         try:
             ql_version.run(timeout=timeout)
-        except UcError as error:
-            # This error occurs even during normal emulation
-            logger.error(f"qilingexec ran into a(n) {error} exception when trying to run {arg}")
         except (QlErrorBase, NotImplementedError, AttributeError) as error:
             logger.error(f"qilingexec ran into a(n) {error} exception when trying to run {arg}")
             return None
+        except UcError as error:
+            # This error occurs even during normal emulation
+            logger.error(f"qilingexec ran into a(n) {error} exception when trying to run {arg}")
         # If text was sent to stderr instead of stdout, use stderr for parsing
         result = parse_stdout(out_version_fd, regex) or parse_stdout(err_version_fd, regex)
         (match, file_details["qilingexec"]["stdout"]) = result or (None, None)
         if match:  # pylint: disable=no-else-break
             match_arr = match.split(" ")
             name = match_arr[0]
+            wrapped_name = {"nameValue": name, "nameType": "product name"}
             version = match_arr[-1]
             software_field_hints.append(("version", version, 80))
-            software_field_hints.append(("name", name, 10))
+            software_field_hints.append(("name", wrapped_name, 30))
             file_details["qilingexec"]["version"] = version
-            file_details["qilingexec"]["name"] = name
+            file_details["qilingexec"]["name"] = wrapped_name
             break
         logger.info(f'No version information returned by {args_version} with "{arg}"')
         if not file_details["qilingexec"]["stdout"] and arg == ver_arg_list[-1]:
