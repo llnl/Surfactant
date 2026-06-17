@@ -170,12 +170,11 @@ def extract_file_info(  # pylint: disable=too-many-positional-arguments
         return None
     timeout = current_context.get_pconf(__name__, "timeout", 150000)
     args_help = [filename, "--help"]
-    # Alphanumeric text (plus parenthesis), followed by an optional comma,
-    # followed by an optional " version" (includes capital V), followed by
-    # a string of text enclosed by parenthesis, followed by an optional v,
-    # followed by a version number containing some numbers, followed by
-    # a period, followed by at least 1  more number, followed optionally by
-    # any non-whitespace character
+    # Alphanumeric text (plus parenthesis), followed by some text 
+    # enclosed by parenthesis, followed by an optional v,
+    # followed by a version number containing some numbers, a period, 
+    # at least 1  more number, followed optionally by any 
+    # non-whitespace character
     reg_string = current_context.get_pconf(
         __name__,
         "regex",
