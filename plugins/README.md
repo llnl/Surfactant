@@ -4,4 +4,4 @@ Surfactant supports using plugins to add additional features. For users, install
 
 Currently, controlling which plugins run can be done by pip installing and pip uninstalling the plugins. Additional plugin management and configuration option features are a work in progress.
 
-Detailed information on configuration options for the plugin system and how to develop new plugins can be found [here](./docs/plugins.md).
+Detailed information on configuration options for the plugin system and how to develop new plugins can be found [here](../docs/plugins.md).

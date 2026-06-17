@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=77.0.3", "setuptools-scm"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "surfactantplugin-qilingexec"
+authors = [
+    {name = "Matthew Kelley", email = "kelley41@llnl.gov"},
+]
+description = "Surfactant plugin for extracting information from executable binaries with qiling"
+readme = "README.md"
+requires-python = ">=3.10"
+keywords = ["surfactant"]
+license = "MIT"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Environment :: Console",
+    "Operating System :: MacOS",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: POSIX :: Linux",
+]
+dependencies = [
+    "qiling",
+    "surfactant",
+]
+dynamic = ["version"]
+
+[project.entry-points."surfactant"]
+"surfactantplugin_qilingexec" = "surfactantplugin_qilingexec"
+
+[tool.setuptools]
+py-modules=["surfactantplugin_qilingexec"]
