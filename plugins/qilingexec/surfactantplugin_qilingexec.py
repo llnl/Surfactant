@@ -205,14 +205,18 @@ def extract_file_info(  # pylint: disable=too-many-positional-arguments
         try:
             ql_version.run(timeout=timeout)
         except (QlErrorBase, NotImplementedError, AttributeError) as error:
-            logger.error(f"qilingexec ran into a(n) {error} exception when trying to run {arg}")
+            logger.error(
+                f"qilingexec ran into a(n) {error} exception when trying to run {filename} {arg}"
+            )
             return None
         except UcError as error:
             # This error occurs even during normal emulation
-            logger.error(f"qilingexec ran into a(n) {error} exception when trying to run {arg}")
+            logger.error(
+                f"qilingexec ran into a(n) {error} exception when trying to run {filename} {arg}"
+            )
         # If text was sent to stderr instead of stdout, use stderr for parsing
         result = parse_stdout(out_version_fd, regex) or parse_stdout(err_version_fd, regex)
-        (match, file_details["qilingexec"]["stdout"]) = result or (None, None)
+        (match, file_details["qilingexec"][arg]) = result or (None, None)
         if match:  # pylint: disable=no-else-break
             match_arr = match.split(" ")
             name = match_arr[0]
@@ -220,8 +224,6 @@ def extract_file_info(  # pylint: disable=too-many-positional-arguments
             version = match_arr[-1]
             software_field_hints.append(("version", version, 80))
             software_field_hints.append(("name", wrapped_name, 30))
-            file_details["qilingexec"]["version"] = version
-            file_details["qilingexec"]["name"] = wrapped_name
             break
         logger.info(f'No version information returned by {args_version} with "{arg}"')
         if not file_details["qilingexec"]["stdout"] and arg == ver_arg_list[-1]:
@@ -244,10 +246,14 @@ def extract_file_info(  # pylint: disable=too-many-positional-arguments
         ql_help.run(timeout=timeout)
     except UcError as error:
         # This error occurs even during normal emulation
-        logger.error(f"qilingexec ran into a(n) {error} exception when trying to run {args_help}")
+        logger.error(
+            f"qilingexec ran into a(n) {error} exception when trying to run {filename} {args_help}"
+        )
     except (QlErrorBase, NotImplementedError, AttributeError) as error:
-        logger.error(f"qilingexec ran into a(n) {error} exception when trying to run {args_help}")
+        logger.error(
+            f"qilingexec ran into a(n) {error} exception when trying to run {filename} {args_help}"
+        )
         return None
     help_result = handle_help(out_help_fd) or handle_help(err_help_fd)
-    file_details["qilingexec"]["help_stdout"] = help_result
+    file_details["qilingexec"][args_help[1]] = help_result
     return file_details
