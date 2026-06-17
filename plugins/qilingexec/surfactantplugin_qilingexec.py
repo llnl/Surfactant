@@ -14,7 +14,7 @@ from loguru import logger
 
 import surfactant.plugin
 from surfactant.context import ContextEntry
-from surfactant.sbomtypes import SBOM, Software
+from surfactant.sbomtypes import SBOM, NameEntry, Software
 
 try:
     from qiling import Qiling
@@ -179,7 +179,7 @@ def extract_file_info(  # pylint: disable=too-many-positional-arguments
     reg_string = current_context.get_pconf(
         __name__,
         "regex",
-        r"[0-9a-zA-Z\(\)]+(,)?( (v|V)ersion)?( \([0-9a-zA-Z ]*\))? (v|V)*[0-9]+\.[0-9]+\S*",
+        r"[0-9a-zA-Z\(\)]+( \([0-9a-zA-Z ]*\))? (v|V)?[0-9]+\.[0-9]+\S*",
     )
 
     # Set up static variables for emulation
@@ -217,7 +217,7 @@ def extract_file_info(  # pylint: disable=too-many-positional-arguments
         if match:  # pylint: disable=no-else-break
             match_arr = match.split(" ")
             name = match_arr[0]
-            wrapped_name = {"nameValue": name, "nameType": "product name"}
+            wrapped_name = NameEntry(name, "product name")
             version = match_arr[-1]
             software_field_hints.append(("version", version, 80))
             software_field_hints.append(("name", wrapped_name, 30))
