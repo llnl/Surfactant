@@ -13,6 +13,7 @@ from surfactant.sbomtypes import SBOM, NameEntry, Relationship, Software
 class __NuGetManager:
     def __init__(self):
         self.disabled = True
+        self.package_base_address = []
 
     def init_urls(self):
         # Get the base PackageBaseAddress URL
@@ -63,13 +64,13 @@ def establish_relationships(sbom: SBOM, software: Software, metadata) -> list[Re
     """Checks NuGet for a package name and adds it as a name if it exists"""
 
     if __nuget.disabled:
-        return None
+        return
 
     if "dotnetAssembly" not in metadata:
         logger.debug(
             f"[nuget_purl] Skipping: No dotnetAssembly info for NuGet PURL in {software.UUID}"
         )
-        return None
+        return
 
     for dna in metadata["dotnetAssembly"]:
         if purl := __nuget.get_package_url(dna["Name"], dna["Version"]):
