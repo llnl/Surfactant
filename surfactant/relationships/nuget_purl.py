@@ -4,11 +4,11 @@
 # SPDX-License-Identifier: MIT
 
 import requests
-
 from loguru import logger
 
 import surfactant.plugin
-from surfactant.sbomtypes import SBOM, Relationship, Software, NameEntry
+from surfactant.sbomtypes import SBOM, NameEntry, Relationship, Software
+
 
 class __NuGetManager:
     def __init__(self):
@@ -23,12 +23,13 @@ class __NuGetManager:
             return
 
         self.disabled = False
-        self.package_base_address = [x["@id"] for x in r.json()["resources"] if x["@type"] == "PackageBaseAddress/3.0.0"]
+        self.package_base_address = [
+            x["@id"] for x in r.json()["resources"] if x["@type"] == "PackageBaseAddress/3.0.0"
+        ]
         # remove trailing "/" if present
         for i, pba in enumerate(self.package_base_address):
             if pba[-1] == "/":
                 self.package_base_address[i] = pba[:-1]
-
 
     def get_package_url(self, package_name: str, package_version: str) -> str | None:
         if self.disabled:
@@ -43,14 +44,14 @@ class __NuGetManager:
                 if package_version in versions:
                     # Found a matching package version, so include it
                     return f"pkg:nuget/{package_name}@{package_version}"
-                else:
-                    # Unknown package version; exclude the version
-                    return f"pkg:nuget/{package_name}"
+                # Unknown package version; exclude the version
+                return f"pkg:nuget/{package_name}"
 
         return None
 
 
 __nuget = __NuGetManager()
+
 
 @surfactant.plugin.hookimpl
 def init_hook(command_name: str | None = None):
@@ -65,7 +66,9 @@ def establish_relationships(sbom: SBOM, software: Software, metadata) -> list[Re
         return None
 
     if "dotnetAssembly" not in metadata:
-        logger.debug(f"[nuget_purl] Skipping: No dotnetAssembly info for NuGet PURL in {software.UUID}")
+        logger.debug(
+            f"[nuget_purl] Skipping: No dotnetAssembly info for NuGet PURL in {software.UUID}"
+        )
         return None
 
     for dna in metadata["dotnetAssembly"]:

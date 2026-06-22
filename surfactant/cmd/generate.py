@@ -885,9 +885,7 @@ def sbom(
     # add "Uses" relationships based on gathered metadata for software entries
     if not skip_relationships:
         # Init the relationship hooks here
-        call_init_hooks(
-            pm, hook_filter=["establish_relationships"], command_name="generate"
-        )
+        call_init_hooks(pm, hook_filter=["establish_relationships"], command_name="generate")
         parse_relationships(pm, new_sbom)
     else:
         logger.info("Skipping relationships based on imports metadata")
