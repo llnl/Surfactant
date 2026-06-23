@@ -3,11 +3,12 @@
 #
 # SPDX-License-Identifier: MIT
 
-import requests
-from loguru import logger
-import zipfile
 import io
 import pathlib
+import zipfile
+
+import requests
+from loguru import logger
 
 import surfactant.plugin
 from surfactant.sbomtypes import SBOM, NameEntry, Relationship, Software
@@ -58,7 +59,9 @@ class __NuGetManager:
                     return True
         return False
 
-    def get_package_url(self, file_name: str, package_name: str, package_version: str) -> str | None:
+    def get_package_url(
+        self, file_name: str, package_name: str, package_version: str
+    ) -> str | None:
         if self.disabled:
             return None
 
