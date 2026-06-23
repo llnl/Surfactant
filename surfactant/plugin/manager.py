@@ -42,6 +42,7 @@ def _register_plugins(pm: pluggy.PluginManager) -> None:
         dotnet_relationship,
         elf_relationship,
         java_relationship,
+        nuget_purl,
         pe_relationship,
         rpmfile_relationship,
     )
@@ -64,6 +65,7 @@ def _register_plugins(pm: pluggy.PluginManager) -> None:
         dotnet_relationship,
         elf_relationship,
         java_relationship,
+        nuget_purl,
         pe_relationship,
         rpmfile_relationship,
         csv_writer,
