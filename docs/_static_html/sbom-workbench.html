@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>SBOM Workbench</title>
+<title>CyTRICS SBOM Co-editor</title>
 
 <!-- Fonts -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -468,6 +468,72 @@
     font-family: var(--mono);
   }
 
+  /* Schema-driven PURL builder */
+  .purl-definition-card {
+    background: var(--bg-2);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 10px;
+  }
+  .purl-definition-title {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 4px;
+  }
+  .purl-requirement {
+    font-family: var(--mono);
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 1px 5px;
+    border-radius: 2px;
+    border: 1px solid var(--border-2);
+  }
+  .purl-required { color: var(--danger); border-color: rgba(255,84,104,.4); background: rgba(255,84,104,.08); }
+  .purl-optional { color: var(--accent-3); border-color: rgba(132,195,66,.35); background: rgba(132,195,66,.08); }
+  .purl-prohibited { color: var(--fg-3); border-color: var(--border); background: var(--bg); }
+  .purl-validation {
+    border-radius: 3px;
+    padding: 8px 10px;
+    font-size: 11px;
+    margin-top: 8px;
+  }
+  .purl-validation.error { border: 1px solid rgba(255,84,104,.45); background: rgba(255,84,104,.08); color: #ff9aa7; }
+  .purl-validation.warn { border: 1px solid rgba(255,121,0,.4); background: rgba(255,121,0,.08); color: #ffb36b; }
+  .purl-validation.ok { border: 1px solid rgba(132,195,66,.35); background: rgba(132,195,66,.08); color: #b7dd8d; }
+  .purl-example {
+    display: block;
+    width: 100%;
+    text-align: left;
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--fg-2);
+    background: var(--bg);
+    border: 1px solid var(--border);
+    padding: 5px 7px;
+    margin-top: 4px;
+    border-radius: 2px;
+    cursor: pointer;
+    word-break: break-all;
+  }
+  .purl-example:hover { border-color: var(--accent); color: var(--fg); }
+  .purl-qualifier-row {
+    display: grid;
+    grid-template-columns: minmax(120px, .7fr) minmax(180px, 1.3fr) 28px;
+    gap: 6px;
+    align-items: start;
+    margin-bottom: 6px;
+  }
+  .purl-help {
+    font-size: 10px;
+    color: var(--fg-3);
+    margin-top: 3px;
+    line-height: 1.35;
+  }
+  .purl-toolbar { display:flex; gap:6px; align-items:center; flex-wrap:wrap; }
+
   /* Wave/blink */
   @keyframes blink { 50% { opacity: 0.3; } }
   .blink { animation: blink 1.2s infinite; }
@@ -853,6 +919,351 @@ async function storageEstimate() {
   try { return await navigator.storage.estimate(); } catch { return null; }
 }
 
+const PURL_TYPE_DEFINITION_SCHEMA_ID = 'https://packageurl.org/schemas/purl-type-definition.schema-1.0.json';
+const PURL_TYPE_PATTERN = /^[a-z][a-z0-9.-]+$/;
+const PURL_QUALIFIER_KEY_PATTERN = /^[a-z][a-z0-9._-]*$/;
+
+function makeBuiltinPurlDefinition({ type, typeName, description, namespaceRequirement='optional', namespaceNativeName='namespace', nameNativeName='name', qualifiers=[] , examples=[] }) {
+  return {
+    $schema: PURL_TYPE_DEFINITION_SCHEMA_ID,
+    $id: `https://packageurl.org/types/${type}-definition.json`,
+    type,
+    type_name: typeName,
+    description,
+    repository: { use_repository: false },
+    namespace_definition: {
+      requirement: namespaceRequirement,
+      case_sensitive: true,
+      native_name: namespaceNativeName,
+    },
+    name_definition: {
+      requirement: 'required',
+      case_sensitive: true,
+      native_name: nameNativeName,
+    },
+    version_definition: { requirement: 'optional', case_sensitive: true, native_name: 'version' },
+    qualifiers_definition: qualifiers,
+    subpath_definition: { requirement: 'optional', case_sensitive: true, native_name: 'subpath' },
+    examples: examples.length ? examples : [`pkg:${type}/example@1.0.0`],
+  };
+}
+
+// Starter definitions keep the page useful before authoritative type-definition
+// files are imported. Imported definitions replace a starter with the same type.
+const BUILTIN_PURL_TYPE_DEFINITIONS = {
+  generic: makeBuiltinPurlDefinition({
+    type: 'generic',
+    typeName: 'Generic Package',
+    description: 'Fallback package type for software that does not have a more specific Package-URL ecosystem type.',
+    examples: ['pkg:generic/acme/widget@1.2.3', 'pkg:generic/widget@1.2.3?arch=x86_64'],
+  }),
+  maven: makeBuiltinPurlDefinition({
+    type: 'maven',
+    typeName: 'Apache Maven',
+    description: 'Starter definition for Maven coordinates. Import an authoritative definition to replace this template.',
+    namespaceRequirement: 'required',
+    namespaceNativeName: 'groupId',
+    nameNativeName: 'artifactId',
+    qualifiers: [
+      { key:'type', requirement:'optional', description:'Maven artifact type or packaging.', default_value:'jar' },
+      { key:'classifier', requirement:'optional', description:'Maven classifier.' },
+      { key:'repository_url', requirement:'optional', description:'Repository URL used to resolve the package.' },
+    ],
+    examples: ['pkg:maven/org.apache.xmlgraphics/batik-anim@1.9.1?type=jar'],
+  }),
+  npm: makeBuiltinPurlDefinition({
+    type: 'npm',
+    typeName: 'npm Package',
+    description: 'Starter definition for npm packages. The namespace represents an optional npm scope.',
+    namespaceRequirement: 'optional',
+    namespaceNativeName: 'scope',
+    nameNativeName: 'package name',
+    examples: ['pkg:npm/%40angular/animation@12.3.1', 'pkg:npm/left-pad@1.3.0'],
+  }),
+  pypi: makeBuiltinPurlDefinition({
+    type: 'pypi',
+    typeName: 'Python Package',
+    description: 'Starter definition for Python packages distributed through Python package repositories.',
+    namespaceRequirement: 'prohibited',
+    nameNativeName: 'distribution name',
+    examples: ['pkg:pypi/django@4.2.11'],
+  }),
+  nuget: makeBuiltinPurlDefinition({
+    type: 'nuget',
+    typeName: 'NuGet Package',
+    description: 'Starter definition for NuGet packages.',
+    namespaceRequirement: 'prohibited',
+    nameNativeName: 'package ID',
+    examples: ['pkg:nuget/EnterpriseLibrary.Common@6.0.1304'],
+  }),
+  golang: makeBuiltinPurlDefinition({
+    type: 'golang',
+    typeName: 'Go Module',
+    description: 'Starter definition for Go modules.',
+    namespaceRequirement: 'required',
+    namespaceNativeName: 'module path namespace',
+    nameNativeName: 'module name',
+    examples: ['pkg:golang/google.golang.org/genproto@abcdef123456'],
+  }),
+  github: makeBuiltinPurlDefinition({
+    type: 'github',
+    typeName: 'GitHub Repository',
+    description: 'Starter definition for software identified by GitHub owner and repository.',
+    namespaceRequirement: 'required',
+    namespaceNativeName: 'owner',
+    nameNativeName: 'repository',
+    examples: ['pkg:github/package-url/purl-spec@244fd47e07d1004f0aed9c'],
+  }),
+};
+
+function encodePurlPart(value) {
+  return encodeURIComponent(String(value ?? '').trim());
+}
+function decodePurlPart(value) {
+  try { return decodeURIComponent(value); } catch { return value; }
+}
+function normalizePurlComponent(value, definition) {
+  let out = String(value ?? '').trim();
+  if (definition && definition.case_sensitive === false) out = out.toLowerCase();
+  return out;
+}
+function componentRequirement(definition, component, fallback='optional') {
+  return definition?.[`${component}_definition`]?.requirement || fallback;
+}
+function componentDefinition(definition, component) {
+  return definition?.[`${component}_definition`] || {};
+}
+function requirementClass(requirement) {
+  return `purl-requirement purl-${requirement || 'optional'}`;
+}
+function validateDefinitionComponent(name, value, allowedRequirements, errors) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    errors.push(`${name} must be an object.`);
+    return;
+  }
+  if (!allowedRequirements.includes(value.requirement)) {
+    errors.push(`${name}.requirement must be ${allowedRequirements.join(' or ')}.`);
+  }
+  if (value.case_sensitive !== undefined && typeof value.case_sensitive !== 'boolean') {
+    errors.push(`${name}.case_sensitive must be boolean.`);
+  }
+  if (value.normalization_rules !== undefined && (!Array.isArray(value.normalization_rules) || value.normalization_rules.some(x => typeof x !== 'string'))) {
+    errors.push(`${name}.normalization_rules must be an array of strings.`);
+  }
+  if (value.permitted_characters) {
+    try { new RegExp(value.permitted_characters); }
+    catch (err) { errors.push(`${name}.permitted_characters is not a valid ECMA-262 regular expression: ${err.message}`); }
+  }
+}
+function validatePurlTypeDefinition(definition) {
+  const errors = [];
+  if (!definition || typeof definition !== 'object' || Array.isArray(definition)) return ['Definition must be a JSON object.'];
+  if (definition.$id === PURL_TYPE_DEFINITION_SCHEMA_ID && definition.title === 'Package-URL Type Definition') {
+    return ['This file is the type-definition schema itself, not a concrete PURL type definition. Load files such as maven-definition.json or pypi-definition.json.'];
+  }
+  const allowed = new Set(['$schema','$id','type','type_name','description','repository','namespace_definition','name_definition','version_definition','qualifiers_definition','subpath_definition','examples','note','reference_urls']);
+  for (const key of Object.keys(definition)) if (!allowed.has(key)) errors.push(`Unknown top-level property: ${key}`);
+  for (const key of ['$id','type','type_name','description','repository','namespace_definition','name_definition','examples']) {
+    if (definition[key] === undefined || definition[key] === null) errors.push(`Missing required property: ${key}`);
+  }
+  if (definition.$schema !== undefined && definition.$schema !== PURL_TYPE_DEFINITION_SCHEMA_ID) errors.push(`$schema must be ${PURL_TYPE_DEFINITION_SCHEMA_ID}`);
+  if (definition.$id && !/^https:\/\/packageurl\.org\/types\/[a-z0-9-]+-definition\.json$/.test(definition.$id)) errors.push('$id does not match the Package-URL type-definition URI pattern.');
+  if (!PURL_TYPE_PATTERN.test(String(definition.type || ''))) errors.push('type must match ^[a-z][a-z0-9.-]+$.');
+  if (typeof definition.type_name !== 'string' || !definition.type_name.trim()) errors.push('type_name must be a non-empty string.');
+  if (typeof definition.description !== 'string' || !definition.description.trim()) errors.push('description must be a non-empty string.');
+  if (!definition.repository || typeof definition.repository !== 'object' || Array.isArray(definition.repository)) {
+    errors.push('repository must be an object.');
+  } else if (typeof definition.repository.use_repository !== 'boolean') {
+    errors.push('repository.use_repository must be boolean.');
+  }
+  validateDefinitionComponent('namespace_definition', definition.namespace_definition, ['required','optional','prohibited'], errors);
+  validateDefinitionComponent('name_definition', definition.name_definition, ['required'], errors);
+  if (definition.version_definition !== undefined) validateDefinitionComponent('version_definition', definition.version_definition, ['optional'], errors);
+  if (definition.subpath_definition !== undefined) validateDefinitionComponent('subpath_definition', definition.subpath_definition, ['optional'], errors);
+  if (!Array.isArray(definition.examples) || !definition.examples.length) {
+    errors.push('examples must be a non-empty array.');
+  } else {
+    const seen = new Set();
+    for (const example of definition.examples) {
+      if (typeof example !== 'string' || !/^pkg:[a-z][a-z0-9.-]+\/.+/.test(example)) errors.push(`Invalid example PURL: ${String(example)}`);
+      if (seen.has(example)) errors.push(`Duplicate example PURL: ${example}`);
+      seen.add(example);
+    }
+  }
+  if (definition.qualifiers_definition !== undefined) {
+    if (!Array.isArray(definition.qualifiers_definition)) errors.push('qualifiers_definition must be an array.');
+    else {
+      const keys = new Set();
+      for (const [i, q] of definition.qualifiers_definition.entries()) {
+        if (!q || typeof q !== 'object' || Array.isArray(q)) { errors.push(`qualifiers_definition[${i}] must be an object.`); continue; }
+        if (!q.key || typeof q.key !== 'string') errors.push(`qualifiers_definition[${i}].key is required.`);
+        else {
+          const key = q.key.toLowerCase();
+          if (!PURL_QUALIFIER_KEY_PATTERN.test(key)) errors.push(`Invalid qualifier key: ${q.key}`);
+          if (keys.has(key)) errors.push(`Duplicate qualifier key: ${q.key}`);
+          keys.add(key);
+        }
+        if (!q.description || typeof q.description !== 'string') errors.push(`qualifiers_definition[${i}].description is required.`);
+        if (q.requirement !== undefined && !['required','optional'].includes(q.requirement)) errors.push(`qualifier ${q.key || i} requirement must be required or optional.`);
+      }
+    }
+  }
+  return errors;
+}
+function normalizePurlTypeDefinition(definition) {
+  const out = deepClone(definition);
+  out.type = String(out.type || '').trim().toLowerCase();
+  out.namespace_definition ||= { requirement:'optional' };
+  out.name_definition ||= { requirement:'required' };
+  out.version_definition ||= { requirement:'optional' };
+  out.subpath_definition ||= { requirement:'optional' };
+  out.qualifiers_definition = Array.isArray(out.qualifiers_definition) ? out.qualifiers_definition : [];
+  out.examples = Array.isArray(out.examples) ? out.examples : [];
+  return out;
+}
+function loadStoredPurlDefinitions() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem('cytrics.purlTypeDefinitions.v1') || '{}');
+    const valid = {};
+    for (const def of Object.values(parsed || {})) {
+      const errors = validatePurlTypeDefinition(def);
+      if (!errors.length) valid[def.type] = normalizePurlTypeDefinition(def);
+    }
+    return valid;
+  } catch { return {}; }
+}
+function persistPurlDefinitions(definitions) {
+  try {
+    const imported = {};
+    for (const [type, def] of Object.entries(definitions || {})) {
+      if (!BUILTIN_PURL_TYPE_DEFINITIONS[type] || !deepEqual(def, BUILTIN_PURL_TYPE_DEFINITIONS[type])) imported[type] = def;
+    }
+    localStorage.setItem('cytrics.purlTypeDefinitions.v1', JSON.stringify(imported));
+  } catch {}
+}
+function parseQualifierText(text) {
+  const q = {};
+  for (const line of String(text || '').split(/\r?\n|,/)) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+    const idx = trimmed.indexOf('=');
+    if (idx <= 0) throw new Error(`Qualifier must use key=value: ${trimmed}`);
+    const key = trimmed.slice(0, idx).trim().toLowerCase();
+    const value = trimmed.slice(idx + 1).trim();
+    if (!PURL_QUALIFIER_KEY_PATTERN.test(key)) throw new Error(`Invalid qualifier key: ${key}`);
+    if (Object.prototype.hasOwnProperty.call(q, key)) throw new Error(`Duplicate qualifier key: ${key}`);
+    q[key] = value;
+  }
+  return q;
+}
+function normalizeSubpath(value) {
+  const raw = String(value || '').trim().replace(/^#+/, '').replace(/^\/+|\/+$/g, '');
+  if (!raw) return '';
+  const segments = raw.split('/');
+  if (segments.some(x => !x || x === '.' || x === '..')) throw new Error('Subpath cannot contain empty, ".", or ".." segments.');
+  return segments.join('/');
+}
+function validatePermittedCharacters(value, definition, label, errors) {
+  if (!value || !definition?.permitted_characters) return;
+  try {
+    const pattern = new RegExp(definition.permitted_characters);
+    if (!pattern.test(value)) errors.push(`${label} does not match permitted_characters: ${definition.permitted_characters}`);
+  } catch (err) {
+    errors.push(`${label} definition has an invalid permitted_characters expression: ${err.message}`);
+  }
+}
+function canonicalizePurlFields(fields, definition) {
+  const namespaceDef = componentDefinition(definition, 'namespace');
+  const nameDef = componentDefinition(definition, 'name');
+  const versionDef = componentDefinition(definition, 'version');
+  const subpathDef = componentDefinition(definition, 'subpath');
+  return {
+    type: String(fields.type || '').trim().toLowerCase(),
+    namespace: normalizePurlComponent(fields.namespace, namespaceDef).replace(/^\/+|\/+$/g, ''),
+    name: normalizePurlComponent(fields.name, nameDef),
+    version: normalizePurlComponent(fields.version, versionDef),
+    qualifiers: Object.fromEntries(Object.entries(fields.qualifiers || {}).map(([k,v]) => [String(k).trim().toLowerCase(), String(v ?? '').trim()])),
+    subpath: normalizePurlComponent(normalizeSubpath(fields.subpath), subpathDef),
+  };
+}
+function validatePurlFields(fields, definition) {
+  const errors = [], warnings = [];
+  const f = canonicalizePurlFields(fields, definition);
+  if (!PURL_TYPE_PATTERN.test(f.type)) errors.push('Type must match ^[a-z][a-z0-9.-]+$.');
+  const namespaceReq = componentRequirement(definition, 'namespace', 'optional');
+  if (namespaceReq === 'required' && !f.namespace) errors.push('Namespace is required for this PURL type.');
+  if (namespaceReq === 'prohibited' && f.namespace) errors.push('Namespace is prohibited for this PURL type.');
+  if (!f.name) errors.push('Name is required.');
+  validatePermittedCharacters(f.namespace, componentDefinition(definition, 'namespace'), 'Namespace', errors);
+  validatePermittedCharacters(f.name, componentDefinition(definition, 'name'), 'Name', errors);
+  validatePermittedCharacters(f.version, componentDefinition(definition, 'version'), 'Version', errors);
+  validatePermittedCharacters(f.subpath, componentDefinition(definition, 'subpath'), 'Subpath', errors);
+
+  const qualifierDefs = new Map((definition?.qualifiers_definition || []).map(q => [q.key.toLowerCase(), q]));
+  for (const qDef of qualifierDefs.values()) {
+    const value = f.qualifiers[qDef.key.toLowerCase()];
+    if ((qDef.requirement || 'optional') === 'required' && !value && qDef.default_value === undefined) errors.push(`Qualifier ${qDef.key} is required.`);
+  }
+  for (const [key, value] of Object.entries(f.qualifiers)) {
+    if (!PURL_QUALIFIER_KEY_PATTERN.test(key)) errors.push(`Invalid qualifier key: ${key}`);
+    if (!value) errors.push(`Qualifier ${key} has an empty value.`);
+    if (definition && definition.type !== 'generic' && !qualifierDefs.has(key)) warnings.push(`Qualifier ${key} is not declared by the selected type definition.`);
+  }
+  if (!definition) warnings.push('No loaded type definition matches this type; only base PURL syntax is being checked.');
+  return { fields:f, errors, warnings };
+}
+function buildPackageUrl({ type, namespace, name, version, qualifiers, subpath }) {
+  const t = String(type || '').trim().toLowerCase();
+  const n = String(name || '').trim();
+  if (!PURL_TYPE_PATTERN.test(t)) throw new Error('PURL type is missing or invalid.');
+  if (!n) throw new Error('PURL name is required.');
+  let purl = `pkg:${t}/`;
+  const ns = String(namespace || '').trim().replace(/^\/+|\/+$/g, '');
+  if (ns) purl += ns.split('/').map(encodePurlPart).join('/') + '/';
+  purl += encodePurlPart(n);
+  if (String(version || '').trim()) purl += '@' + encodePurlPart(version);
+  const q = qualifiers || {};
+  const keys = Object.keys(q).filter(k => q[k] !== undefined && q[k] !== null && String(q[k]).trim() !== '').sort();
+  if (keys.length) purl += '?' + keys.map(k => `${encodePurlPart(k.toLowerCase())}=${encodePurlPart(q[k])}`).join('&');
+  const sp = normalizeSubpath(subpath);
+  if (sp) purl += '#' + sp.split('/').map(encodePurlPart).join('/');
+  return purl;
+}
+function parsePackageUrl(value) {
+  const input = String(value || '').trim();
+  if (!input.startsWith('pkg:')) throw new Error('PURL must begin with pkg:.');
+  let rest = input.slice(4), subpath = '', query = '';
+  const hashAt = rest.indexOf('#');
+  if (hashAt >= 0) { subpath = rest.slice(hashAt + 1); rest = rest.slice(0, hashAt); }
+  const queryAt = rest.indexOf('?');
+  if (queryAt >= 0) { query = rest.slice(queryAt + 1); rest = rest.slice(0, queryAt); }
+  const slashAt = rest.indexOf('/');
+  if (slashAt <= 0) throw new Error('PURL must contain a type followed by /.');
+  const type = rest.slice(0, slashAt).toLowerCase();
+  let pathVersion = rest.slice(slashAt + 1), version = '';
+  const at = pathVersion.lastIndexOf('@');
+  if (at >= 0) { version = decodePurlPart(pathVersion.slice(at + 1)); pathVersion = pathVersion.slice(0, at); }
+  const segments = pathVersion.split('/').filter(Boolean).map(decodePurlPart);
+  if (!segments.length) throw new Error('PURL name is missing.');
+  const name = segments.pop();
+  const namespace = segments.join('/');
+  const qualifiers = {};
+  if (query) {
+    for (const pair of query.split('&')) {
+      if (!pair) continue;
+      const eq = pair.indexOf('=');
+      const key = decodePurlPart(eq >= 0 ? pair.slice(0, eq) : pair).toLowerCase();
+      const val = decodePurlPart(eq >= 0 ? pair.slice(eq + 1) : '');
+      if (Object.prototype.hasOwnProperty.call(qualifiers, key)) throw new Error(`Duplicate qualifier key: ${key}`);
+      qualifiers[key] = val;
+    }
+  }
+  return { type, namespace, name, version, qualifiers, subpath: subpath.split('/').map(decodePurlPart).join('/') };
+}
+function packageNameDisplay(namespace, name) {
+  return [namespace, name].filter(Boolean).join('/') || name || 'PURL package';
+}
+
 /* ========================================================================= *
  *  2. ANCHOR SYSTEM                                                         *
  * ========================================================================= */
@@ -941,6 +1352,7 @@ const OP = {
   SW_ADD: 'sw.add',
   SW_REMOVE: 'sw.remove',
   SW_SET_FIELD: 'sw.setField',
+  SW_ADD_PURL_REL: 'sw.addPurlRelationship',
   // Hardware
   HW_ADD: 'hw.add',
   HW_REMOVE: 'hw.remove',
@@ -982,6 +1394,25 @@ function applyOpToSBOM(sbom, op, index) {
       const next = clone(s);
       next.software = next.software || [];
       next.software.push(sw);
+      return { sbom: next, status: 'applied' };
+    }
+    case OP.SW_ADD_PURL_REL: {
+      const sourceUUID = resolveAnchor(op.srcAnchor, index);
+      if (!sourceUUID) return { sbom: s, status: 'unresolved', message: 'source software anchor not found' };
+      const sw = clone(op.software);
+      if (!sw.UUID) sw.UUID = genUUID();
+      const next = clone(s);
+      next.software = next.software || [];
+      next.relationships = next.relationships || [];
+      const alreadyPresent = op.anchor && resolveAnchor(op.anchor, index);
+      const targetUUID = alreadyPresent || sw.UUID;
+      if (!alreadyPresent && !next.software.some(x => x.UUID === sw.UUID)) {
+        next.software.push(sw);
+      }
+      const relType = op.relationship || 'Uses';
+      if (!next.relationships.some(r => r.xUUID === sourceUUID && r.yUUID === targetUUID && r.relationship === relType)) {
+        next.relationships.push({ xUUID: sourceUUID, yUUID: targetUUID, relationship: relType });
+      }
       return { sbom: next, status: 'applied' };
     }
     case OP.SW_REMOVE: {
@@ -1875,6 +2306,13 @@ function SoftwareTab({ state, dispatch, emit, peerName }) {
   }, [list, state.searchTerm, state.softwareFilter, baseByUUID]);
 
   const selected = list.find(s => s.UUID === state.selectedSoftwareUUID);
+  const [showPurlBuilder, setShowPurlBuilder] = useState(false);
+
+  // Keep the entry form uncluttered. The builder opens only on request and
+  // closes when the user selects another software entry.
+  useEffect(() => {
+    setShowPurlBuilder(false);
+  }, [state.selectedSoftwareUUID]);
 
   function addSoftware() {
     const sw = {
@@ -1962,7 +2400,9 @@ function SoftwareTab({ state, dispatch, emit, peerName }) {
       <div style={{overflowY:'auto'}}>
         {selected
           ? <SoftwareDetail key={selected.UUID} sw={selected} base={baseByUUID.get(selected.UUID)}
-                            emit={emit} state={state} peerName={peerName} />
+                            emit={emit} state={state} peerName={peerName}
+                            showPurlBuilder={showPurlBuilder}
+                            onTogglePurlBuilder={() => setShowPurlBuilder(value => !value)} />
           : <div style={{padding:40, color:'var(--fg-3)', textAlign:'center'}}>
               Select a software entry, or click + to add one.
             </div>}
@@ -1971,7 +2411,360 @@ function SoftwareTab({ state, dispatch, emit, peerName }) {
   );
 }
 
-function SoftwareDetail({ sw, base, emit, state, peerName }) {
+function RequirementBadge({ requirement='optional' }) {
+  return <span className={requirementClass(requirement)}>{requirement}</span>;
+}
+
+function PurlComponentGuidance({ definition, component }) {
+  const def = componentDefinition(definition, component);
+  if (!def || !Object.keys(def).length) return null;
+  const notes = [];
+  if (def.native_name) notes.push(`Native name: ${def.native_name}`);
+  if (def.case_sensitive === false) notes.push('Canonical value will be lowercased.');
+  if (def.permitted_characters) notes.push(`Pattern: ${def.permitted_characters}`);
+  if (def.note) notes.push(def.note);
+  return notes.length ? <div className="purl-help">{notes.join(' · ')}</div> : null;
+}
+
+function PurlBuilderPanel({ sourceSw, emit }) {
+  const [typeDefinitions, setTypeDefinitions] = useState(() => ({
+    ...deepClone(BUILTIN_PURL_TYPE_DEFINITIONS),
+    ...loadStoredPurlDefinitions(),
+  }));
+  const [pType, setPType] = useState('generic');
+  const [pNamespace, setPNamespace] = useState('');
+  const [pName, setPName] = useState('');
+  const [pVersion, setPVersion] = useState('');
+  const [pSubpath, setPSubpath] = useState('');
+  const [qualifierValues, setQualifierValues] = useState({});
+  const [extraQualifiers, setExtraQualifiers] = useState([]);
+  const [relationship, setRelationship] = useState('Uses');
+  const [built, setBuilt] = useState('');
+  const [parseInput, setParseInput] = useState('');
+  const [definitionMessages, setDefinitionMessages] = useState([]);
+
+  const normalizedType = pType.trim().toLowerCase();
+  const selectedDefinition = typeDefinitions[normalizedType] || null;
+  const qualifierDefinitions = selectedDefinition?.qualifiers_definition || [];
+  const typeOptions = useMemo(() => Object.values(typeDefinitions).sort((a,b) => a.type.localeCompare(b.type)), [typeDefinitions]);
+
+  useEffect(() => {
+    setBuilt('');
+  }, [sourceSw?.UUID]);
+
+  useEffect(() => {
+    setQualifierValues(prev => {
+      const next = {};
+      for (const q of qualifierDefinitions) next[q.key] = prev[q.key] ?? '';
+      return next;
+    });
+    if (componentRequirement(selectedDefinition, 'namespace', 'optional') === 'prohibited') setPNamespace('');
+  }, [normalizedType, selectedDefinition]);
+
+  function collectQualifiers() {
+    const out = {};
+    for (const qDef of qualifierDefinitions) {
+      const raw = String(qualifierValues[qDef.key] ?? '').trim();
+      const value = raw || (qDef.default_value !== undefined ? String(qDef.default_value) : '');
+      if (value) out[qDef.key.toLowerCase()] = value;
+    }
+    for (const row of extraQualifiers) {
+      const key = String(row.key || '').trim().toLowerCase();
+      const value = String(row.value || '').trim();
+      if (!key && !value) continue;
+      if (!PURL_QUALIFIER_KEY_PATTERN.test(key)) throw new Error(`Invalid qualifier key: ${key || '(blank)'}`);
+      if (!value) throw new Error(`Qualifier ${key} requires a value.`);
+      if (Object.prototype.hasOwnProperty.call(out, key)) throw new Error(`Duplicate qualifier key: ${key}`);
+      out[key] = value;
+    }
+    return out;
+  }
+
+  const validation = useMemo(() => {
+    try {
+      return validatePurlFields({
+        type: pType,
+        namespace: pNamespace,
+        name: pName,
+        version: pVersion,
+        qualifiers: collectQualifiers(),
+        subpath: pSubpath,
+      }, selectedDefinition);
+    } catch (err) {
+      return { fields:null, errors:[err.message], warnings:[] };
+    }
+  }, [pType, pNamespace, pName, pVersion, pSubpath, qualifierValues, extraQualifiers, selectedDefinition]);
+
+  const livePreview = useMemo(() => {
+    if (!validation.fields || validation.errors.length) return '';
+    try { return buildPackageUrl(validation.fields); } catch { return ''; }
+  }, [validation]);
+
+  function build() {
+    const qualifiers = collectQualifiers();
+    const checked = validatePurlFields({
+      type: pType,
+      namespace: pNamespace,
+      name: pName,
+      version: pVersion,
+      qualifiers,
+      subpath: pSubpath,
+    }, selectedDefinition);
+    if (checked.errors.length) throw new Error(checked.errors.join('\n'));
+    const purl = buildPackageUrl(checked.fields);
+    setBuilt(purl);
+    return { purl, fields:checked.fields, warnings:checked.warnings };
+  }
+
+  function applyParsedPurl(value) {
+    const parsed = parsePackageUrl(value);
+    setPType(parsed.type);
+    setPNamespace(parsed.namespace);
+    setPName(parsed.name);
+    setPVersion(parsed.version);
+    setPSubpath(parsed.subpath);
+    const def = typeDefinitions[parsed.type];
+    const known = new Set((def?.qualifiers_definition || []).map(q => q.key.toLowerCase()));
+    const definedValues = {}, extras = [];
+    for (const [key, val] of Object.entries(parsed.qualifiers)) {
+      if (known.has(key)) definedValues[key] = val;
+      else extras.push({ id:genUUID(), key, value:val });
+    }
+    setQualifierValues(definedValues);
+    setExtraQualifiers(extras);
+    setParseInput(value);
+    setBuilt(value);
+  }
+
+  async function importTypeDefinitionFiles(files) {
+    const messages = [], next = { ...typeDefinitions };
+    for (const file of Array.from(files || [])) {
+      try {
+        const parsed = JSON.parse(await file.text());
+        const candidates = Array.isArray(parsed) ? parsed : Array.isArray(parsed.types) ? parsed.types : [parsed];
+        for (const candidate of candidates) {
+          const errors = validatePurlTypeDefinition(candidate);
+          if (errors.length) {
+            messages.push({ level:'error', text:`${file.name}: ${errors.join(' ')}` });
+            continue;
+          }
+          const normalized = normalizePurlTypeDefinition(candidate);
+          next[normalized.type] = normalized;
+          messages.push({ level:'success', text:`Loaded ${normalized.type_name} (${normalized.type}).` });
+        }
+      } catch (err) {
+        messages.push({ level:'error', text:`${file.name}: ${err.message}` });
+      }
+    }
+    setTypeDefinitions(next);
+    persistPurlDefinitions(next);
+    setDefinitionMessages(messages);
+  }
+
+  function removeImportedDefinition(type) {
+    const next = { ...typeDefinitions };
+    if (BUILTIN_PURL_TYPE_DEFINITIONS[type]) next[type] = deepClone(BUILTIN_PURL_TYPE_DEFINITIONS[type]);
+    else delete next[type];
+    setTypeDefinitions(next);
+    persistPurlDefinitions(next);
+    if (normalizedType === type && !next[type]) setPType('generic');
+  }
+
+  function applyQualifierDefaults() {
+    const next = { ...qualifierValues };
+    for (const q of qualifierDefinitions) if (!String(next[q.key] || '').trim() && q.default_value !== undefined) next[q.key] = String(q.default_value);
+    setQualifierValues(next);
+  }
+
+  async function createRelatedComponent() {
+    try {
+      const { purl, fields, warnings } = build();
+      const displayName = packageNameDisplay(fields.namespace, fields.name);
+      const sw = {
+        UUID: genUUID(),
+        softwareType: ['software package'],
+        name: [
+          { nameValue: displayName, nameType: 'product name' },
+          { nameValue: purl, nameType: 'package URL (purl)' },
+        ],
+        version: fields.version || null,
+        description: `PURL software component generated for ${softwareLabel(sourceSw)}.`,
+        notHashable: true,
+        relationshipAssertion: 'Root',
+        metadata: [{
+          generatedBy: 'SBOM Workbench PURL builder',
+          generatedAt: isoNow(),
+          purlTypeDefinition: selectedDefinition?.$id || null,
+          purlValidationWarnings: warnings.length ? warnings : undefined,
+        }],
+        supplementaryFiles: null,
+      };
+      await emit({
+        type: OP.SW_ADD_PURL_REL,
+        xUUID: sourceSw.UUID,
+        software: sw,
+        relationship,
+      });
+      setBuilt(purl);
+    } catch (err) {
+      alert('Could not create PURL component: ' + err.message);
+    }
+  }
+
+  if (!sourceSw) return null;
+  const namespaceRequirement = componentRequirement(selectedDefinition, 'namespace', 'optional');
+  const nameRequirement = componentRequirement(selectedDefinition, 'name', 'required');
+  const versionRequirement = componentRequirement(selectedDefinition, 'version', 'optional');
+  const subpathRequirement = componentRequirement(selectedDefinition, 'subpath', 'optional');
+
+  return (
+    <div className="panel" style={{padding:14, marginBottom:16, borderRadius:3}}>
+      <div style={{display:'flex', alignItems:'baseline', gap:10, marginBottom:10, flexWrap:'wrap'}}>
+        <div className="serif" style={{fontSize:15, fontWeight:500}}>Create related PURL component</div>
+        <span className="badge badge-blue">xUUID source</span>
+        <span className="mono dim" style={{fontSize:11}}>{sourceSw.UUID}</span>
+        <span className="badge badge-green">type-definition schema 1.0</span>
+      </div>
+      <div className="muted" style={{fontSize:11, marginBottom:12}}>
+        Builds and validates a Package URL, creates a new CyTRICS software entry with <span className="mono">notHashable: true</span>,
+        stores the PURL in <span className="mono">name[]</span>, and creates a relationship from the selected file to the new component.
+        Imported type definitions are checked against the supplied Package-URL type-definition schema structure and saved in this browser.
+      </div>
+
+      <details className="purl-definition-card" style={{marginBottom:10}}>
+        <summary style={{cursor:'pointer', fontWeight:600}}>Type-definition registry and PURL parser</summary>
+        <div style={{marginTop:10, display:'grid', gridTemplateColumns:'1fr 1fr', gap:10}}>
+          <div>
+            <div className="field-label">Load concrete type-definition JSON</div>
+            <input className="input" type="file" accept=".json,application/json" multiple onChange={e=>importTypeDefinitionFiles(e.target.files)} />
+            <div className="purl-help">
+              A type-definition schema describes the definition format; load concrete package-type definitions here. Load one or more concrete definition files to replace the built-in starter templates.
+            </div>
+            {definitionMessages.map((m,i) => <div key={i} className={`purl-validation ${m.level === 'error' ? 'error' : 'ok'}`}>{m.text}</div>)}
+          </div>
+          <div>
+            <div className="field-label">Parse an existing PURL into the builder</div>
+            <div style={{display:'flex', gap:6}}>
+              <input className="input mono" value={parseInput} onChange={e=>setParseInput(e.target.value)} placeholder="pkg:maven/org.example/widget@1.2.3?type=jar" />
+              <button className="btn" onClick={() => { try { applyParsedPurl(parseInput); } catch (err) { alert(err.message); } }}>Parse</button>
+            </div>
+          </div>
+        </div>
+      </details>
+
+      <div style={{display:'grid', gridTemplateColumns:'repeat(3, minmax(0, 1fr))', gap:10}}>
+        <Field label="Scheme"><input className="input mono" value="pkg" disabled /></Field>
+        <Field label="Type" hint={selectedDefinition ? selectedDefinition.type_name : 'custom / unloaded'}>
+          <input className="input mono" list="purl-type-options" value={pType} onChange={e=>setPType(e.target.value)} placeholder="generic, pypi, npm, maven, nuget" />
+          <datalist id="purl-type-options">{typeOptions.map(def => <option key={def.type} value={def.type}>{def.type_name}</option>)}</datalist>
+        </Field>
+        <Field label="Relationship">
+          <select className="select mono" value={relationship} onChange={e=>setRelationship(e.target.value)}>
+            {SUGGEST.relationship.map(x => <option key={x}>{x}</option>)}
+          </select>
+        </Field>
+
+        <Field label={<span>Namespace <RequirementBadge requirement={namespaceRequirement}/></span>} hint={componentDefinition(selectedDefinition, 'namespace').native_name || ''}>
+          <input className="input mono" value={pNamespace} disabled={namespaceRequirement === 'prohibited'} onChange={e=>setPNamespace(e.target.value)} placeholder={namespaceRequirement === 'prohibited' ? 'prohibited for selected type' : 'organization/scope/group'} />
+          <PurlComponentGuidance definition={selectedDefinition} component="namespace" />
+        </Field>
+        <Field label={<span>Name <RequirementBadge requirement={nameRequirement}/></span>} hint={componentDefinition(selectedDefinition, 'name').native_name || ''}>
+          <input className="input mono" value={pName} onChange={e=>setPName(e.target.value)} placeholder="package name" />
+          <PurlComponentGuidance definition={selectedDefinition} component="name" />
+        </Field>
+        <Field label={<span>Version <RequirementBadge requirement={versionRequirement}/></span>} hint={componentDefinition(selectedDefinition, 'version').native_name || ''}>
+          <input className="input mono" value={pVersion} onChange={e=>setPVersion(e.target.value)} placeholder="optional package version" />
+          <PurlComponentGuidance definition={selectedDefinition} component="version" />
+        </Field>
+      </div>
+
+      <div className="purl-definition-card" style={{marginTop:2, marginBottom:10}}>
+        <div style={{display:'flex', alignItems:'center', justifyContent:'space-between', gap:8, marginBottom:8}}>
+          <div>
+            <div style={{fontWeight:600}}>Qualifiers</div>
+            <div className="purl-help">Defined qualifiers are rendered from the selected type definition. Additional qualifiers are allowed but flagged when not declared by that definition.</div>
+          </div>
+          <div className="purl-toolbar">
+            {qualifierDefinitions.some(q=>q.default_value !== undefined) && <button className="btn btn-sm" onClick={applyQualifierDefaults}>Apply defaults</button>}
+            <button className="btn btn-sm" onClick={()=>setExtraQualifiers([...extraQualifiers, {id:genUUID(), key:'', value:''}])}><Icon name="plus" size={10}/> Additional qualifier</button>
+          </div>
+        </div>
+        {qualifierDefinitions.length === 0 && extraQualifiers.length === 0 && <div className="dim" style={{fontSize:11}}>No type-specific qualifiers are declared.</div>}
+        {qualifierDefinitions.map(q => (
+          <div key={q.key} style={{display:'grid', gridTemplateColumns:'minmax(160px,.8fr) minmax(220px,1.2fr)', gap:8, marginBottom:8}}>
+            <div>
+              <div className="field-label"><span>{q.key} <RequirementBadge requirement={q.requirement || 'optional'}/></span>{q.native_name && <span>{q.native_name}</span>}</div>
+              <div className="purl-help">{q.description}{q.default_value !== undefined ? ` Default: ${q.default_value}` : ''}</div>
+            </div>
+            <input className="input mono" value={qualifierValues[q.key] || ''} onChange={e=>setQualifierValues({...qualifierValues, [q.key]:e.target.value})} placeholder={q.default_value !== undefined ? `default: ${q.default_value}` : 'qualifier value'} />
+          </div>
+        ))}
+        {extraQualifiers.map((row, idx) => (
+          <div key={row.id} className="purl-qualifier-row">
+            <input className="input mono" value={row.key} onChange={e=>setExtraQualifiers(extraQualifiers.map(x=>x.id===row.id ? {...x,key:e.target.value} : x))} placeholder="qualifier_key" />
+            <input className="input mono" value={row.value} onChange={e=>setExtraQualifiers(extraQualifiers.map(x=>x.id===row.id ? {...x,value:e.target.value} : x))} placeholder="value" />
+            <button className="btn btn-ghost btn-sm" title="Remove qualifier" onClick={()=>setExtraQualifiers(extraQualifiers.filter(x=>x.id!==row.id))}><Icon name="x" size={11}/></button>
+          </div>
+        ))}
+      </div>
+
+      <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:10}}>
+        <Field label={<span>Subpath <RequirementBadge requirement={subpathRequirement}/></span>} hint={componentDefinition(selectedDefinition, 'subpath').native_name || ''}>
+          <input className="input mono" value={pSubpath} onChange={e=>setPSubpath(e.target.value)} placeholder="optional/path/inside/package" />
+          <PurlComponentGuidance definition={selectedDefinition} component="subpath" />
+        </Field>
+        <div className="purl-definition-card">
+          {selectedDefinition ? <>
+            <div className="purl-definition-title">
+              <strong>{selectedDefinition.type_name}</strong>
+              <span className="badge">{selectedDefinition.type}</span>
+              {BUILTIN_PURL_TYPE_DEFINITIONS[selectedDefinition.type] && deepEqual(selectedDefinition, BUILTIN_PURL_TYPE_DEFINITIONS[selectedDefinition.type])
+                ? <span className="badge badge-yellow">starter template</span>
+                : <span className="badge badge-green">imported definition</span>}
+            </div>
+            <div className="muted" style={{fontSize:11}}>{selectedDefinition.description}</div>
+            {selectedDefinition.repository?.use_repository && <div className="purl-help">Repository: {selectedDefinition.repository.default_repository_url || 'type uses a public repository'}</div>}
+            {selectedDefinition.note && <div className="purl-help">{selectedDefinition.note}</div>}
+            {(selectedDefinition.namespace_definition?.normalization_rules || selectedDefinition.name_definition?.normalization_rules || selectedDefinition.version_definition?.normalization_rules || selectedDefinition.subpath_definition?.normalization_rules) &&
+              <details style={{marginTop:6}}><summary className="purl-help" style={{cursor:'pointer'}}>Normalization rules</summary>
+                <ul style={{margin:'4px 0 0 18px', padding:0, fontSize:10, color:'var(--fg-3)'}}>
+                  {['namespace','name','version','subpath'].flatMap(component => (componentDefinition(selectedDefinition, component).normalization_rules || []).map((rule,i)=><li key={`${component}-${i}`}><span className="mono">{component}:</span> {rule}</li>))}
+                </ul>
+              </details>}
+            {selectedDefinition.examples?.length > 0 && <div style={{marginTop:7}}>
+              <div className="field-label">Examples — click to load</div>
+              {selectedDefinition.examples.slice(0,5).map(ex => <button key={ex} className="purl-example" onClick={()=>{ try { applyParsedPurl(ex); } catch(err) { alert(err.message); } }}>{ex}</button>)}
+            </div>}
+            {!BUILTIN_PURL_TYPE_DEFINITIONS[selectedDefinition.type] || !deepEqual(selectedDefinition, BUILTIN_PURL_TYPE_DEFINITIONS[selectedDefinition.type]) ?
+              <button className="btn btn-danger btn-sm" style={{marginTop:8}} onClick={()=>removeImportedDefinition(selectedDefinition.type)}>Remove imported definition</button> : null}
+          </> : <>
+            <strong>No matching type definition loaded</strong>
+            <div className="purl-help">The builder will validate base PURL syntax only. Import a concrete type-definition JSON file for component and qualifier rules.</div>
+          </>}
+        </div>
+      </div>
+
+      {validation.errors.length > 0 && <div className="purl-validation error"><strong>Validation errors</strong><ul style={{margin:'4px 0 0 18px', padding:0}}>{validation.errors.map((x,i)=><li key={i}>{x}</li>)}</ul></div>}
+      {validation.warnings.length > 0 && <div className="purl-validation warn"><strong>Warnings</strong><ul style={{margin:'4px 0 0 18px', padding:0}}>{validation.warnings.map((x,i)=><li key={i}>{x}</li>)}</ul></div>}
+      {!validation.errors.length && !validation.warnings.length && pName.trim() && <div className="purl-validation ok">PURL components satisfy the currently loaded type definition.</div>}
+
+      <div style={{marginTop:10}}>
+        <div className="field-label">Canonical PURL preview</div>
+        <div className="panel-inset mono" style={{padding:8, borderRadius:3, wordBreak:'break-all', minHeight:34}}>{livePreview || built || <span className="dim">Complete the required fields to generate a preview.</span>}</div>
+      </div>
+      <div style={{display:'flex', gap:8, alignItems:'center', marginTop:10, flexWrap:'wrap'}}>
+        <button className="btn" onClick={() => { try { build(); } catch (e) { alert(e.message); } }}>
+          <Icon name="link" size={11}/> Validate + build PURL
+        </button>
+        <button className="btn btn-primary" onClick={createRelatedComponent} disabled={validation.errors.length > 0 || !pName.trim()}>
+          <Icon name="plus" size={11}/> Create software entry + relationship
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function SoftwareDetail({ sw, base, emit, state, peerName, showPurlBuilder=false, onTogglePurlBuilder }) {
   // Quick edits emit a setField op against the entry's current anchor.
   const [anchor, setAnchor] = useState(null);
   useEffect(() => {
@@ -2001,12 +2794,26 @@ function SoftwareDetail({ sw, base, emit, state, peerName }) {
         </span>
         <span className="badge mono">{sw.UUID}</span>
         {!base && <span className="badge badge-green">added</span>}
-        <div style={{marginLeft:'auto'}}>
+        <div style={{marginLeft:'auto', display:'flex', gap:8, alignItems:'center'}}>
+          <button
+            className={"btn btn-sm " + (showPurlBuilder ? "btn-primary" : "")}
+            onClick={onTogglePurlBuilder}
+            aria-expanded={showPurlBuilder}
+            title={showPurlBuilder ? 'Hide the PURL builder' : 'Open the PURL builder for this software entry'}>
+            <Icon name="link" size={11}/>
+            {showPurlBuilder ? 'Hide PURL Builder' : 'Build Related PURL'}
+          </button>
           <button className="btn btn-sm btn-danger" onClick={remove}>
             <Icon name="trash" size={11}/> Remove
           </button>
         </div>
       </div>
+
+      {showPurlBuilder && (
+        <div style={{marginBottom:18}}>
+          <PurlBuilderPanel sourceSw={sw} emit={emit} />
+        </div>
+      )}
 
       <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:14}}>
         <Field label="Version" modified={isModified('version')}>
@@ -2610,6 +3417,7 @@ function HistoryTab({ state }) {
       case OP.SW_SET_FIELD: return `set software.${op.field}`;
       case OP.HW_SET_FIELD: return `set hardware.${op.field}`;
       case OP.SW_ADD: return `add software`;
+      case OP.SW_ADD_PURL_REL: return `add PURL software + relationship`;
       case OP.HW_ADD: return `add hardware`;
       case OP.SW_REMOVE: return `remove software`;
       case OP.HW_REMOVE: return `remove hardware`;
@@ -2650,6 +3458,8 @@ function HistoryTab({ state }) {
     if (op.anchor) return `${op.anchor.type}:${shortId(op.anchor.value, 12)}`;
     if (op.srcAnchor && op.dstAnchor)
       return `${shortId(op.srcAnchor.value, 8)} → ${shortId(op.dstAnchor.value, 8)}`;
+    if (op.type === OP.SW_ADD_PURL_REL && op.srcAnchor && op.anchor)
+      return `${shortId(op.srcAnchor.value, 8)} → PURL:${shortId(op.anchor.value, 8)}`;
     if (op.field) return op.field;
     return '';
   }
@@ -3130,6 +3940,13 @@ function App() {
       delete payload.uuid;
     } else if (partial.type === OP.SW_ADD) {
       payload.anchor = await computeSoftwareAnchor(partial.software);
+    } else if (partial.type === OP.SW_ADD_PURL_REL) {
+      const srcSw = (cur.currentSBOM?.software || []).find(s => s.UUID === partial.xUUID);
+      const srcHw = (cur.currentSBOM?.hardware || []).find(h => h.UUID === partial.xUUID);
+      if (!srcSw && !srcHw) { dispatch({type:'TOAST', level:'error', msg:'source entry not found'}); return; }
+      payload.srcAnchor = srcSw ? await computeSoftwareAnchor(srcSw) : await computeHardwareAnchor(srcHw);
+      payload.anchor = await computeSoftwareAnchor(partial.software);
+      delete payload.xUUID;
     } else if (partial.type === OP.HW_ADD) {
       payload.anchor = await computeHardwareAnchor(partial.hardware);
     } else if ([OP.REL_ADD, OP.REL_REMOVE, OP.REL_SET_COMMENTS].includes(partial.type)) {
