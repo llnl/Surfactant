@@ -38,5 +38,3 @@ It also creates a new `relationships[]` entry:
 - The full software list is intentionally not rendered until you search, which is better for large SBOMs.
 - Export normalizes the document toward CyTRICS 1.0.1 shape and removes legacy top-level fields such as `properties`, `systems`, `analysisData`, `observations`, and `starRelationships`.
 - This single page uses CDN-hosted React/Babel dependencies like the uploaded HTML prototype, so it needs browser access to those CDNs unless you vendor the dependencies locally.
-
-
