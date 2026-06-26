@@ -35,9 +35,53 @@
     --modified: #fcb317;
     --added: #84c342;
     --removed: #ff5468;
+    --btn-primary-bg: #fcb317;
+    --accent-contrast: #1a1407;
+    --accent-hover: #ffc640;
+    --scroll-thumb: #2a3040;
+    --scroll-thumb-h: #3a4256;
+    --btn-hover-bg: #232a3c;
+    --btn-hover-border: #475068;
+    --btn-active-bg: #1a2030;
+    --danger-border: #4a2530;
+    --danger-hover-bg: #2a1820;
+    --danger-hover-border: #663040;
+    --sel-bg: #1a2538;
+    --blue-text: #6f9bf0;
+    --grid-line: rgba(255,255,255,0.015);
     --mono: 'IBM Plex Mono', ui-monospace, 'JetBrains Mono', SFMono-Regular, Menlo, monospace;
     --sans: 'IBM Plex Sans', system-ui, -apple-system, sans-serif;
     --serif: 'IBM Plex Serif', serif;
+  }
+  [data-theme="light"] {
+    --bg: #f3f4f7;
+    --bg-1: #ffffff;
+    --bg-2: #eceef3;
+    --bg-3: #e2e5ec;
+    --border: #d6dae2;
+    --border-2: #bac2cf;
+    --fg: #1b2330;
+    --fg-2: #48536a;
+    --fg-3: #7c869b;
+    --accent: #9c6400;
+    --accent-2: #2b56b3;
+    --accent-3: #4a8a17;
+    --danger: #cc2440;
+    --warn: #b45309;
+    --modified: #b07300;
+    --added: #4a8a17;
+    --removed: #cc2440;
+    --scroll-thumb: #c5cbd6;
+    --scroll-thumb-h: #aab2c2;
+    --btn-hover-bg: #dde1e9;
+    --btn-hover-border: #9aa5b6;
+    --btn-active-bg: #d2d7e1;
+    --danger-border: #e3b3bc;
+    --danger-hover-bg: #f7e3e7;
+    --danger-hover-border: #d98a98;
+    --sel-bg: #dbe6f7;
+    --blue-text: #2b56b3;
+    --grid-line: rgba(0,0,0,0.025);
   }
   * { box-sizing: border-box; }
   html, body { height: 100%; margin: 0; }
@@ -55,8 +99,8 @@
   /* Scrollbar */
   ::-webkit-scrollbar { width: 10px; height: 10px; }
   ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb { background: #2a3040; border-radius: 4px; }
-  ::-webkit-scrollbar-thumb:hover { background: #3a4256; }
+  ::-webkit-scrollbar-thumb { background: var(--scroll-thumb); border-radius: 4px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--scroll-thumb-h); }
 
   /* Reusable utility classes */
   .mono { font-family: var(--mono); }
@@ -90,17 +134,17 @@
     transition: background 0.1s, border-color 0.1s;
     user-select: none;
   }
-  .btn:hover { background: #232a3c; border-color: #475068; }
-  .btn:active { background: #1a2030; }
+  .btn:hover { background: var(--btn-hover-bg); border-color: var(--btn-hover-border); }
+  .btn:active { background: var(--btn-active-bg); }
   .btn:disabled { opacity: 0.4; cursor: not-allowed; }
   .btn-primary {
-    background: var(--accent);
-    border-color: var(--accent);
-    color: #1a1407;
+    background: var(--btn-primary-bg);
+    border-color: var(--btn-primary-bg);
+    color: var(--accent-contrast);
   }
-  .btn-primary:hover { background: #ffc640; border-color: #ffc640; }
-  .btn-danger { color: var(--danger); border-color: #4a2530; }
-  .btn-danger:hover { background: #2a1820; border-color: #663040; }
+  .btn-primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
+  .btn-danger { color: var(--danger); border-color: var(--danger-border); }
+  .btn-danger:hover { background: var(--danger-hover-bg); border-color: var(--danger-hover-border); }
   .btn-ghost {
     background: transparent;
     border-color: transparent;
@@ -178,7 +222,7 @@
     padding: 1px 5px;
     border-radius: 2px;
   }
-  .tab.active .badge { background: var(--accent); color: #1a1407; }
+  .tab.active .badge { background: var(--btn-primary-bg); color: var(--accent-contrast); }
 
   /* List */
   .list-row {
@@ -192,7 +236,7 @@
     transition: background 0.05s;
   }
   .list-row:hover { background: var(--bg-2); }
-  .list-row.selected { background: #1a2538; }
+  .list-row.selected { background: var(--sel-bg); }
   .list-row.selected::before {
     content: '';
     position: absolute; left: 0;
@@ -213,7 +257,7 @@
   }
   .badge-yellow { background: rgba(252, 179, 23, 0.15); color: var(--accent); border-color: rgba(252, 179, 23, 0.3); }
   .badge-green { background: rgba(132, 195, 66, 0.15); color: var(--accent-3); border-color: rgba(132, 195, 66, 0.3); }
-  .badge-blue { background: rgba(51, 102, 204, 0.18); color: #6f9bf0; border-color: rgba(51, 102, 204, 0.35); }
+  .badge-blue { background: rgba(51, 102, 204, 0.18); color: var(--blue-text); border-color: rgba(51, 102, 204, 0.35); }
   .badge-red { background: rgba(255, 84, 104, 0.15); color: var(--danger); border-color: rgba(255, 84, 104, 0.3); }
 
   /* Modal */
@@ -249,11 +293,6 @@
     font-weight: 500;
     font-size: 15px;
     letter-spacing: 0.01em;
-  }
-  .app-brand-mark {
-    color: var(--accent);
-    font-family: var(--mono);
-    font-weight: 600;
   }
 
   /* Op log row */
@@ -321,8 +360,8 @@
   /* Subtle textures */
   .grid-bg {
     background-image:
-      linear-gradient(rgba(255,255,255,0.015) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(255,255,255,0.015) 1px, transparent 1px);
+      linear-gradient(var(--grid-line) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
     background-size: 24px 24px;
   }
 
@@ -402,6 +441,32 @@
   .kvp .k { color: var(--fg-3); font-size: 11px; min-width: 80px; }
   .kvp .v { font-family: var(--mono); font-size: 12px; color: var(--fg); }
 
+  /* Suggestion combobox */
+  .suggest-wrap { position: relative; flex: 1; min-width: 0; }
+  .suggest-pop {
+    position: absolute;
+    top: calc(100% + 2px); left: 0; right: 0;
+    background: var(--bg-1);
+    border: 1px solid var(--border-2);
+    border-radius: 3px;
+    z-index: 120;
+    max-height: 180px;
+    overflow-y: auto;
+    box-shadow: 0 10px 28px rgba(0,0,0,0.45);
+    font-family: var(--mono);
+    font-size: 11px;
+  }
+  .suggest-item { padding: 5px 8px; cursor: pointer; white-space: nowrap;
+                  overflow: hidden; text-overflow: ellipsis; }
+  .suggest-item.hi { background: var(--sel-bg); }
+
+  /* Inline validation note */
+  .vnote {
+    font-size: 10px;
+    color: var(--warn);
+    margin-top: 3px;
+    font-family: var(--mono);
+  }
 
   /* Schema-driven PURL builder */
   .purl-definition-card {
@@ -479,7 +544,7 @@
 
 <script type="text/babel" data-presets="env,react">
 /* ============================================================================
-   CyTRICS SBOM Single-Page Editor (single-file build)
+   CyTRICS SBOM Collaborative Editor (single-file build)
 
    ARCHITECTURE OVERVIEW
    ---------------------
@@ -577,105 +642,283 @@ function downloadJSON(filename, obj) {
   setTimeout(() => URL.revokeObjectURL(a.href), 100);
 }
 
+/* ----- Schema-derived suggestion lists (from CyTRICS 1.0.1 `examples`) ----- */
+const SUGGEST = {
+  swNameType: ['common platform enumeration (CPE)', 'package URL (purl)', 'product name'],
+  hwNameType: ['manufacturer part number (MPN)', 'model number', 'serial number',
+               'catalog number', 'stock keeping unit (SKU)',
+               'universal product code (UPC)', 'product name'],
+  softwareType: ['discrete','embedded','file','static library','dynamic library',
+                 'data','source code','python'],
+  hardwareType: ['Actuator','Circuit board','Flash','EEPROM','Display device','Memory',
+                 'Step-down converter','Voltage regulator','Programmable logic',
+                 'Processor','Sensor','System-on-a-chip','Transistors'],
+  relationship: ['Contains','Downloads','Uses','Mounted on'],
+  swVendor: ['ABB','GE','Microsoft','Rockwell Collins','Schneider Electric',
+             'Schweitzer Engineering Laboratories','Siemens'],
+  hwVendor: ['ABB','Alliance Memory','Altera','Analog Devices','Cypress Semiconductors',
+             'Everspin','ISSI','ITE','Intel','International Rectifier','Intersil',
+             'Lattice Semiconductor','Linear Technology','Macronix','Maxim Integrated',
+             'Microchip Technology','Micron Technology','Murata Power Solutions',
+             'NXP Semiconductors','Nexperia','ON Semiconductor','PLX Technology',
+             'Phillips','Pulse Electronics','STMicroelectronics','Seiko Epson',
+             'Texas Instruments','Vishay Intertechnology','XILINX'],
+  authorType: ['name','organization','program'],
+  country: ['Canada','China','US','UK'],
+  packageType: ['DIP-8','SMD-4','VQFN-24','BGA','SOIC-8','FBGA-484','TSSOP-16'],
+  // Field names a comment's fieldName can reference, straight from the schema.
+  swFields: ['UUID','softwareType','name','size','fileName','installPath','containerPath',
+             'captureTime','version','vendor','description','sha1','sha256','md5',
+             'notHashable','relationshipAssertion','comments','metadata','supplementaryFiles'],
+  hwFields: ['UUID','name','captureTime','countryOfOrigin','countryOfOriginSource','quantity',
+             'description','vendor','identifiers','hardwareType','comments','metadata',
+             'supplementaryFiles','packageType','boardLocation'],
+};
 
-/* ========================================================================= *
- *  SBOM NORMALIZATION / PURL HELPERS                                        *
- * ========================================================================= */
+// Combobox: a text input with a suggestion dropdown that opens on the FIRST
+// click (focus), filters live as you type, and toggles closed on a subsequent
+// click. Free entry is always allowed; suggestions are never mandatory.
+function SuggestInput({ value, onChange, suggestions = [], placeholder, mono,
+                        wrapStyle, inputStyle, onEnter }) {
+  const [open, setOpen] = useState(false);
+  const [hi, setHi] = useState(-1);
+  const wrapRef = useRef(null);
 
-const CYTRICS_RELATIONSHIP_EXAMPLES = ['Contains', 'Downloads', 'Uses', 'Mounted on'];
+  const matches = useMemo(() => {
+    const q = (value || '').toLowerCase().trim();
+    const list = q ? suggestions.filter(s => s.toLowerCase().includes(q)) : suggestions;
+    return list.slice(0, 60);
+  }, [value, suggestions]);
 
-function asArray(v) {
-  if (v === undefined || v === null) return [];
-  return Array.isArray(v) ? v : [v];
-}
-function nonEmptyArray(v) {
-  return asArray(v).filter(x => x !== undefined && x !== null && String(x).trim() !== '');
-}
-function normalizeNameEntries(value, fallbackType='product name') {
-  if (value === undefined || value === null) return [];
-  if (typeof value === 'string') {
-    return value.trim() ? [{ nameValue: value.trim(), nameType: fallbackType }] : [];
-  }
-  if (!Array.isArray(value)) return [];
-  return value.map(item => {
-    if (typeof item === 'string') return { nameValue: item, nameType: fallbackType };
-    if (item && typeof item === 'object') {
-      return {
-        nameValue: String(item.nameValue ?? item.value ?? '').trim(),
-        nameType: String(item.nameType ?? fallbackType).trim() || fallbackType,
-      };
+  useEffect(() => {
+    function onDocDown(e) {
+      if (wrapRef.current && !wrapRef.current.contains(e.target)) { setOpen(false); setHi(-1); }
     }
-    return null;
-  }).filter(x => x && x.nameValue);
+    document.addEventListener('mousedown', onDocDown);
+    return () => document.removeEventListener('mousedown', onDocDown);
+  }, []);
+
+  function pick(s) { onChange(s); setOpen(false); setHi(-1); }
+
+  return (
+    <div className="suggest-wrap" style={wrapStyle} ref={wrapRef}>
+      <input className={"input" + (mono ? " mono" : "")} style={inputStyle}
+             value={value || ''} placeholder={placeholder}
+             onFocus={() => { setOpen(true); setHi(-1); }}
+             onMouseDown={e => {
+               // Already focused → this click toggles the list (dismiss/reopen).
+               if (document.activeElement === e.target) setOpen(o => !o);
+             }}
+             onChange={e => { onChange(e.target.value); setOpen(true); setHi(-1); }}
+             onKeyDown={e => {
+               if (e.key === 'ArrowDown') {
+                 e.preventDefault();
+                 if (!open) setOpen(true);
+                 setHi(h => Math.min(h + 1, matches.length - 1));
+               } else if (e.key === 'ArrowUp') {
+                 e.preventDefault();
+                 setHi(h => Math.max(h - 1, 0));
+               } else if (e.key === 'Escape') {
+                 setOpen(false); setHi(-1);
+               } else if (e.key === 'Enter') {
+                 if (open && hi >= 0 && matches[hi]) { e.preventDefault(); pick(matches[hi]); }
+                 else if (onEnter) { setOpen(false); onEnter(); }
+               }
+             }} />
+      {open && matches.length > 0 && (
+        <div className="suggest-pop">
+          {matches.map((s, i) => (
+            <div key={s}
+                 className={"suggest-item" + (i === hi ? " hi" : "")}
+                 onMouseDown={e => { e.preventDefault(); pick(s); }}
+                 onMouseEnter={() => setHi(i)}>
+              {s}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
-function normalizeComments(value) {
-  if (value === undefined || value === null || value === '') return null;
-  if (typeof value === 'string') return value.trim() ? [{ comment: value.trim() }] : null;
-  if (Array.isArray(value)) return value.length ? value : null;
-  if (typeof value === 'object') return [value];
+
+/* ----- Format validators ----- */
+const VALID = {
+  sha256: v => /^[0-9a-fA-F]{64}$/.test(v),
+  sha1:   v => /^[0-9a-fA-F]{40}$/.test(v),
+  md5:    v => /^[0-9a-fA-F]{32}$/.test(v),
+  // ISO-8601 date-time with timezone (schema format: date-time)
+  isoTime: v => /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:?\d{2})$/.test(v)
+                && !isNaN(Date.parse(v)),
+  // CPE 2.3 formatted string, or legacy CPE 2.2 URI binding
+  cpe: v => /^cpe:2\.3:[aho*\-](:[^:]*){10}$/.test(v)
+         || /^cpe:\/[aho](:[^:]*){0,6}$/.test(v),
+  // purl: pkg:type/namespace?/name@version? (pragmatic check)
+  purl: v => /^pkg:[A-Za-z][A-Za-z0-9.+-]*\/[^@\s]+(@[^?\s#]+)?(\?[^#\s]*)?(#\S*)?$/.test(v),
+};
+function Vnote({ show, children }) {
+  if (!show) return null;
+  return <div className="vnote">⚠ {children}</div>;
+}
+// Issue (or null) for a {nameType, nameValue} row based on the selected type.
+function nameRowIssue(n) {
+  const t = (n.nameType || '').toLowerCase();
+  const v = n.nameValue || '';
+  if (!v) return null;
+  if ((t.includes('cpe') || t.includes('platform enumeration')) && !VALID.cpe(v))
+    return "doesn't look like a valid CPE (expected cpe:2.3:… with 11 components, or cpe:/…)";
+  if ((t.includes('purl') || t.includes('package url')) && !VALID.purl(v))
+    return "doesn't look like a valid purl (expected pkg:type/name[@version])";
   return null;
 }
-function unixToRfc3339(value) {
-  if (typeof value === 'number' && Number.isFinite(value)) return new Date(value * 1000).toISOString();
-  return value ?? null;
+
+/* ----- Date/time field with picker + Now button ----- */
+function isoToLocalInput(iso) {
+  const d = new Date(iso);
+  if (isNaN(d)) return '';
+  const p = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
 }
-function normalizeSoftwareEntry(sw) {
-  const out = { ...(sw || {}) };
-  out.UUID ||= genUUID();
-  out.name = normalizeNameEntries(out.name);
-  out.softwareType = out.softwareType == null ? null : nonEmptyArray(out.softwareType);
-  out.fileName = out.fileName == null ? null : nonEmptyArray(out.fileName).map(String);
-  out.installPath = out.installPath == null ? null : nonEmptyArray(out.installPath).map(String);
-  out.containerPath = out.containerPath == null ? null : nonEmptyArray(out.containerPath).map(String);
-  out.vendor = out.vendor == null ? null : nonEmptyArray(out.vendor).map(String);
-  out.captureTime = unixToRfc3339(out.captureTime);
-  out.comments = normalizeComments(out.comments);
-  out.metadata = Array.isArray(out.metadata) ? out.metadata : (out.metadata ? [out.metadata] : []);
-  out.supplementaryFiles = Array.isArray(out.supplementaryFiles) ? out.supplementaryFiles : null;
-  for (const k of ['provenance','recordedInstitution','components','purl']) delete out[k];
-  if (!out.sha1 && !out.sha256 && !out.md5) out.notHashable = true;
-  return out;
+function DateTimeField({ value, onChange }) {
+  // `value` is the ISO-8601 string stored in the SBOM (or empty).
+  const [raw, setRaw] = useState(value || '');
+  useEffect(() => { setRaw(value || ''); }, [value]);
+  const rawOk = !raw || VALID.isoTime(raw);
+  return (
+    <div>
+      <div style={{display:'flex', gap:6}}>
+        <input className="input mono" type="datetime-local" step="1"
+               value={isoToLocalInput(value)}
+               onChange={e => {
+                 const v = e.target.value;
+                 onChange(v ? new Date(v).toISOString() : null);
+               }} />
+        <button className="btn btn-sm" title="Set to current time"
+                onClick={() => onChange(new Date().toISOString())}>
+          <Icon name="clock" size={11}/> Now
+        </button>
+        <button className="btn btn-sm btn-ghost" title="Clear"
+                onClick={() => onChange(null)}>
+          <Icon name="x" size={11}/>
+        </button>
+      </div>
+      <input className="input mono" style={{marginTop:4, fontSize:11}}
+             placeholder="2024-12-10T19:39:10Z (ISO 8601, manual entry)"
+             value={raw}
+             onChange={e => {
+               const v = e.target.value;
+               setRaw(v);
+               if (!v) onChange(null);
+               else if (VALID.isoTime(v)) onChange(v);
+             }} />
+      <Vnote show={!rawOk}>not a valid ISO-8601 date-time (needs a timezone, e.g. Z or +01:00)</Vnote>
+    </div>
+  );
 }
-function normalizeCytricsDocument(obj) {
-  const out = deepClone(obj || {});
-  if ((!out.bomFormat || !out.specVersion) && Array.isArray(out.properties)) {
-    const props = out.properties.find(p => p && (p.bomFormat || p.specVersion)) || {};
-    out.bomFormat ||= props.bomFormat;
-    out.specVersion ||= props.specVersion;
-  }
-  out.bomFormat = 'cytrics';
-  out.specVersion = '1.0.1';
-  out.bomUUID ||= genUUID();
-  out.software = (out.software || []).map(normalizeSoftwareEntry);
-  out.hardware = Array.isArray(out.hardware) ? out.hardware : [];
-  out.relationships = Array.isArray(out.relationships) ? out.relationships : [];
-  out.tools = Array.isArray(out.tools) ? out.tools : [];
-  out.authors = Array.isArray(out.authors) ? out.authors : [];
-  return out;
-}
-function cytrics101ExportShape(sbom) {
-  const out = normalizeCytricsDocument(sbom);
-  delete out.properties;
-  delete out.systems;
-  delete out.analysisData;
-  delete out.observations;
-  delete out.starRelationships;
-  const softwareAllowed = new Set(['UUID','softwareType','name','size','fileName','installPath','containerPath','captureTime','version','vendor','description','sha1','sha256','md5','notHashable','relationshipAssertion','comments','metadata','supplementaryFiles']);
-  out.software = (out.software || []).map(sw => {
-    const clean = {};
-    for (const [k,v] of Object.entries(normalizeSoftwareEntry(sw))) {
-      if (softwareAllowed.has(k) && v !== undefined) clean[k] = v;
-    }
-    return clean;
+
+/* ----- Browser document cache (IndexedDB) -----
+   Documents live in IndexedDB, not localStorage: no ~5 MB ceiling, structured
+   clone instead of JSON stringification, and eligibility for persistent
+   storage (navigator.storage.persist) so the browser won't auto-evict.
+   Two object stores: 'meta' (lightweight listing) and 'data' (full payload),
+   so the splash screen can enumerate without loading every SBOM into memory. */
+const IDB_NAME = 'sbom-workbench';
+const IDB_VER = 1;
+
+function idbOpen() {
+  return new Promise((res, rej) => {
+    const r = indexedDB.open(IDB_NAME, IDB_VER);
+    r.onupgradeneeded = () => {
+      const db = r.result;
+      if (!db.objectStoreNames.contains('meta')) db.createObjectStore('meta', { keyPath: 'id' });
+      if (!db.objectStoreNames.contains('data')) db.createObjectStore('data', { keyPath: 'id' });
+    };
+    r.onsuccess = () => res(r.result);
+    r.onerror = () => rej(r.error || new Error('IndexedDB open failed'));
   });
-  out.relationships = (out.relationships || []).map(r => ({
-    xUUID: r.xUUID,
-    yUUID: r.yUUID,
-    relationship: r.relationship || 'Uses',
-    ...(r.comments ? { comments: normalizeComments(r.comments) } : {}),
-  })).filter(r => r.xUUID && r.yUUID && r.relationship);
-  return out;
 }
+
+async function saveCacheEntry(state) {
+  const id = state.baseSBOMHash;
+  if (!id) return { ok: false, err: 'no base hash' };
+  try {
+    const db = await idbOpen();
+    await new Promise((res, rej) => {
+      const tx = db.transaction(['meta', 'data'], 'readwrite');
+      tx.objectStore('data').put({
+        id, fileName: state.fileName,
+        baseSBOM: state.baseSBOM, baseSBOMHash: state.baseSBOMHash, ops: state.ops,
+      });
+      tx.objectStore('meta').put({
+        id, fileName: state.fileName, savedAt: isoNow(),
+        swCount: state.currentSBOM?.software?.length || 0,
+        opCount: state.ops.length,
+      });
+      tx.oncomplete = () => res();
+      tx.onerror = () => rej(tx.error);
+      tx.onabort = () => rej(tx.error || new Error('transaction aborted'));
+    });
+    db.close();
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, err: e?.message || String(e) };
+  }
+}
+
+async function listCacheEntries() {
+  try {
+    const db = await idbOpen();
+    const metas = await new Promise((res, rej) => {
+      const rq = db.transaction('meta', 'readonly').objectStore('meta').getAll();
+      rq.onsuccess = () => res(rq.result || []);
+      rq.onerror = () => rej(rq.error);
+    });
+    db.close();
+    return metas.sort((a, b) => (b.savedAt || '').localeCompare(a.savedAt || ''));
+  } catch { return []; }
+}
+
+async function loadCacheEntry(id) {
+  try {
+    const db = await idbOpen();
+    const entry = await new Promise((res, rej) => {
+      const rq = db.transaction('data', 'readonly').objectStore('data').get(id);
+      rq.onsuccess = () => res(rq.result || null);
+      rq.onerror = () => rej(rq.error);
+    });
+    db.close();
+    return entry;
+  } catch { return null; }
+}
+
+async function deleteCacheEntry(id) {
+  try {
+    const db = await idbOpen();
+    await new Promise((res, rej) => {
+      const tx = db.transaction(['meta', 'data'], 'readwrite');
+      tx.objectStore('meta').delete(id);
+      tx.objectStore('data').delete(id);
+      tx.oncomplete = () => res();
+      tx.onerror = () => rej(tx.error);
+    });
+    db.close();
+  } catch {}
+}
+
+/* ----- Persistent storage (opt-in eviction protection) ----- */
+async function getPersistence() {
+  if (!navigator.storage?.persisted) return { supported: false, persisted: false };
+  try { return { supported: true, persisted: await navigator.storage.persisted() }; }
+  catch { return { supported: false, persisted: false }; }
+}
+async function requestPersistence() {
+  if (!navigator.storage?.persist) return { supported: false, persisted: false };
+  try { return { supported: true, persisted: await navigator.storage.persist() }; }
+  catch { return { supported: true, persisted: false }; }
+}
+async function storageEstimate() {
+  try { return await navigator.storage.estimate(); } catch { return null; }
+}
+
 const PURL_TYPE_DEFINITION_SCHEMA_ID = 'https://packageurl.org/schemas/purl-type-definition.schema-1.0.json';
 const PURL_TYPE_PATTERN = /^[a-z][a-z0-9.-]+$/;
 const PURL_QUALIFIER_KEY_PATTERN = /^[a-z][a-z0-9._-]*$/;
@@ -1042,7 +1285,7 @@ async function computeSoftwareAnchor(sw) {
   if (sw.sha1)   return { type: 'sha1',   value: normHex(sw.sha1) };
   if (sw.md5)    return { type: 'md5',    value: normHex(sw.md5) };
   // Composite fingerprint
-  const names = normalizeNameEntries(sw.name).map(n => `${n.nameType||''}::${n.nameValue||''}`).sort();
+  const names = (sw.name || []).map(n => `${n.nameType||''}::${n.nameValue||''}`).sort();
   const fileNames = [...(sw.fileName || [])].sort();
   const softwareType = [...(sw.softwareType || [])].sort();
   const vendors = [...(sw.vendor || [])].sort();
@@ -1128,6 +1371,7 @@ function makeOp({ type, peerId, lamport, payload }) {
     type,
     ts: lamport,
     peerId,
+    rev: 0,            // bumped when sequential edits to the same field coalesce
     wallTime: isoNow(),
     ...payload,
   };
@@ -1155,7 +1399,7 @@ function applyOpToSBOM(sbom, op, index) {
     case OP.SW_ADD_PURL_REL: {
       const sourceUUID = resolveAnchor(op.srcAnchor, index);
       if (!sourceUUID) return { sbom: s, status: 'unresolved', message: 'source software anchor not found' };
-      const sw = normalizeSoftwareEntry(clone(op.software));
+      const sw = clone(op.software);
       if (!sw.UUID) sw.UUID = genUUID();
       const next = clone(s);
       next.software = next.software || [];
@@ -1321,7 +1565,7 @@ class PeerNet {
     this.peer = null;
     this.myPeerId = null;
     this.connections = new Map(); // peerId -> { conn, authed, name }
-    this.seenOpIds = new Set();
+    this.seenOps = new Map(); // op.id -> highest rev seen
     this.key = null;
     this.salt = null;
     this.gotState = false;
@@ -1437,9 +1681,11 @@ class PeerNet {
       // After we got state, also gossip our connection's known peers so we mesh.
       this._broadcastPeerList();
     } else if (payload.kind === 'op') {
-      if (this.seenOpIds.has(payload.op.id)) return;
-      this.seenOpIds.add(payload.op.id);
-      this.onEvent({ type: 'remoteOp', op: payload.op, fromPeer: entry.name });
+      const op = payload.op;
+      const known = this.seenOps.get(op.id);
+      if (known !== undefined && known >= (op.rev || 0)) return;
+      this.seenOps.set(op.id, op.rev || 0);
+      this.onEvent({ type: 'remoteOp', op, fromPeer: entry.name });
       // Gossip forward
       this._broadcast(payload, conn.peer);
     } else if (payload.kind === 'peerList') {
@@ -1457,7 +1703,7 @@ class PeerNet {
   }
 
   async broadcastOp(op) {
-    this.seenOpIds.add(op.id);
+    this.seenOps.set(op.id, op.rev || 0);
     await this._broadcast({ kind: 'op', op }, null);
   }
 
@@ -1618,6 +1864,10 @@ function Icon({ name, size = 14 }) {
     users: <><circle cx="6" cy="6" r="2.5"/><path d="M2 13c0-2.2 1.8-4 4-4s4 1.8 4 4"/><circle cx="11" cy="5" r="2"/><path d="M10 9c2 0 4 1.5 4 4"/></>,
     info: <><circle cx="8" cy="8" r="6"/><path d="M8 7v4M8 5h0"/></>,
     check: <><path d="M3 8l3 3 7-7"/></>,
+    clock: <><circle cx="8" cy="8" r="6"/><path d="M8 4.5V8l2.5 1.5"/></>,
+    sun: <><circle cx="8" cy="8" r="3"/><path d="M8 1v2M8 13v2M1 8h2M13 8h2M3 3l1.4 1.4M11.6 11.6L13 13M13 3l-1.4 1.4M4.4 11.6L3 13"/></>,
+    moon: <><path d="M13 9.5A5.5 5.5 0 116.5 3a4.5 4.5 0 006.5 6.5z"/></>,
+    db: <><ellipse cx="8" cy="3.5" rx="5" ry="2"/><path d="M3 3.5v9c0 1.1 2.2 2 5 2s5-.9 5-2v-9M3 8c0 1.1 2.2 2 5 2s5-.9 5-2"/></>,
   };
   return <svg {...props}>{map[name] || null}</svg>;
 }
@@ -1634,7 +1884,7 @@ function Field({ label, hint, children, modified }) {
   );
 }
 
-function StringArrayEditor({ value, onChange, placeholder }) {
+function StringArrayEditor({ value, onChange, placeholder, suggestions }) {
   const arr = value || [];
   const [draft, setDraft] = useState('');
   function add() {
@@ -1655,17 +1905,21 @@ function StringArrayEditor({ value, onChange, placeholder }) {
         </div>
       )}
       <div style={{display:'flex', gap:6}}>
-        <input className="input" value={draft}
-               placeholder={placeholder||'add value'}
-               onChange={e => setDraft(e.target.value)}
-               onKeyDown={e => e.key==='Enter' && add()} />
+        {suggestions
+          ? <SuggestInput value={draft} suggestions={suggestions}
+                          placeholder={placeholder||'add value'}
+                          onChange={setDraft} onEnter={add} />
+          : <input className="input" value={draft}
+                   placeholder={placeholder||'add value'}
+                   onChange={e => setDraft(e.target.value)}
+                   onKeyDown={e => e.key==='Enter' && add()} />}
         <button className="btn btn-sm" onClick={add}><Icon name="plus" size={11}/></button>
       </div>
     </div>
   );
 }
 
-function NameEditor({ value, onChange }) {
+function NameEditor({ value, onChange, typeSuggestions }) {
   // value = [{nameType, nameValue}]
   const arr = value || [];
   const [draft, setDraft] = useState({ nameType: '', nameValue: '' });
@@ -1674,36 +1928,48 @@ function NameEditor({ value, onChange }) {
     onChange([...arr, { nameType: draft.nameType.trim(), nameValue: draft.nameValue.trim() }]);
     setDraft({ nameType:'', nameValue:'' });
   }
+  const draftIssue = nameRowIssue(draft);
   return (
     <div>
-      {arr.map((n,i) => (
-        <div key={i} style={{display:'flex', gap:6, marginBottom:4}}>
-          <input className="input" style={{flex:'0 0 130px'}} value={n.nameType||''}
-                 onChange={e => onChange(arr.map((x,j) => j===i ? {...x, nameType: e.target.value} : x))}
-                 placeholder="nameType (e.g. purl)" />
-          <input className="input" value={n.nameValue||''}
-                 onChange={e => onChange(arr.map((x,j) => j===i ? {...x, nameValue: e.target.value} : x))}
-                 placeholder="nameValue" />
-          <button className="btn btn-sm" onClick={() => onChange(arr.filter((_,j)=>j!==i))}>
-            <Icon name="trash" size={11}/>
-          </button>
+      {arr.map((n,i) => {
+        const issue = nameRowIssue(n);
+        return (
+          <div key={i} style={{marginBottom:4}}>
+            <div style={{display:'flex', gap:6}}>
+              <SuggestInput wrapStyle={{flex:'0 0 150px'}} value={n.nameType||''}
+                     suggestions={typeSuggestions || []}
+                     onChange={v => onChange(arr.map((x,j) => j===i ? {...x, nameType: v} : x))}
+                     placeholder="nameType (e.g. purl)" />
+              <input className="input" value={n.nameValue||''}
+                     onChange={e => onChange(arr.map((x,j) => j===i ? {...x, nameValue: e.target.value} : x))}
+                     placeholder="nameValue" />
+              <button className="btn btn-sm" onClick={() => onChange(arr.filter((_,j)=>j!==i))}>
+                <Icon name="trash" size={11}/>
+              </button>
+            </div>
+            <Vnote show={!!issue}>{issue}</Vnote>
+          </div>
+        );
+      })}
+      <div style={{marginTop:6, paddingTop:6, borderTop:'1px dashed var(--border)'}}>
+        <div style={{display:'flex', gap:6}}>
+          <SuggestInput wrapStyle={{flex:'0 0 150px'}} value={draft.nameType}
+                 suggestions={typeSuggestions || []}
+                 onChange={v => setDraft({...draft, nameType:v})}
+                 placeholder="nameType" />
+          <input className="input" value={draft.nameValue}
+                 onChange={e => setDraft({...draft, nameValue:e.target.value})}
+                 placeholder="nameValue"
+                 onKeyDown={e => e.key==='Enter' && add()} />
+          <button className="btn btn-sm" onClick={add}><Icon name="plus" size={11}/></button>
         </div>
-      ))}
-      <div style={{display:'flex', gap:6, marginTop:6, paddingTop:6, borderTop:'1px dashed var(--border)'}}>
-        <input className="input" style={{flex:'0 0 130px'}} value={draft.nameType}
-               onChange={e => setDraft({...draft, nameType:e.target.value})}
-               placeholder="nameType" />
-        <input className="input" value={draft.nameValue}
-               onChange={e => setDraft({...draft, nameValue:e.target.value})}
-               placeholder="nameValue"
-               onKeyDown={e => e.key==='Enter' && add()} />
-        <button className="btn btn-sm" onClick={add}><Icon name="plus" size={11}/></button>
+        <Vnote show={!!draftIssue}>{draftIssue}</Vnote>
       </div>
     </div>
   );
 }
 
-function CommentEditor({ value, onChange, peerName }) {
+function CommentEditor({ value, onChange, peerName, fieldSuggestions }) {
   const arr = value || [];
   const [draft, setDraft] = useState({ fieldName:'', comment:'' });
   function add() {
@@ -1731,8 +1997,9 @@ function CommentEditor({ value, onChange, peerName }) {
       ))}
       <div style={{marginTop:6, paddingTop:6, borderTop:'1px dashed var(--border)'}}>
         <div style={{display:'flex', gap:6, marginBottom:4}}>
-          <input className="input" style={{flex:'0 0 160px'}} value={draft.fieldName}
-                 onChange={e => setDraft({...draft, fieldName:e.target.value})}
+          <SuggestInput wrapStyle={{flex:'0 0 200px'}} value={draft.fieldName}
+                 suggestions={fieldSuggestions || SUGGEST.swFields}
+                 onChange={v => setDraft({...draft, fieldName:v})}
                  placeholder="fieldName (optional)" />
         </div>
         <textarea className="textarea" value={draft.comment}
@@ -1780,17 +2047,55 @@ function MetadataEditor({ value, onChange }) {
 }
 
 // ----- splash / startup -----
-function Splash({ dispatch }) {
+function Splash({ dispatch, theme, toggleTheme }) {
   const fileInputRef = useRef();
+  const [cached, setCached] = useState([]);
+  const [persist, setPersist] = useState({ supported: false, persisted: false });
+  const [estimate, setEstimate] = useState(null);
+
+  useEffect(() => {
+    listCacheEntries().then(setCached);
+    getPersistence().then(setPersist);
+    storageEstimate().then(setEstimate);
+  }, []);
+
+  async function openCached(id) {
+    const entry = await loadCacheEntry(id);
+    if (!entry) {
+      alert('Cache entry missing or corrupt.');
+      setCached(await listCacheEntries());
+      return;
+    }
+    const replayed = await replayOps(entry.baseSBOM, entry.ops || []);
+    dispatch({ type:'INGEST_STATE', baseSBOM: entry.baseSBOM, hash: entry.baseSBOMHash,
+               ops: entry.ops || [], currentSBOM: replayed.sbom, fileName: entry.fileName });
+  }
+
+  async function enablePersistence() {
+    const r = await requestPersistence();
+    setPersist(r);
+    if (!r.persisted) {
+      alert('The browser declined persistent storage. Chromium typically grants it ' +
+            'only to sites with engagement (installed as a PWA, bookmarked, or with ' +
+            'notification permission). Firefox shows a permission prompt.');
+    }
+  }
 
   async function onFile(e) {
     const f = e.target.files?.[0];
     if (!f) return;
     try {
       const text = await f.text();
-      let obj = JSON.parse(text);
+      const obj = JSON.parse(text);
       const hash = await sha256Hex(text);
-      obj = normalizeCytricsDocument(obj);
+      // Normalize required arrays so the app can rely on their presence.
+      obj.software ||= [];
+      obj.hardware ||= [];
+      obj.relationships ||= [];
+      obj.tools ||= [];
+      obj.authors ||= [];
+      if (!obj.bomFormat) obj.bomFormat = 'cytrics';
+      if (!obj.specVersion) obj.specVersion = '1.0.1';
       dispatch({ type:'INIT_FROM_FILE', baseSBOM: obj, hash, fileName: f.name });
     } catch (err) {
       alert('Failed to parse SBOM JSON: ' + err.message);
@@ -1806,8 +2111,14 @@ function Splash({ dispatch }) {
   return (
     <div className="splash grid-bg">
       <div className="splash-card">
-        <div className="splash-title">CyTRICS <span style={{color:'var(--accent)'}}>SBOM</span> Editor</div>
-        <div className="splash-sub">Client-side · single-page · PURL enrichment</div>
+        <div style={{display:'flex', alignItems:'flex-start'}}>
+          <div className="splash-title">SBOM <span style={{color:'var(--accent)'}}>Workbench</span></div>
+          <div style={{flex:1}}/>
+          <button className="btn btn-sm btn-ghost" title="Toggle light/dark mode" onClick={toggleTheme}>
+            <Icon name={theme==='dark' ? 'sun' : 'moon'} size={13}/>
+          </button>
+        </div>
+        <div className="splash-sub">Client-side · P2P · Anchor-stable modifications</div>
 
         <div style={{display:'grid', gap:10}}>
           <button className="btn btn-primary" style={{padding:'10px 14px', justifyContent:'center'}}
@@ -1822,11 +2133,61 @@ function Splash({ dispatch }) {
           </button>
         </div>
 
-        <div style={{marginTop:24, fontSize:11, color:'var(--fg-3)', lineHeight:1.6}}>
+        {cached.length > 0 && (
+          <div style={{marginTop:18}}>
+            <div className="muted" style={{fontSize:10, textTransform:'uppercase',
+                                           letterSpacing:'0.08em', marginBottom:6}}>
+              Cached in this browser
+            </div>
+            <div className="panel-inset" style={{borderRadius:3, maxHeight:170, overflowY:'auto'}}>
+              {cached.map(e => (
+                <div key={e.id} style={{display:'flex', alignItems:'center', gap:8,
+                                        padding:'6px 8px', borderBottom:'1px solid var(--border)'}}>
+                  <Icon name="db" size={12}/>
+                  <div style={{flex:1, minWidth:0}}>
+                    <div style={{fontSize:12, overflow:'hidden', textOverflow:'ellipsis',
+                                 whiteSpace:'nowrap'}}>{e.fileName || '(untitled)'}</div>
+                    <div className="dim mono" style={{fontSize:10}}>
+                      {e.swCount} sw · {e.opCount} mods · {new Date(e.savedAt).toLocaleString()}
+                    </div>
+                  </div>
+                  <button className="btn btn-sm" onClick={() => openCached(e.id)}>Open</button>
+                  <button className="btn btn-sm btn-ghost" title="Delete cached copy"
+                          onClick={async () => { await deleteCacheEntry(e.id); setCached(await listCacheEntries()); }}>
+                    <Icon name="trash" size={11}/>
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <div style={{marginTop:14, display:'flex', alignItems:'center', gap:8,
+                     fontSize:11, flexWrap:'wrap'}} className="muted">
+          <Icon name="db" size={11}/>
+          {persist.persisted
+            ? <span>Persistent storage <span style={{color:'var(--accent-3)', fontWeight:600}}>enabled</span> —
+                the browser won't auto-evict cached SBOMs.</span>
+            : persist.supported
+              ? <>
+                  <span>Cached SBOMs can be evicted under storage pressure.</span>
+                  <button className="btn btn-sm" onClick={enablePersistence}>
+                    Enable persistent storage
+                  </button>
+                </>
+              : <span>Persistent-storage API unavailable in this browser.</span>}
+          {estimate && estimate.quota > 0 && (
+            <span className="dim mono" style={{marginLeft:'auto'}}>
+              {(estimate.usage/1048576).toFixed(1)} / {(estimate.quota/1073741824).toFixed(1)} GB used
+            </span>
+          )}
+        </div>
+
+        <div style={{marginTop:14, fontSize:11, color:'var(--fg-3)', lineHeight:1.6}}>
           <strong style={{color:'var(--fg-2)'}}>Heads-up:</strong> All data stays in your browser.
           When you collaborate via PeerJS the data travels peer-to-peer over WebRTC,
           with an additional AES-GCM layer keyed from your room password.
-          Re-derived patches reference entries by content hash or composite
+          Re-derived modification sets reference entries by content hash or composite
           fingerprint — not UUID — so they survive SBOM regeneration.
         </div>
       </div>
@@ -1835,12 +2196,13 @@ function Splash({ dispatch }) {
 }
 
 // ----- top header -----
-function Header({ state, dispatch, peerNet, onExportSBOM, onExportPatch, onOpenPatch, onOpenCollab, onOpenSettings }) {
+function Header({ state, dispatch, peerNet, onExportSBOM, onExportPatch, onOpenPatch, onOpenCollab,
+                  theme, toggleTheme, autoCache, setAutoCache }) {
   const peerCount = state.peers.filter(p => p.authed).length;
   return (
     <div className="app-header">
       <div className="app-brand">
-        <span className="app-brand-mark">[cy]</span>SBOM <span className="muted">co-editor</span>
+        SBOM <span className="muted">Workbench</span>
       </div>
       <div className="muted mono" style={{fontSize:11}}>
         {state.fileName} <span className="dim">· sha256:{shortId(state.baseSBOMHash, 10)}</span>
@@ -1853,16 +2215,25 @@ function Header({ state, dispatch, peerNet, onExportSBOM, onExportPatch, onOpenP
         <span><span className="dim">peers</span> <strong>{peerCount}</strong></span>
       </div>
       <button className="btn btn-sm" onClick={onOpenPatch}>
-        <Icon name="history" size={11}/> Patches
+        <Icon name="history" size={11}/> Modifications
       </button>
       <button className="btn btn-sm" onClick={onOpenCollab}>
         <Icon name="users" size={11}/> Collab
       </button>
       <button className="btn btn-sm" onClick={onExportPatch}>
-        <Icon name="download" size={11}/> Export patch
+        <Icon name="download" size={11}/> Export mods
       </button>
       <button className="btn btn-sm btn-primary" onClick={onExportSBOM}>
         <Icon name="download" size={11}/> Export SBOM
+      </button>
+      <button className="btn btn-sm btn-ghost"
+              title={autoCache ? 'Browser caching ON — SBOM + mods auto-saved locally' : 'Browser caching OFF'}
+              style={{color: autoCache ? 'var(--accent-3)' : 'var(--fg-3)'}}
+              onClick={() => setAutoCache(v => !v)}>
+        <Icon name="db" size={12}/>
+      </button>
+      <button className="btn btn-sm btn-ghost" title="Toggle light/dark mode" onClick={toggleTheme}>
+        <Icon name={theme==='dark' ? 'sun' : 'moon'} size={12}/>
       </button>
     </div>
   );
@@ -1894,11 +2265,9 @@ function TabBar({ state, dispatch }) {
 
 // ----- software list/detail -----
 function softwareLabel(sw) {
-  const names = normalizeNameEntries(sw?.name);
-  const n = names.find(x => x.nameType === 'product name')?.nameValue
-         || names.find(x => x.nameType === 'package URL (purl)')?.nameValue
-         || names[0]?.nameValue
-         || sw?.fileName?.[0]
+  const n = sw.name?.find(x => x.nameType === 'product name')?.nameValue
+         || sw.name?.[0]?.nameValue
+         || sw.fileName?.[0]
          || '(unnamed)';
   return n;
 }
@@ -1936,13 +2305,11 @@ function SoftwareTab({ state, dispatch, emit, peerName }) {
     });
   }, [list, state.searchTerm, state.softwareFilter, baseByUUID]);
 
-  const hasSoftwareQuery = state.searchTerm.trim().length > 0 || state.softwareFilter !== 'all';
-  const displayed = hasSoftwareQuery ? filtered.slice(0, 250) : [];
   const selected = list.find(s => s.UUID === state.selectedSoftwareUUID);
   const [showPurlBuilder, setShowPurlBuilder] = useState(false);
 
-  // Keep the detail view uncluttered when the user moves to another entry.
-  // The PURL builder is opened only through the explicit toolbar button.
+  // Keep the entry form uncluttered. The builder opens only on request and
+  // closes when the user selects another software entry.
   useEffect(() => {
     setShowPurlBuilder(false);
   }, [state.selectedSoftwareUUID]);
@@ -1954,6 +2321,7 @@ function SoftwareTab({ state, dispatch, emit, peerName }) {
       name: [{ nameType: 'product name', nameValue: 'New software entry' }],
       fileName: [],
       installPath: [],
+      captureTime: isoNow(),
       version: '',
       vendor: [],
       description: '',
@@ -1995,20 +2363,11 @@ function SoftwareTab({ state, dispatch, emit, peerName }) {
             </button>
           ))}
           <span style={{marginLeft:'auto', color:'var(--fg-3)', fontFamily:'var(--mono)'}}>
-            {hasSoftwareQuery ? `${displayed.length}/${filtered.length}/${list.length}` : `0/${list.length}`}
+            {filtered.length}/{list.length}
           </span>
         </div>
         <div style={{flex:1, overflowY:'auto', position:'relative'}}>
-          {!hasSoftwareQuery && (
-            <div style={{padding:18, color:'var(--fg-3)', fontSize:12, lineHeight:1.5}}>
-              Enter a filename, product name, UUID, SHA-1, SHA-256, MD5, install path, or PURL to search the software section.
-              The full software list is intentionally not rendered for large SBOMs.
-            </div>
-          )}
-          {hasSoftwareQuery && displayed.length === 0 && (
-            <div style={{padding:18, color:'var(--fg-3)', fontSize:12}}>No software entries matched the current search.</div>
-          )}
-          {displayed.map(sw => {
+          {filtered.map(sw => {
             const base = baseByUUID.get(sw.UUID);
             const isAdded = !base;
             const isModified = base && !deepEqual(sw, base);
@@ -2040,12 +2399,10 @@ function SoftwareTab({ state, dispatch, emit, peerName }) {
       </div>
       <div style={{overflowY:'auto'}}>
         {selected
-          ? <div style={{padding:16, maxWidth:980}}>
-              <SoftwareDetail key={selected.UUID} sw={selected} base={baseByUUID.get(selected.UUID)}
+          ? <SoftwareDetail key={selected.UUID} sw={selected} base={baseByUUID.get(selected.UUID)}
                             emit={emit} state={state} peerName={peerName}
                             showPurlBuilder={showPurlBuilder}
                             onTogglePurlBuilder={() => setShowPurlBuilder(value => !value)} />
-            </div>
           : <div style={{padding:40, color:'var(--fg-3)', textAlign:'center'}}>
               Select a software entry, or click + to add one.
             </div>}
@@ -2053,7 +2410,6 @@ function SoftwareTab({ state, dispatch, emit, peerName }) {
     </div>
   );
 }
-
 
 function RequirementBadge({ requirement='optional' }) {
   return <span className={requirementClass(requirement)}>{requirement}</span>;
@@ -2224,7 +2580,7 @@ function PurlBuilderPanel({ sourceSw, emit }) {
     try {
       const { purl, fields, warnings } = build();
       const displayName = packageNameDisplay(fields.namespace, fields.name);
-      const sw = normalizeSoftwareEntry({
+      const sw = {
         UUID: genUUID(),
         softwareType: ['software package'],
         name: [
@@ -2236,13 +2592,13 @@ function PurlBuilderPanel({ sourceSw, emit }) {
         notHashable: true,
         relationshipAssertion: 'Root',
         metadata: [{
-          generatedBy: 'single-page sbom editor',
+          generatedBy: 'SBOM Workbench PURL builder',
           generatedAt: isoNow(),
           purlTypeDefinition: selectedDefinition?.$id || null,
           purlValidationWarnings: warnings.length ? warnings : undefined,
         }],
         supplementaryFiles: null,
-      });
+      };
       await emit({
         type: OP.SW_ADD_PURL_REL,
         xUUID: sourceSw.UUID,
@@ -2282,7 +2638,7 @@ function PurlBuilderPanel({ sourceSw, emit }) {
             <div className="field-label">Load concrete type-definition JSON</div>
             <input className="input" type="file" accept=".json,application/json" multiple onChange={e=>importTypeDefinitionFiles(e.target.files)} />
             <div className="purl-help">
-              The supplied file is a schema for definitions, not a list of package types. Load one or more concrete definition files to replace the built-in starter templates.
+              A type-definition schema describes the definition format; load concrete package-type definitions here. Load one or more concrete definition files to replace the built-in starter templates.
             </div>
             {definitionMessages.map((m,i) => <div key={i} className={`purl-validation ${m.level === 'error' ? 'error' : 'ok'}`}>{m.text}</div>)}
           </div>
@@ -2304,7 +2660,7 @@ function PurlBuilderPanel({ sourceSw, emit }) {
         </Field>
         <Field label="Relationship">
           <select className="select mono" value={relationship} onChange={e=>setRelationship(e.target.value)}>
-            {CYTRICS_RELATIONSHIP_EXAMPLES.map(x => <option key={x}>{x}</option>)}
+            {SUGGEST.relationship.map(x => <option key={x}>{x}</option>)}
           </select>
         </Field>
 
@@ -2429,7 +2785,7 @@ function SoftwareDetail({ sw, base, emit, state, peerName, showPurlBuilder=false
   }
 
   return (
-    <div style={{padding:0, maxWidth:920}}>
+    <div style={{padding:16, maxWidth:920}}>
       <div style={{display:'flex', alignItems:'baseline', gap:10, marginBottom:14, flexWrap:'wrap'}}>
         <div className="serif" style={{fontSize:18, fontWeight:500}}>{softwareLabel(sw)}</div>
         <span className="anchor-pill">
@@ -2483,10 +2839,12 @@ function SoftwareDetail({ sw, base, emit, state, peerName, showPurlBuilder=false
         </Field>
 
         <Field label="Name entries" modified={isModified('name')}>
-          <NameEditor value={sw.name} onChange={v => setField('name', v)} />
+          <NameEditor value={sw.name} onChange={v => setField('name', v)}
+                      typeSuggestions={SUGGEST.swNameType} />
         </Field>
         <Field label="Software type" modified={isModified('softwareType')}>
           <StringArrayEditor value={sw.softwareType} onChange={v => setField('softwareType', v)}
+                             suggestions={SUGGEST.softwareType}
                              placeholder="e.g. file, static library" />
         </Field>
 
@@ -2494,7 +2852,8 @@ function SoftwareDetail({ sw, base, emit, state, peerName, showPurlBuilder=false
           <StringArrayEditor value={sw.fileName} onChange={v => setField('fileName', v)} />
         </Field>
         <Field label="Vendor" modified={isModified('vendor')}>
-          <StringArrayEditor value={sw.vendor} onChange={v => setField('vendor', v)} />
+          <StringArrayEditor value={sw.vendor} onChange={v => setField('vendor', v)}
+                             suggestions={SUGGEST.swVendor} />
         </Field>
 
         <Field label="Install paths" modified={isModified('installPath')}>
@@ -2507,14 +2866,23 @@ function SoftwareDetail({ sw, base, emit, state, peerName, showPurlBuilder=false
         <Field label="SHA-256" modified={isModified('sha256')}>
           <input className="input mono" value={sw.sha256 || ''}
                  onChange={e => setField('sha256', e.target.value || null)} />
+          <Vnote show={!!sw.sha256 && !VALID.sha256(sw.sha256)}>
+            SHA-256 should be 64 hex characters
+          </Vnote>
         </Field>
         <Field label="SHA-1" modified={isModified('sha1')}>
           <input className="input mono" value={sw.sha1 || ''}
                  onChange={e => setField('sha1', e.target.value || null)} />
+          <Vnote show={!!sw.sha1 && !VALID.sha1(sw.sha1)}>
+            SHA-1 should be 40 hex characters
+          </Vnote>
         </Field>
         <Field label="MD5" modified={isModified('md5')}>
           <input className="input mono" value={sw.md5 || ''}
                  onChange={e => setField('md5', e.target.value || null)} />
+          <Vnote show={!!sw.md5 && !VALID.md5(sw.md5)}>
+            MD5 should be 32 hex characters
+          </Vnote>
         </Field>
         <Field label="Not hashable" modified={isModified('notHashable')}>
           <label style={{display:'flex', alignItems:'center', gap:8, marginTop:5}}>
@@ -2525,15 +2893,13 @@ function SoftwareDetail({ sw, base, emit, state, peerName, showPurlBuilder=false
         </Field>
 
         <Field label="Capture time" modified={isModified('captureTime')}>
-          <input className="input mono" value={sw.captureTime || ''}
-                 placeholder="2024-12-10T19:39:10Z"
-                 onChange={e => setField('captureTime', e.target.value || null)} />
+          <DateTimeField value={sw.captureTime} onChange={v => setField('captureTime', v)} />
         </Field>
 
         <div style={{gridColumn:'1 / -1'}}>
           <Field label="Comments" modified={isModified('comments')}>
             <CommentEditor value={sw.comments} onChange={v => setField('comments', v)}
-                           peerName={peerName} />
+                           peerName={peerName} fieldSuggestions={SUGGEST.swFields} />
           </Field>
         </div>
 
@@ -2717,7 +3083,7 @@ function AddRelationshipModal({ state, onClose, emit }) {
                 {srcMatches.map(m => (
                   <div key={m.uuid} className="list-row"
                        style={{padding:'4px 6px', borderBottom:'none',
-                               background: src===m.uuid ? '#1a2538' : 'transparent'}}
+                               background: src===m.uuid ? 'var(--sel-bg)' : 'transparent'}}
                        onClick={() => setSrc(m.uuid)}>
                     <span className="badge">{m.kind}</span>
                     <div style={{flex:1, minWidth:0}}>
@@ -2731,10 +3097,11 @@ function AddRelationshipModal({ state, onClose, emit }) {
           </div>
           <div style={{alignSelf:'center', textAlign:'center'}}>
             <Field label="Relationship">
-              <select className="select mono" value={rel} onChange={e => setRel(e.target.value)}>
-                {CYTRICS_RELATIONSHIP_EXAMPLES.map(x => <option key={x}>{x}</option>)}
-              </select>
-              <div className="dim" style={{fontSize:10, marginTop:4}}>Schema examples: Contains, Downloads, Uses, Mounted on</div>
+              <SuggestInput mono value={rel} suggestions={SUGGEST.relationship}
+                     onChange={setRel} />
+              <div className="dim" style={{fontSize:10, marginTop:4}}>
+                e.g. Contains, Uses, Downloads
+              </div>
             </Field>
           </div>
           <div>
@@ -2745,7 +3112,7 @@ function AddRelationshipModal({ state, onClose, emit }) {
                 {dstMatches.map(m => (
                   <div key={m.uuid} className="list-row"
                        style={{padding:'4px 6px', borderBottom:'none',
-                               background: dst===m.uuid ? '#1a2538' : 'transparent'}}
+                               background: dst===m.uuid ? 'var(--sel-bg)' : 'transparent'}}
                        onClick={() => setDst(m.uuid)}>
                     <span className="badge">{m.kind}</span>
                     <div style={{flex:1, minWidth:0}}>
@@ -2792,6 +3159,7 @@ function HardwareTab({ state, dispatch, emit, peerName }) {
       name: [{ nameType: 'product name', nameValue: 'New hardware entry' }],
       identifiers: [],
       hardwareType: [],
+      captureTime: isoNow(),
       vendor: [],
       description: '',
       quantity: 1,
@@ -2876,7 +3244,7 @@ function HardwareDetail({ hw, base, setField, remove, peerName }) {
     return !deepEqual(hw[field], base[field]);
   }
   return (
-    <div style={{padding:0, maxWidth:920}}>
+    <div style={{padding:16, maxWidth:920}}>
       <div style={{display:'flex', alignItems:'baseline', gap:10, marginBottom:14, flexWrap:'wrap'}}>
         <div className="serif" style={{fontSize:18, fontWeight:500}}>
           {hw.name?.[0]?.nameValue || hw.identifiers?.[0] || 'Hardware'}
@@ -2891,16 +3259,19 @@ function HardwareDetail({ hw, base, setField, remove, peerName }) {
       </div>
       <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:14}}>
         <Field label="Name entries" modified={isModified('name')}>
-          <NameEditor value={hw.name} onChange={v => setField('name', v)} />
+          <NameEditor value={hw.name} onChange={v => setField('name', v)}
+                      typeSuggestions={SUGGEST.hwNameType} />
         </Field>
         <Field label="Hardware type" modified={isModified('hardwareType')}>
-          <StringArrayEditor value={hw.hardwareType} onChange={v => setField('hardwareType', v)}/>
+          <StringArrayEditor value={hw.hardwareType} onChange={v => setField('hardwareType', v)}
+                             suggestions={SUGGEST.hardwareType}/>
         </Field>
         <Field label="Identifiers" modified={isModified('identifiers')}>
           <StringArrayEditor value={hw.identifiers} onChange={v => setField('identifiers', v)}/>
         </Field>
         <Field label="Vendor" modified={isModified('vendor')}>
-          <StringArrayEditor value={hw.vendor} onChange={v => setField('vendor', v)}/>
+          <StringArrayEditor value={hw.vendor} onChange={v => setField('vendor', v)}
+                             suggestions={SUGGEST.hwVendor}/>
         </Field>
         <Field label="Description" modified={isModified('description')}>
           <textarea className="textarea" value={hw.description||''}
@@ -2911,24 +3282,27 @@ function HardwareDetail({ hw, base, setField, remove, peerName }) {
                  onChange={e => setField('quantity', Number(e.target.value))}/>
         </Field>
         <Field label="Package type" modified={isModified('packageType')}>
-          <input className="input" value={hw.packageType||''}
-                 onChange={e => setField('packageType', e.target.value||null)}/>
+          <SuggestInput value={hw.packageType||''} suggestions={SUGGEST.packageType}
+                 onChange={v => setField('packageType', v||null)}/>
         </Field>
         <Field label="Board location" modified={isModified('boardLocation')}>
           <StringArrayEditor value={hw.boardLocation} onChange={v => setField('boardLocation', v)}/>
         </Field>
         <Field label="Country of origin" modified={isModified('countryOfOrigin')}>
-          <StringArrayEditor value={hw.countryOfOrigin}
+          <StringArrayEditor value={hw.countryOfOrigin} suggestions={SUGGEST.country}
             onChange={v => setField('countryOfOrigin', v.length ? v : null)}/>
         </Field>
         <Field label="Country of origin source" modified={isModified('countryOfOriginSource')}>
           <input className="input" value={hw.countryOfOriginSource||''}
                  onChange={e => setField('countryOfOriginSource', e.target.value || null)}/>
         </Field>
+        <Field label="Capture time" modified={isModified('captureTime')}>
+          <DateTimeField value={hw.captureTime} onChange={v => setField('captureTime', v)} />
+        </Field>
         <div style={{gridColumn:'1 / -1'}}>
           <Field label="Comments" modified={isModified('comments')}>
             <CommentEditor value={hw.comments} onChange={v => setField('comments', v)}
-                           peerName={peerName}/>
+                           peerName={peerName} fieldSuggestions={SUGGEST.hwFields}/>
           </Field>
         </div>
         <div style={{gridColumn:'1 / -1'}}>
@@ -2993,9 +3367,9 @@ function AuthorsEditor({ value, onChange }) {
     <div>
       {arr.map((a, i) => (
         <div key={i} style={{display:'flex', gap:6, marginBottom:4}}>
-          <input className="input" style={{flex:'0 0 160px'}} value={a.authorType||''}
-                 placeholder="authorType"
-                 onChange={e => onChange(arr.map((x,j)=>j===i?{...x, authorType:e.target.value}:x))}/>
+          <SuggestInput wrapStyle={{flex:'0 0 160px'}} value={a.authorType||''}
+                 placeholder="authorType" suggestions={SUGGEST.authorType}
+                 onChange={v => onChange(arr.map((x,j)=>j===i?{...x, authorType:v}:x))}/>
           <input className="input" value={a.authorName||''} placeholder="authorName"
                  onChange={e => onChange(arr.map((x,j)=>j===i?{...x, authorName:e.target.value}:x))}/>
           <button className="btn btn-sm" onClick={()=>onChange(arr.filter((_,j)=>j!==i))}>
@@ -3059,7 +3433,7 @@ function HistoryTab({ state }) {
       <div style={{padding:'10px 14px', borderBottom:'1px solid var(--border)'}}>
         <div className="muted" style={{fontSize:11}}>
           Every manual change is an operation referencing entries by stable anchor.
-          The patch export is exactly this stream.
+          The modifications export is exactly this stream.
         </div>
       </div>
       {state.ops.length === 0 && (
@@ -3084,6 +3458,8 @@ function HistoryTab({ state }) {
     if (op.anchor) return `${op.anchor.type}:${shortId(op.anchor.value, 12)}`;
     if (op.srcAnchor && op.dstAnchor)
       return `${shortId(op.srcAnchor.value, 8)} → ${shortId(op.dstAnchor.value, 8)}`;
+    if (op.type === OP.SW_ADD_PURL_REL && op.srcAnchor && op.anchor)
+      return `${shortId(op.srcAnchor.value, 8)} → PURL:${shortId(op.anchor.value, 8)}`;
     if (op.field) return op.field;
     return '';
   }
@@ -3285,23 +3661,23 @@ function PatchModal({ state, dispatch, onClose, applyPatch }) {
 
   function exportPatch() {
     const patch = buildPatch(state);
-    downloadJSON((state.fileName||'sbom').replace(/\.json$/,'') + '.patch.json', patch);
+    downloadJSON((state.fileName||'sbom').replace(/\.json$/,'') + '.mods.json', patch);
   }
   function exportSBOM() {
-    downloadJSON((state.fileName||'sbom'), cytrics101ExportShape(state.currentSBOM));
+    downloadJSON((state.fileName||'sbom'), state.currentSBOM);
   }
   async function onPatchFile(e) {
     const f = e.target.files?.[0];
     if (!f) return;
     try {
       const obj = JSON.parse(await f.text());
-      if (obj.$schema !== 'cytrics-sbom-patch-v1') {
-        if (!confirm('Not a recognized patch schema. Try anyway?')) return;
+      if (obj.$schema !== 'cytrics-sbom-mods-v1') {
+        if (!confirm('Not a recognized modifications schema. Try anyway?')) return;
       }
       setPatchPreview(obj);
       setView('apply');
     } catch (e) {
-      alert('Failed to parse patch: ' + e.message);
+      alert('Failed to parse modifications file: ' + e.message);
     }
   }
   async function doApply() {
@@ -3315,7 +3691,7 @@ function PatchModal({ state, dispatch, onClose, applyPatch }) {
       <div className="modal" style={{width:720, maxHeight:'85vh'}} onClick={e=>e.stopPropagation()}>
         <div style={{padding:'12px 16px', borderBottom:'1px solid var(--border)',
                      display:'flex', alignItems:'center'}}>
-          <span className="serif" style={{fontSize:15, fontWeight:500}}>Patches</span>
+          <span className="serif" style={{fontSize:15, fontWeight:500}}>Modifications</span>
           <div style={{flex:1}}/>
           <button className="btn btn-sm btn-ghost" onClick={onClose}><Icon name="x" size={11}/></button>
         </div>
@@ -3333,27 +3709,27 @@ function PatchModal({ state, dispatch, onClose, applyPatch }) {
                   </button>
                 </div>
                 <div className="panel-inset" style={{padding:14, borderRadius:3}}>
-                  <div className="serif" style={{fontWeight:500, marginBottom:6}}>Export patch</div>
+                  <div className="serif" style={{fontWeight:500, marginBottom:6}}>Export modifications</div>
                   <div className="muted" style={{fontSize:11, marginBottom:10}}>
                     Just your changes, anchored by content hash / composite fingerprint.
                     Re-appliable to a regenerated base SBOM.
                   </div>
                   <button className="btn" onClick={exportPatch}>
-                    <Icon name="download" size={11}/> Download patch ({state.ops.length} ops)
+                    <Icon name="download" size={11}/> Download modifications ({state.ops.length} ops)
                   </button>
                 </div>
               </div>
               <div className="panel-inset" style={{padding:14, borderRadius:3, marginBottom:14}}>
-                <div className="serif" style={{fontWeight:500, marginBottom:6}}>Apply a patch</div>
+                <div className="serif" style={{fontWeight:500, marginBottom:6}}>Apply modifications</div>
                 <div className="muted" style={{fontSize:11, marginBottom:10}}>
                   Re-apply previously exported ops to the <em>currently loaded</em> SBOM.
                   Use this after regenerating the base SBOM: load the fresh SBOM first,
-                  then apply the patch here.
+                  then apply the modifications here.
                 </div>
                 <input ref={fileRef} type="file" accept=".json" style={{display:'none'}}
                        onChange={onPatchFile}/>
                 <button className="btn" onClick={()=>fileRef.current.click()}>
-                  <Icon name="upload" size={11}/> Load patch file
+                  <Icon name="upload" size={11}/> Load modifications file
                 </button>
               </div>
               <div style={{fontSize:11, lineHeight:1.5}}>
@@ -3408,7 +3784,7 @@ function PatchApplyPreview({ patch, state, onApply, onCancel }) {
   return (
     <div>
       <div style={{display:'flex', gap:10, marginBottom:14, alignItems:'baseline'}}>
-        <div className="serif" style={{fontSize:14, fontWeight:500}}>Patch preview</div>
+        <div className="serif" style={{fontSize:14, fontWeight:500}}>Modifications preview</div>
         <div className="muted" style={{fontSize:11}}>
           base bom: <span className="mono">{shortId(patch.baseBom?.bomUUID, 12)}</span> ·
           digest: <span className="mono">{shortId(patch.baseBom?.originalDigest, 12)}</span> ·
@@ -3456,7 +3832,7 @@ function PatchApplyPreview({ patch, state, onApply, onCancel }) {
 
 function buildPatch(state) {
   return {
-    $schema: 'cytrics-sbom-patch-v1',
+    $schema: 'cytrics-sbom-mods-v1',
     baseBom: {
       bomUUID: state.baseSBOM?.bomUUID || null,
       originalDigest: state.baseSBOMHash,
@@ -3487,10 +3863,68 @@ function App() {
   const stateRef = useRef(state);
   stateRef.current = state;
 
+  // ----- Theme -----
+  const [theme, setTheme] = useState(() => {
+    try { return localStorage.getItem('sbomwb:theme') || 'dark'; } catch { return 'dark'; }
+  });
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    try { localStorage.setItem('sbomwb:theme', theme); } catch {}
+  }, [theme]);
+  const toggleTheme = useCallback(() => setTheme(t => t === 'dark' ? 'light' : 'dark'), []);
+
+  // ----- Browser cache (localStorage) -----
+  const [autoCache, setAutoCache] = useState(() => {
+    try { return (localStorage.getItem('sbomwb:autocache') ?? '1') === '1'; } catch { return true; }
+  });
+  useEffect(() => {
+    try { localStorage.setItem('sbomwb:autocache', autoCache ? '1' : '0'); } catch {}
+  }, [autoCache]);
+  const cacheErrRef = useRef(false);
+  useEffect(() => {
+    if (!state.started || !autoCache) return;
+    const h = setTimeout(() => {
+      saveCacheEntry(stateRef.current).then(r => {
+        if (!r.ok && !cacheErrRef.current) {
+          cacheErrRef.current = true; // toast once, not on every keystroke
+          dispatch({ type:'TOAST', level:'error',
+                     msg: 'IndexedDB cache save failed: ' + r.err });
+        }
+      });
+    }, 1200);
+    return () => clearTimeout(h);
+  }, [state.started, state.ops, state.baseSBOMHash, autoCache]);
+
+  // Tracks the most recent locally-emitted op so sequential edits to the
+  // same field coalesce into one history entry (e.g. typing "abc" is one op,
+  // not three). Coalescing only happens while our op is still the newest in
+  // the log; any interleaved op (local or remote) starts a fresh entry.
+  const lastEmitRef = useRef(null);
+
   // emit: create an op (filling in anchor from current state), apply locally, broadcast.
   const emit = useCallback(async (partial) => {
     const cur = stateRef.current;
     const nextLamport = cur.lamport + 1;
+
+    // ---- Coalescing path ----
+    const COALESCIBLE = [OP.SW_SET_FIELD, OP.HW_SET_FIELD, OP.BOM_SET_FIELD];
+    const last = cur.ops[cur.ops.length - 1];
+    const lt = lastEmitRef.current;
+    if (COALESCIBLE.includes(partial.type) && last && lt &&
+        last.id === lt.opId && last.peerId === cur.peerId &&
+        lt.type === partial.type && lt.field === partial.field &&
+        (partial.type === OP.BOM_SET_FIELD || lt.uuid === partial.uuid)) {
+      // Update the existing op in place: same id/ts/anchor, bumped rev.
+      // Keeping the ORIGINAL anchor is essential — it was computed against the
+      // pre-edit state and is what replay resolves at this op's position.
+      const updated = { ...last, value: deepClone(partial.value),
+                        rev: (last.rev || 0) + 1, wallTime: isoNow() };
+      const allOps = [...cur.ops.slice(0, -1), updated];
+      const { sbom: newCurrent } = await replayOps(cur.baseSBOM, allOps);
+      dispatch({ type:'APPEND_OPS_REBUILD', allOps, newCurrent });
+      if (peerNet) peerNet.broadcastOp(updated);
+      return;
+    }
 
     // Resolve UUID -> anchor based on current SBOM, for anchor-carrying ops.
     let payload = { ...partial };
@@ -3539,6 +3973,9 @@ function App() {
     const allOps = mergeOps(cur.ops, [op]);
     const { sbom: newCurrent } = await replayOps(cur.baseSBOM, allOps);
     dispatch({ type:'APPEND_OPS_REBUILD', allOps, newCurrent });
+    lastEmitRef.current = COALESCIBLE.includes(partial.type)
+      ? { opId: op.id, type: partial.type, field: partial.field, uuid: partial.uuid }
+      : null;
     // Broadcast
     if (peerNet) peerNet.broadcastOp(op);
   }, [peerNet]);
@@ -3582,7 +4019,7 @@ function App() {
     return () => clearTimeout(h);
   }, [state.toasts]);
 
-  if (!state.started) return <Splash dispatch={dispatch} />;
+  if (!state.started) return <Splash dispatch={dispatch} theme={theme} toggleTheme={toggleTheme} />;
 
   function onExportSBOM() {
     downloadJSON((state.fileName||'sbom'), state.currentSBOM);
@@ -3590,8 +4027,8 @@ function App() {
   }
   function onExportPatch() {
     const patch = buildPatch(state);
-    downloadJSON((state.fileName||'sbom').replace(/\.json$/,'') + '.patch.json', patch);
-    dispatch({type:'TOAST', msg:`Patch exported (${state.ops.length} ops)`, level:'success'});
+    downloadJSON((state.fileName||'sbom').replace(/\.json$/,'') + '.mods.json', patch);
+    dispatch({type:'TOAST', msg:`Modifications exported (${state.ops.length} ops)`, level:'success'});
   }
 
   return (
@@ -3599,7 +4036,9 @@ function App() {
       <Header state={state} dispatch={dispatch} peerNet={peerNet}
               onExportSBOM={onExportSBOM} onExportPatch={onExportPatch}
               onOpenPatch={()=>setShowPatch(true)}
-              onOpenCollab={()=>setShowCollab(true)} />
+              onOpenCollab={()=>setShowCollab(true)}
+              theme={theme} toggleTheme={toggleTheme}
+              autoCache={autoCache} setAutoCache={setAutoCache} />
       <TabBar state={state} dispatch={dispatch}/>
       <div style={{overflow:'hidden'}}>
         {state.tab === 'software' &&
@@ -3639,10 +4078,15 @@ function App() {
 }
 
 function mergeOps(a, b) {
-  const seen = new Set(a.map(o => o.id));
-  const merged = [...a];
+  // Upsert semantics: an op with a known id but a higher rev REPLACES the
+  // existing one in place (sequential same-field edits coalesce into one op).
+  const byId = new Map();
+  const merged = [];
+  for (const op of a) { byId.set(op.id, merged.length); merged.push(op); }
   for (const op of b) {
-    if (!seen.has(op.id)) { merged.push(op); seen.add(op.id); }
+    const i = byId.get(op.id);
+    if (i === undefined) { byId.set(op.id, merged.length); merged.push(op); }
+    else if ((op.rev || 0) > (merged[i].rev || 0)) merged[i] = op;
   }
   merged.sort((x, y) => {
     if (x.ts !== y.ts) return x.ts - y.ts;
