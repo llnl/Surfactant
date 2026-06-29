@@ -41,7 +41,7 @@ class AiConn:
             self.key = os.getenv(key_env_name)
             self.url = url
             self.connection = ai.Client(
-                provider_configs={self.provider: {"api_url": self.url, "api_key": self.key}}
+                provider_configs={self.provider: {"base_url": self.url, "api_key": self.key}}
             )
             self.conn_name = self.provider + ":" + self.model
         else:
@@ -58,22 +58,32 @@ class AiConn:
             json_schema (dict): Format for the LLM to follow. Enforcement varies by API.
                 Example:
                 {
+                    "name": "data_extraction",
                     "schema": {
                         "type": "object",
                         "properties": {
-                            "software_name": {"type": "string"},
-                            "software_version": {"type": "string"}
+                            "name": {"type": "string", "description": "User's name"},
+                            "age": {"type": "integer"},
+                            "preferences": {"type": "array", "items": {"type": "string"}}
                         },
-                        "additionalProperties": False
+                        "required": ["name", "age"],
+                        "additionalProperties": False,
                     },
                     "strict": True
                 }
         """
-        response = self.connection.chat.completions.create(
-            model=self.conn_name,
-            messages=[{"role": "user", "content": full_prompt}],
-            response_format={"type": "json_schema", "json_schema": json_schema},
-        )
+        if self.provider == "anthropic" or "claude" in self.conn_name:
+            response = self.connection.chat.completions.create(
+                model=self.conn_name,
+                messages=[{"role": "user", "content": full_prompt}],
+                tools=[json_schema],
+            )
+        else:
+            response = self.connection.chat.completions.create(
+                model=self.conn_name,
+                messages=[{"role": "user", "content": full_prompt}],
+                response_format={"type": "json_schema", "json_schema": json_schema},
+            )
         try:
             return json.loads(response.choices[0].message.content)
         except json.JSONDecodeError as e:
