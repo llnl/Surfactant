@@ -114,8 +114,8 @@ class AiConn:
                 )
                 return None
 
-    def parse_text_complex(self, instructions, in_txt, json_schema):
+    def parse_text_complex(self, instructions, in_txt, json_schema, num_tries):
         """
-        Look at adding ability to supply number of tries, change
+        Look at adding ability to supply number of tries, changing number of lines from in_txt
         """
         return
