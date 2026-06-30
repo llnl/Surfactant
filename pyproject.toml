@@ -77,7 +77,9 @@ java = ["javatools>=1.6,==1.*"]
 test = ["pytest", "pytest-asyncio", "jsonschema[format-nongpl]", "freezegun"]
 dev = ["build", "pre-commit"]
 docs = ["sphinx", "myst-parser", "furo>=2025.9.25", "sphinx-copybutton>=0.5.2"]
-ai = ["aisuite~=0.1.14"]
+ai-base = ["aisuite>=0.1.14", "pydantic>=2.13.4"]
+ai-openai = ["aisuite>=0.1.14", "pydantic>=2.13.4", "openai>=2.44.0"]
+ai-anthropic = ["aisuite>=0.1.14", "pydantic>=2.13.4", "anthropic>=0.113.0"]
 
 [project.scripts]
 surfactant = "surfactant.__main__:main"

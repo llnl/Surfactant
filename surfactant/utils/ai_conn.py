@@ -49,12 +49,13 @@ class AiConn:
                 "ai_conn.py: You are attempting to initialize an AiConn instance when aisuite is not available."
             )
 
-    def parse_text(self, full_prompt: str, json_schema: dict) -> dict | list | None:
+    def parse_text(self, prompt: str, in_txt: str, json_schema: dict) -> dict | list | None:
         """
         Prompt a LLM and require its response to follow a JSON schema.
 
         Args:
-            full_prompt (str): Instructions for the LLM and text to parse.
+            prompt (str): Instructions for the LLM.
+            in_txt (str): Text for the LLM to parse.
             json_schema (dict): Format for the LLM to follow. Enforcement varies by API.
                 Example:
                 {
@@ -72,23 +73,49 @@ class AiConn:
                     "strict": True
                 }
         """
+        if json_schema["schema"]["type"] != "object" and json_schema["schema"]["type"] != "array":
+            logger.error(
+                f"ai_conn.py: Input JSON schema does not have type 'object' or 'array':\n{json_schema}"
+            )
+            return None
         if self.provider == "anthropic" or "claude" in self.conn_name:
+            full_prompt = f"{prompt}\nUse this JSON schema to parse the text\n{json_schema}\n\nText to parse:\n{in_txt}"
             response = self.connection.chat.completions.create(
                 model=self.conn_name,
                 messages=[{"role": "user", "content": full_prompt}],
-                tools=[json_schema],
             )
+            output = str(response.choices[0].message.content)
+            start_index = output.find("{")
+            end_index = output.find("}")
+            if json_schema["schema"]["type"] == "array":
+                start_index = output.find("[")
+                end_index = output.find("]")
+            try:
+                if start_index == -1 or end_index == -1 or end_index <= start_index:
+                    raise json.JSONDecodeError(
+                        f"Expecting string from LLM to contain both a '{' and '}'", output, 0
+                    )
+                return json.loads(output[start_index : end_index + 1])
+            except json.JSONDecodeError as e:
+                # logger.error(f"ai_conn.py: {e} when trying to parse LLM's response to {full_prompt}")
+                return None
         else:
+            full_prompt = prompt + in_txt
             response = self.connection.chat.completions.create(
                 model=self.conn_name,
                 messages=[{"role": "user", "content": full_prompt}],
                 response_format={"type": "json_schema", "json_schema": json_schema},
             )
-        try:
-            return json.loads(response.choices[0].message.content)
-        except json.JSONDecodeError as e:
-            logger.error(f"ai_conn.py: {e} when trying to parse LLM's response to {full_prompt}")
-            return None
+            try:
+                return json.loads(response.choices[0].message.content)
+            except json.JSONDecodeError as e:
+                logger.error(
+                    f"ai_conn.py: {e} when trying to parse LLM's response to {full_prompt}"
+                )
+                return None
 
     def parse_text_complex(self, instructions, in_txt, json_schema):
-        return None
+        """
+        Look at adding ability to supply number of tries, change
+        """
+        return
