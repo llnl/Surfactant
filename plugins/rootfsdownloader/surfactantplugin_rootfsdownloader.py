@@ -3,6 +3,10 @@
 #
 # SPDX-License-Identifier: MIT
 
+# This has a bunch of false positives (because := statements can't be combined)
+# so disable it
+#ruff: noqa SIM102
+
 # Currently using Ubuntu downloads at: https://partner-images.canonical.com/oci/
 # Another possible source (for other distros): https://images.linuxcontainers.org/
 
@@ -158,10 +162,9 @@ class RootfsManager:
                         logger.info(f"Downloading {f}")
 
                         (self.data_dir / dir_name).mkdir(exist_ok=True)
-                        with gzip.GzipFile(fileobj=io.BytesIO(r.raw.read())) as gfile:
-                            with tarfile.TarFile(fileobj=gfile) as tfile:
-                                tfile.extractall(self.data_dir / dir_name)
-                                self.__downloaded_info.add(dir_ver)
+                        with gzip.GzipFile(fileobj=io.BytesIO(r.raw.read())) as gfile, tarfile.TarFile(fileobj=gfile) as tfile:
+                            tfile.extractall(self.data_dir / dir_name)
+                            self.__downloaded_info.add(dir_ver)
 
 
 rootfs_manager = RootfsManager()
@@ -171,5 +174,5 @@ rootfs_manager = RootfsManager()
 def establish_relationships(
     sbom: SBOM, software: Software, metadata: object
 ) -> list[Relationship] | None:
-    if type(metadata) is dict and "elfArchitecture" in metadata:
+    if isinstance(metadata, dict) and "elfArchitecture" in metadata:
         rootfs_manager.download_if_needed(metadata["elfArchitecture"])
