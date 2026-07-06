@@ -68,7 +68,7 @@ class _NuGetManager:
                 r = requests.get(
                     f"{url}/{pn_low}/{ver_low}/{pn_low}.{ver_low}.nupkg",
                     stream=True,
-                    timeout=self.request_timeout
+                    timeout=self.request_timeout,
                 )
             except requests.RequestException as e:
                 logger.warning(f"NuGet download failed for {pn_low}.{ver_low}.nupkg - {e}")
@@ -153,9 +153,7 @@ def init_hook(command_name: str | None = None):
         return
 
     if not ConfigManager().get("nuget", "enable_lookups", False):
-        logger.info(
-            "[nuget_purl] NuGet lookups disabled via config (nuget.enable_lookups=false)"
-        )
+        logger.info("[nuget_purl] NuGet lookups disabled via config (nuget.enable_lookups=false)")
         _nuget.disabled = True
         return
 
@@ -182,6 +180,7 @@ def establish_relationships(sbom: SBOM, software: Software, metadata) -> list[Re
                     if software.name is None:
                         software.name = []
                     software.name.append(NameEntry(purl, "PURL"))
+
 
 @surfactant.plugin.hookimpl
 def settings_name() -> str | None:
