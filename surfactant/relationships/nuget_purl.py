@@ -3,6 +3,14 @@
 #
 # SPDX-License-Identifier: MIT
 
+"""
+Config Options:
+    enable_lookups(bool):
+        Enable NuGet network requests, default is False.
+    request_timeout(int):
+        Time to wait for a NuGet network response in seconds, default is 30.
+"""
+
 import io
 import pathlib
 import zipfile
@@ -11,25 +19,41 @@ import requests
 from loguru import logger
 
 import surfactant.plugin
+from surfactant.configmanager import ConfigManager
 from surfactant.sbomtypes import SBOM, NameEntry, Relationship, Software
 
 
-class __NuGetManager:
+class _NuGetManager:
     def __init__(self):
         self.disabled = True
         self.package_base_addresses = []
 
+        config_manager = ConfigManager()
+        self.request_timeout = float(config_manager.get("nuget", "request_timeout", 30.0))
+
+        # package_name.lower() -> version list, or None if the package wasn't
+        # found. None is cached to avoid re-querying misses.
+        self._index_cache: dict[str, list[str] | None] = {}
+
+        # (package_name.lower(), version.lower()) -> set of nupkg member basenames.
+        # An empty set means download failed/not found; cached so the same
+        # nupkg is never re-downloaded during an enrichment pass.
+        self._members_cache: dict[tuple[str, str], set[str]] = {}
+
     def init_urls(self):
         # Get the base PackageBaseAddress URL
-        r = requests.get("https://api.nuget.org/v3/index.json")
-        if r.status_code != 200:
-            logger.warning(f"NuGet API returned {r.status_code}; disabling")
+        try:
+            r = requests.get("https://api.nuget.org/v3/index.json", timeout=self.request_timeout)
+            r.raise_for_status()
+            resources = r.json()["resources"]
+        except (requests.RequestException, ValueError, KeyError) as e:
+            logger.warning(f"NuGet API unavailable ({e}); disabling NuGet lookups")
             self.disabled = True
             return
 
         self.disabled = False
         self.package_base_addresses = [
-            x["@id"] for x in r.json()["resources"] if x["@type"] == "PackageBaseAddress/3.0.0"
+            x["@id"] for x in resources if x["@type"] == "PackageBaseAddress/3.0.0"
         ]
         # remove trailing "/" if present
         for i, pba in enumerate(self.package_base_addresses):
@@ -37,27 +61,64 @@ class __NuGetManager:
                 self.package_base_addresses[i] = pba[:-1]
 
     def download_nuget(self, package_name: str, package_version: str) -> zipfile.ZipFile | None:
+        pn_low = package_name.lower()
+        ver_low = package_version.lower()
         for url in self.package_base_addresses:
-            pn_low = package_name.lower()
-            ver_low = package_version.lower()
-            r = requests.get(f"{url}/{pn_low}/{ver_low}/{pn_low}.{ver_low}.nupkg", stream=True)
+            try:
+                r = requests.get(
+                    f"{url}/{pn_low}/{ver_low}/{pn_low}.{ver_low}.nupkg",
+                    stream=True,
+                    timeout=self.request_timeout
+                )
+            except requests.RequestException as e:
+                logger.warning(f"NuGet download failed for {pn_low}.{ver_low}.nupkg - {e}")
+                continue
             if r.status_code != 200:
                 continue
             try:
-                # For some reason, have to wrap r.raw (a file-like object)
-                # into an io.BytesIO object to get it to read correctly.
-                # No idea why.
                 return zipfile.ZipFile(io.BytesIO(r.raw.read()))
             except zipfile.BadZipFile as e:
                 logger.warning(f"Could not unpack {pn_low}.{ver_low}.nupkg - {e}")
         return None
 
     def file_is_in_package(self, file_name: str, package_name: str, package_version: str) -> bool:
-        if nuget := self.download_nuget(package_name, package_version):
-            for f in nuget.infolist():
-                if pathlib.Path(f.filename).name == file_name:
-                    return True
-        return False
+        key = (package_name.lower(), package_version.lower())
+        if key not in self._members_cache:
+            members: set[str] = set()
+            if nuget := self.download_nuget(package_name, package_version):
+                members = {pathlib.Path(f.filename).name.lower() for f in nuget.infolist()}
+            # Cache even an empty set so a failed/missing download isn't retried.
+            self._members_cache[key] = members
+        return file_name.lower() in self._members_cache[key]
+
+    def _get_versions(self, package_name: str) -> list[str] | None:
+        """Returns a package's version list, caching the result.
+
+        Queries each PackageBaseAddress until one serves the package's
+        index.json. The result - including a negative None - is cached per
+        package name, so repeated files from the same package cost one request.
+        """
+        key = package_name.lower()
+        if key in self._index_cache:
+            return self._index_cache[key]
+
+        versions: list[str] | None = None
+        for url in self.package_base_addresses:
+            try:
+                r = requests.get(f"{url}/{key}/index.json", timeout=self.request_timeout)
+                if r.status_code != 200:
+                    continue
+
+                versions = r.json().get("versions") or None
+            except (requests.RequestException, ValueError) as e:
+                logger.warning(f"NuGet index lookup failed for {key} - {e}")
+                continue
+
+            if versions:
+                break
+
+        self._index_cache[key] = versions
+        return versions
 
     def get_package_url(
         self, file_name: str, package_name: str, package_version: str
@@ -65,41 +126,50 @@ class __NuGetManager:
         if self.disabled:
             return None
 
-        for url in self.package_base_addresses:
-            r = requests.get(f"{url}/{package_name.lower()}/index.json")
-            if r.status_code != 200:
-                continue
+        versions = self._get_versions(package_name)
+        if not versions:
+            return None
 
-            if versions := r.json()["versions"]:
-                if package_version in versions:
-                    # Found a matching package version, check that specific version
-                    if self.file_is_in_package(file_name, package_name, package_version):
-                        return f"pkg:nuget/{package_name}@{package_version}"
-                else:
-                    # Unknown package version; check the latest package version
-                    latest_version = versions[-1]
-                    if self.file_is_in_package(file_name, package_name, latest_version):
-                        return f"pkg:nuget/{package_name}"
+        if package_name in versions:
+            # Found a matching package version, check that specific version
+            if self.file_is_in_package(file_name, package_name, package_version):
+                return f"pkg:nuget/{package_name}@{package_version}"
+        else:
+            # Unknown package version; check the latest stable package version if available
+            stable = [v for v in versions if "-" not in v] or versions
+            latest_version = stable[-1]
+            if self.file_is_in_package(file_name, package_name, latest_version):
+                return f"pkg:nuget/{package_name}"
 
         return None
 
 
-__nuget = __NuGetManager()
+_nuget = _NuGetManager()
 
 
 @surfactant.plugin.hookimpl
 def init_hook(command_name: str | None = None):
-    __nuget.init_urls()
+    if command_name != "generate":
+        return
+
+    if not ConfigManager().get("nuget", "enable_lookups", False):
+        logger.info(
+            "[nuget_purl] NuGet lookups disabled via config (nuget.enable_lookups=false)"
+        )
+        _nuget.disabled = True
+        return
+
+    _nuget.init_urls()
 
 
 @surfactant.plugin.hookimpl
 def establish_relationships(sbom: SBOM, software: Software, metadata) -> list[Relationship] | None:
     """Checks NuGet for a package name and adds it as a name if it exists"""
 
-    if __nuget.disabled:
+    if _nuget.disabled:
         return
 
-    if "dotnetAssembly" not in metadata:
+    if not isinstance(metadata, dict) or "dotnetAssembly" not in metadata:
         logger.debug(
             f"[nuget_purl] Skipping: No dotnetAssembly info for NuGet PURL in {software.UUID}"
         )
@@ -108,7 +178,11 @@ def establish_relationships(sbom: SBOM, software: Software, metadata) -> list[Re
     for dna in metadata["dotnetAssembly"]:
         if software.fileName:
             for name in software.fileName:
-                if purl := __nuget.get_package_url(name, dna["Name"], dna["Version"]):
+                if purl := _nuget.get_package_url(name, dna["Name"], dna["Version"]):
                     if software.name is None:
                         software.name = []
                     software.name.append(NameEntry(purl, "PURL"))
+
+@surfactant.plugin.hookimpl
+def settings_name() -> str | None:
+    return "nuget"
