@@ -7,9 +7,11 @@
 Config Options:
     enable_lookups(bool):
         Enable NuGet network requests, default is False.
-    request_timeout(int):
-        Time to wait for a NuGet network response in seconds, default is 30.
 """
+
+# Don't have this as a configuration until the TUI supports int/float
+# request_timeout(int):
+#     Time to wait for a NuGet network response in seconds, default is 30.
 
 import io
 import pathlib
@@ -28,8 +30,8 @@ class _NuGetManager:
         self.disabled = True
         self.package_base_addresses = []
 
-        config_manager = ConfigManager()
-        self.request_timeout = float(config_manager.get("nuget", "request_timeout", 30.0))
+        # self.request_timeout = float(ConfigManager().get("nuget", "request_timeout", 30.0))
+        self.request_timeout = 30
 
         # package_name.lower() -> version list, or None if the package wasn't
         # found. None is cached to avoid re-querying misses.
