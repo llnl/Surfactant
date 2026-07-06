@@ -9,6 +9,7 @@
 
 # Currently using Ubuntu downloads at: https://partner-images.canonical.com/oci/
 # Another possible source (for other distros): https://images.linuxcontainers.org/
+# See also: https://github.com/llnl/Surfactant/pull/646#issuecomment-4870762467
 
 import dataclasses
 import datetime
@@ -135,7 +136,7 @@ class RootfsManager:
             # This takes a long time so print some status messages on what's happening
             logger.info("Downloading Ubuntu version info")
             for ver_name, _ in self.dirs_on_webpage(""):
-                logger.info(f"Parsing Ubuntu version {ver_name}...")
+                logger.info(f"Parsing Ubuntu version {ver_name}")
                 self.__version_archive.append(
                     (ver_name, [x for x in self.dirs_on_webpage(ver_name) if x[0] != "current/"])
                 )
@@ -143,7 +144,7 @@ class RootfsManager:
         # The latest version is always at the end so use that
         version_name, version_downloads = self.__version_archive[-1]
         # Also use the latest version download
-        download_dir, modified_date = min(version_downloads, key=lambda x: x[1])
+        download_dir, modified_date = max(version_downloads, key=lambda x: x[1])
         # Download it if needed
         arch = self.__ELF_ARCH_TO_DOWNLOAD_ARCH[architecture]
         dir_name = f"ubuntu-{version_name[:-1]}@{arch}@{modified_date.strftime('%Y-%m-%d')}"
@@ -161,13 +162,17 @@ class RootfsManager:
 
                         logger.info(f"Downloading {f}")
 
-                        (self.data_dir / dir_name).mkdir(exist_ok=True)
-                        with (
-                            gzip.GzipFile(fileobj=io.BytesIO(r.raw.read())) as gfile,
-                            tarfile.TarFile(fileobj=gfile) as tfile,
-                        ):
-                            tfile.extractall(self.data_dir / dir_name)
-                            self.__downloaded_info.add(dir_ver)
+                        try:
+                            (self.data_dir / dir_name).mkdir(exist_ok=True)
+                            with (
+                                gzip.GzipFile(fileobj=io.BytesIO(r.raw.read())) as gfile,
+                                tarfile.TarFile(fileobj=gfile) as tfile,
+                            ):
+                                tfile.extractall(self.data_dir / dir_name)
+                                self.__downloaded_info.add(dir_ver)
+                            break
+                        except (gzip.BadGzipFile, tarfile.TarError) as e:
+                            logger.warning(f"Error extracting {f} - {e}")
 
 
 rootfs_manager = RootfsManager()
