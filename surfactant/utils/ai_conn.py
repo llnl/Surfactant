@@ -3,29 +3,60 @@
 #
 # SPDX-License-Identifier: MIT
 
+"""
+Config Options:
+    enable_ai_conn(bool): Enable Connecting to AI APIs. Default is False.
+    model(str): REQUIRED: Name of the large language model to use. Must be set by user.
+    ai_env_key(str): Environment Variable Name for AI API Key. Default is "SURFACTANT_AI_API_KEY".
+    provider(str): Provider backend running the AI model. Default is "ollama".
+    url(str): URL to connect to the LLM at. Default is "http://localhost:11434/v1"
+"""
+
 import json
 import os
 
 from loguru import logger
 
-try:
-    import aisuite as ai
+import surfactant.plugin
+from surfactant.configmanager import ConfigManager
 
-    AI_KEY = os.getenv("SURFACTANT_AI_API_KEY")
-    if AI_KEY is None:
+
+@surfactant.plugin.hookimpl
+def settings_name() -> str | None:
+    return "ai_conn"
+
+
+AICONN_AVAILABLE = False
+
+try:
+    from aisuite import Client
+    from aisuite.provider import ASRError, LLMError
+
+    config = ConfigManager()
+    key_env_name = config.get("ai_conn", "ai_env_key", "SURFACTANT_AI_API_KEY")
+    AICONN_KEY = os.getenv(key_env_name)
+    if AICONN_KEY is None:
         logger.warning(
-            "ai_conn.py: API Key enironment variable (SURFACTANT_AI_API_KEY) not defined. The ai_conn feature will not be used. If using a LLM server without authentication or the LLM configuration is populated in the context file, fill this envionment variable with a dummy value to enable the ai_conn feature."
+            f"ai_conn.py: API Key enironment variable ({key_env_name}) not defined. The ai_conn feature will not be used. If using a LLM server without authentication fill this envionment variable with a dummy value to enable the ai_conn feature."
         )
-        AISUITE_AVAILABLE = False
+        AICONN_AVAILABLE = False
     else:
-        AISUITE_AVAILABLE = True
+        AICONN_AVAILABLE = True
+        AICONN_PROVIDER = config.get("ai_conn", "provider", "ollama")
+        AICONN_URL = config.get("ai_conn", "url", "http://localhost:11434/v1")
+        AICONN_MODEL = config.get("ai_conn", "model")
+        if AICONN_MODEL is None:
+            AICONN_AVAILABLE = False
+            logger.warning(
+                "ai_conn.py: Model not defined in configuration. The ai_conn feature will not be used."
+            )
 except ImportError:
-    AISUITE_AVAILABLE = False
+    AICONN_AVAILABLE = False
     logger.warning("ai_conn.py: aisuite not installed. The ai_conn feature will not be used.")
 
 
 class AiConn:
-    def __init__(self, provider: str, key_env_name: str, url: str, model: str):
+    def __init__(self):
         """
         Handle connections to LLM APIs.
 
@@ -35,27 +66,34 @@ class AiConn:
             url (str): URL where your API server is located (Ex. 'http://localhost:1234/v1')
             model (str): The string required by your API server to access the correct model. (Ex. 'gemma-4-31b', 'gpt-4o')
         """
-        if AISUITE_AVAILABLE:
-            self.provider = provider
-            self.model = model
-            self.key = os.getenv(key_env_name)
-            self.url = url
-            self.connection = ai.Client(
-                provider_configs={self.provider: {"base_url": self.url, "api_key": self.key}}
-            )
+        # pylint: disable-next=global-statement
+        global AICONN_AVAILABLE  # noqa: PLW0603
+        if AICONN_AVAILABLE:
+            self.provider = AICONN_PROVIDER  # pylint: disable=possibly-used-before-assignment
+            self.model = AICONN_MODEL  # pylint: disable=possibly-used-before-assignment
+            self.key = AICONN_KEY  # pylint: disable=possibly-used-before-assignment
+            self.url = AICONN_URL  # pylint: disable=possibly-used-before-assignment
+            try:
+                self.connection = Client(
+                    provider_configs={self.provider: {"base_url": self.url, "api_key": self.key}}
+                )
+            except (ValueError, LLMError, ASRError) as e:
+                AICONN_AVAILABLE = False
+                logger.error(
+                    "ai_conn.py: There was an issue when initializing the LLM connection. Disabling the ai_conn plugin. Error: {e}"
+                )
             self.conn_name = self.provider + ":" + self.model
         else:
             logger.warning(
                 "ai_conn.py: You are attempting to initialize an AiConn instance when aisuite is not available."
             )
 
-    def parse_text(self, prompt: str, in_txt: str, json_schema: dict) -> dict | list | None:
+    def parse_text(self, prompt: str, json_schema: dict | None) -> str | dict | list | None:
         """
         Prompt a LLM and require its response to follow a JSON schema.
 
         Args:
             prompt (str): Instructions for the LLM.
-            in_txt (str): Text for the LLM to parse.
             json_schema (dict): Format for the LLM to follow. Enforcement varies by API.
                 Example:
                 {
@@ -73,46 +111,54 @@ class AiConn:
                     "strict": True
                 }
         """
-        if json_schema["schema"]["type"] != "object" and json_schema["schema"]["type"] != "array":
+        if (
+            json_schema
+            and json_schema["schema"]["type"] != "object"
+            and json_schema["schema"]["type"] != "array"
+        ):
             logger.error(
                 f"ai_conn.py: Input JSON schema does not have type 'object' or 'array':\n{json_schema}"
             )
             return None
         if self.provider == "anthropic" or "claude" in self.conn_name:
-            full_prompt = f"{prompt}\nUse this JSON schema to parse the text\n{json_schema}\n\nText to parse:\n{in_txt}"
+            if json_schema:
+                prompt = f"In your response, strictly follow this json_schema with no other fluff/text.\n<json_schema>\n{json_schema}\n</json_schema>{prompt}"
+
             response = self.connection.chat.completions.create(
                 model=self.conn_name,
-                messages=[{"role": "user", "content": full_prompt}],
+                messages=[{"role": "user", "content": prompt}],
             )
             output = str(response.choices[0].message.content)
-            start_index = output.find("{")
-            end_index = output.find("}")
-            if json_schema["schema"]["type"] == "array":
-                start_index = output.find("[")
-                end_index = output.find("]")
-            try:
-                if start_index == -1 or end_index == -1 or end_index <= start_index:
-                    raise json.JSONDecodeError(
-                        f"Expecting string from LLM to contain both a '{' and '}'", output, 0
-                    )
-                return json.loads(output[start_index : end_index + 1])
-            except json.JSONDecodeError as e:
-                # logger.error(f"ai_conn.py: {e} when trying to parse LLM's response to {full_prompt}")
-                return None
-        else:
-            full_prompt = prompt + in_txt
+            if json_schema:
+                start_index = output.find("{")
+                end_index = output.rfind("}")
+                if json_schema["schema"]["type"] == "array":
+                    start_index = output.find("[")
+                    end_index = output.rfind("]")
+                try:
+                    if start_index == -1 or end_index == -1 or end_index <= start_index:
+                        raise json.JSONDecodeError(
+                            f"Expecting string from LLM to contain both '{' and '}' or '[' and ']'",
+                            output,
+                            0,
+                        )
+                    return json.loads(output[start_index : end_index + 1])
+                except json.JSONDecodeError as e:
+                    logger.error(f"ai_conn.py: {e} when trying to parse LLM's response to {prompt}")
+                    return None
+            return output
+        try:
             response = self.connection.chat.completions.create(
                 model=self.conn_name,
-                messages=[{"role": "user", "content": full_prompt}],
+                messages=[{"role": "user", "content": prompt}],
                 response_format={"type": "json_schema", "json_schema": json_schema},
             )
-            try:
-                return json.loads(response.choices[0].message.content)
-            except json.JSONDecodeError as e:
-                logger.error(
-                    f"ai_conn.py: {e} when trying to parse LLM's response to {full_prompt}"
-                )
-                return None
+            return json.loads(response.choices[0].message.content)
+        except json.JSONDecodeError as e:
+            logger.error(f"ai_conn.py: {e} when trying to parse LLM's response to {prompt}")
+        except (ValueError, LLMError, ASRError) as e:
+            logger.error(f"ai_conn.py: There was an issue when parsing. Error: {e}")
+        return None
 
     def parse_text_complex(self, instructions, in_txt, json_schema, num_tries):
         """
