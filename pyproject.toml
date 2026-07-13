@@ -56,7 +56,7 @@ dependencies = [
     "tomlkit>=0.13,<0.16",
     "textual>=8,<9",
     "requests>=2.32.3",
-    "rarfile==4.2.*",
+    "rarfile>=4.2,<4.4",
     "networkx>=2.6",
     "regex; platform_python_implementation == 'CPython'",
     # Pinned to specific version for potential breaking changes
