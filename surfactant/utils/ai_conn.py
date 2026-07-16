@@ -33,23 +33,26 @@ try:
     from aisuite.provider import ASRError, LLMError
 
     config = ConfigManager()
-    key_env_name = config.get("ai_conn", "ai_env_key", "SURFACTANT_AI_API_KEY")
-    AICONN_KEY = os.getenv(key_env_name)
-    if AICONN_KEY is None:
-        logger.warning(
-            f"ai_conn.py: API Key enironment variable ({key_env_name}) not defined. The ai_conn feature will not be used. If using a LLM server without authentication fill this envionment variable with a dummy value to enable the ai_conn feature."
-        )
-        AICONN_AVAILABLE = False
-    else:
-        AICONN_AVAILABLE = True
-        AICONN_PROVIDER = config.get("ai_conn", "provider", "ollama")
-        AICONN_URL = config.get("ai_conn", "url", "http://localhost:11434/v1")
-        AICONN_MODEL = config.get("ai_conn", "model")
-        if AICONN_MODEL is None:
-            AICONN_AVAILABLE = False
+    enable_ai_conn = config.get("ai_conn", "enable_ai_conn", False)
+
+    if enable_ai_conn != False:
+        key_env_name = config.get("ai_conn", "ai_env_key", "SURFACTANT_AI_API_KEY")
+        AICONN_KEY = os.getenv(key_env_name)
+        if AICONN_KEY is None:
             logger.warning(
-                "ai_conn.py: Model not defined in configuration. The ai_conn feature will not be used."
+                f"ai_conn.py: API Key enironment variable ({key_env_name}) not defined. The ai_conn feature will not be used. If using a LLM server without authentication fill this envionment variable with a dummy value to enable the ai_conn feature."
             )
+            AICONN_AVAILABLE = False
+        else:
+            AICONN_AVAILABLE = True
+            AICONN_PROVIDER = config.get("ai_conn", "provider", "ollama")
+            AICONN_URL = config.get("ai_conn", "url", "http://localhost:11434/v1")
+            AICONN_MODEL = config.get("ai_conn", "model")
+            if AICONN_MODEL is None:
+                AICONN_AVAILABLE = False
+                logger.warning(
+                    "ai_conn.py: Model not defined in configuration. The ai_conn feature will not be used."
+                )
 except ImportError:
     AICONN_AVAILABLE = False
     logger.warning("ai_conn.py: aisuite not installed. The ai_conn feature will not be used.")
@@ -164,4 +167,4 @@ class AiConn:
         """
         Look at adding ability to supply number of tries, changing number of lines from in_txt
         """
-        return
+        return  
