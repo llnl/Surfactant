@@ -167,4 +167,4 @@ class AiConn:
         """
         Look at adding ability to supply number of tries, changing number of lines from in_txt
         """
-        return  
+        return
