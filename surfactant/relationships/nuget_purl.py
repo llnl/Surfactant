@@ -187,7 +187,7 @@ def establish_relationships(sbom: SBOM, software: Software, metadata) -> list[Re
     # "Version" values (could search for that as a fallback if desired); ideal might be to have an
     # option to turn "ProductName" file info field into a NuGet package name
     fi = metadata.get("FileInfo", {})
-    product_version = fi.get("ProductVersion", "").split('+', 1)[0]
+    product_version = fi.get("ProductVersion", "").split("+", 1)[0]
     for dna in metadata.get("dotnetAssembly"):
         if software.fileName:
             for name in software.fileName:
