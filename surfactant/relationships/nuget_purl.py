@@ -123,19 +123,27 @@ class _NuGetManager:
         return versions
 
     def get_package_url(
-        self, file_name: str, package_name: str, package_version: str
+        self, file_name: str, package_name: str, package_version: str | list[str]
     ) -> str | None:
         if self.disabled:
+            return None
+
+        if package_name is None:
             return None
 
         versions = self._get_versions(package_name)
         if not versions:
             return None
 
-        if package_name in versions:
+        if isinstance(package_version, str):
+            candidate_versions = [package_version]
+        else:
+            candidate_versions = package_version
+
+        if found_version := next((v for v in candidate_versions if v in versions), None):
             # Found a matching package version, check that specific version
-            if self.file_is_in_package(file_name, package_name, package_version):
-                return f"pkg:nuget/{package_name}@{package_version}"
+            if self.file_is_in_package(file_name, package_name, found_version):
+                return f"pkg:nuget/{package_name}@{found_version}"
         else:
             # Unknown package version; check the latest stable package version if available
             stable = [v for v in versions if "-" not in v] or versions
@@ -175,13 +183,18 @@ def establish_relationships(sbom: SBOM, software: Software, metadata) -> list[Re
         )
         return
 
-    for dna in metadata["dotnetAssembly"]:
+    # From real samples, found that "FileInfo" "ProductVersion" is often better than "dotnetAssembly"
+    # "Version" values (could search for that as a fallback if desired); ideal might be to have an
+    # option to turn "ProductName" file info field into a NuGet package name
+    fi = metadata.get("FileInfo", {})
+    product_version = fi.get("ProductVersion", "").split('+', 1)[0]
+    for dna in metadata.get("dotnetAssembly"):
         if software.fileName:
             for name in software.fileName:
-                if purl := _nuget.get_package_url(name, dna["Name"], dna["Version"]):
+                if purl := _nuget.get_package_url(name, dna.get("Name"), product_version):
                     if software.name is None:
                         software.name = []
-                    software.name.append(NameEntry(purl, "PURL"))
+                    software.name.append(NameEntry(purl, "package URL (purl)"))
 
 
 @surfactant.plugin.hookimpl
