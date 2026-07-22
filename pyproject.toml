@@ -56,7 +56,7 @@ dependencies = [
     "tomlkit>=0.13,<0.16",
     "textual>=8,<9",
     "requests>=2.32.3",
-    "rarfile==4.2.*",
+    "rarfile>=4.2,<4.4",
     "networkx>=2.6",
     "regex; platform_python_implementation == 'CPython'",
     # Pinned to specific version for potential breaking changes
@@ -72,7 +72,7 @@ dev = ["build", "pre-commit"]
 docs = ["sphinx", "myst-parser", "furo>=2025.9.25", "sphinx-copybutton>=0.5.2"]
 
 [project.optional-dependencies]
-macho = ["lief==0.17.6"]
+macho = ["lief==1.0.0"]
 java = ["javatools>=1.6,==1.*"]
 test = ["pytest", "pytest-asyncio", "jsonschema[format-nongpl]", "freezegun"]
 dev = ["build", "pre-commit"]
