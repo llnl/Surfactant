@@ -35,7 +35,7 @@ try:
     config = ConfigManager()
     enable_ai_conn = config.get("ai_conn", "enable_ai_conn", False)
 
-    if enable_ai_conn != False:
+    if isinstance(enable_ai_conn, bool) and enable_ai_conn:
         key_env_name = config.get("ai_conn", "ai_env_key", "SURFACTANT_AI_API_KEY")
         AICONN_KEY = os.getenv(key_env_name)
         if AICONN_KEY is None:
@@ -72,10 +72,10 @@ class AiConn:
         # pylint: disable-next=global-statement
         global AICONN_AVAILABLE  # noqa: PLW0603
         if AICONN_AVAILABLE:
-            self.provider = AICONN_PROVIDER  # pylint: disable=possibly-used-before-assignment
+            self.provider = AICONN_PROVIDER  # pylint: disable=possibly-used-before-assignment,used-before-assignment
             self.model = AICONN_MODEL  # pylint: disable=possibly-used-before-assignment
             self.key = AICONN_KEY  # pylint: disable=possibly-used-before-assignment
-            self.url = AICONN_URL  # pylint: disable=possibly-used-before-assignment
+            self.url = AICONN_URL  # pylint: disable=possibly-used-before-assignment,used-before-assignment
             try:
                 self.connection = Client(
                     provider_configs={self.provider: {"base_url": self.url, "api_key": self.key}}
