@@ -45,6 +45,9 @@ def _register_plugins(pm: pluggy.PluginManager) -> None:
         pe_relationship,
         rpmfile_relationship,
     )
+    from surfactant.utils import (
+        ai_conn,
+    )
 
     internal_plugins = (
         id_magic,
@@ -73,6 +76,7 @@ def _register_plugins(pm: pluggy.PluginManager) -> None:
         cytrics_reader,
         native_lib_file,
         file_decompression,
+        ai_conn,
     )
     for plugin in internal_plugins:
         pm.register(plugin)
