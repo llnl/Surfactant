@@ -56,11 +56,11 @@ dependencies = [
     "tomlkit>=0.13,<0.16",
     "textual>=8,<9",
     "requests>=2.32.3",
-    "rarfile>=4.2,<4.4",
+    "rarfile>=4.2,<4.5",
     "networkx>=2.6",
     "regex; platform_python_implementation == 'CPython'",
     # Pinned to specific version for potential breaking changes
-    "python-msi==0.0.0b3",
+    "python-msi==0.0.0rc0",
     # Pinned to specific version for potential breaking changes
     "rpmfile==2.2.1",
 ]
