@@ -16,6 +16,11 @@ import surfactant.plugin
 from surfactant.context import ContextEntry
 from surfactant.sbomtypes import SBOM, NameEntry, Software
 
+from surfactant.utils.ai_conn import AICONN_AVAILABLE
+if AICONN_AVAILABLE:
+    from surfactant.utils.ai_conn import AiConn
+    ai = AiConn()
+
 try:
     from qiling import Qiling
     from qiling.const import QL_ARCH, QL_OS, QL_VERBOSE
@@ -28,6 +33,48 @@ except ImportError:
     QILING_AVAILABLE = False
     logger.warning("qiling not installed. QilingExec plugin will be disabled.")
 
+
+def ai_parsing(is_version: bool, out_fd: io.BytesIO, err_fd: io.BytesIO) -> tuple[tuple[str, str | None, str | None] | tuple[None, None, None]]:
+    prompt = "Parse the name of the software and its version from the following stdout output into JSON doing your best to find a match from the output string. Output the most general name of the software as a user would refer to it. If any field is missing return Unknown for that field. \n"
+    # if is_version:
+    #     prompt = prompt + "Version message to parse:\n"
+    # else:
+    #     prompt = prompt + "Help message to parse:\n"
+    stdout = out_fd.getvalue().decode()
+    stderr = out_fd.getvalue().decode()
+    if stdout or stderr:
+        output = stdout or stderr
+        schema = {
+            "name": "stdout_extraction",
+            "schema": {
+                "type": "object",
+                "properties": {
+                    "software_name": {"type": "string", "description": "Name of a piece of software"},
+                    "software_version": {"type": "string"}
+                },
+                "required": ["software_name", "software_version"],
+                "additionalProperties": False,
+            },
+            "strict": True
+        }
+        if AICONN_AVAILABLE: # Make sure there were no configuration issues on the user's end.
+            try:
+                prompt = prompt + output
+                response: dict = ai.parse_text(prompt, schema)
+                if response is None:
+                    (output.splitlines(), None, None)
+                if isinstance(response, dict):
+                    name = response.get("software_name")
+                    version = response.get("software_version")
+                    # if
+                    return (output.splitlines(), name, version)
+                else:
+                    return (output.splitlines(), None, None)
+            except (ConnectionResetError, ConnectionError, TimeoutError) as e:
+                logger.error(f"surfactantplugin_qilingexec.py: Error when using AI parsing: {e}")
+                return (None, None, None) # Integrate into main function and 
+    else:
+        return (None, None, None)
 
 def parse_stdout(fd: io.BytesIO, regex: re.Pattern[str]) -> tuple[str, str] | None:
     """Returns a tuple of the words in fd that match the given regex pattern with either the line the match was found or the first line if no match was found.
@@ -204,7 +251,7 @@ def extract_file_info(  # pylint: disable=too-many-positional-arguments
         # Emulate executable
         try:
             ql_version.run(timeout=timeout)
-        except (QlErrorBase, NotImplementedError, AttributeError) as error:
+        except (QlErrorBase, NotImplementedError, AttributeError, ValueError) as error:
             logger.error(
                 f"qilingexec ran into a(n) {error} exception when trying to run {filename} {arg}"
             )
@@ -215,19 +262,33 @@ def extract_file_info(  # pylint: disable=too-many-positional-arguments
                 f"qilingexec ran into a(n) {error} exception when trying to run {filename} {arg}"
             )
         # If text was sent to stderr instead of stdout, use stderr for parsing
-        result = parse_stdout(out_version_fd, regex) or parse_stdout(err_version_fd, regex)
-        (match, file_details["qilingexec"][arg]) = result or (None, None)
-        if match:  # pylint: disable=no-else-break
-            match_arr = match.split(" ")
-            name = match_arr[0]
-            wrapped_name = NameEntry(name, "product name")
-            version = match_arr[-1]
-            software_field_hints.append(("version", version, 80))
-            software_field_hints.append(("name", wrapped_name, 30))
-            break
-        logger.info(f'No version information returned by {args_version} with "{arg}"')
-        if not file_details["qilingexec"]["stdout"] and arg == ver_arg_list[-1]:
-            return None
+        if AICONN_AVAILABLE:
+            ai_result = ai_parsing(True, out_version_fd, err_version_fd)
+            if ai_result[1] and ai_result[2]:
+                wrapped_name = NameEntry(ai_result[1], "product name")
+                if ai_result[2] != "Unknown":
+                    software_field_hints.append(("version", ai_result[2], 50))
+                if ai_result[1] != "Unknown":
+                    software_field_hints.append(("name", wrapped_name, 20))
+                file_details["qilingexec"][arg] = ai_result[0]
+                if (ai_result[2] != "Unknown" and ai_result[1] != "Unknown"):
+                    break
+        try:
+            wrapped_name
+        except:
+            regex_result = parse_stdout(out_version_fd, regex) or parse_stdout(err_version_fd, regex)
+            (match, file_details["qilingexec"][arg]) = regex_result or (None, None)
+            if match:  # pylint: disable=no-else-break
+                match_arr = match.split(" ")
+                name = match_arr[0]
+                wrapped_name = NameEntry(name, "product name")
+                version = match_arr[-1]
+                software_field_hints.append(("version", version, 80))
+                software_field_hints.append(("name", wrapped_name, 30))
+                break
+            logger.info(f'No version information returned by {args_version} with "{arg}"')
+            if not file_details["qilingexec"][arg] and arg == ver_arg_list[-1]:
+                return None
 
     out_help_fd = pipe.SimpleStringBuffer()
     err_help_fd = pipe.SimpleStringBuffer()
@@ -249,7 +310,7 @@ def extract_file_info(  # pylint: disable=too-many-positional-arguments
         logger.error(
             f"qilingexec ran into a(n) {error} exception when trying to run {filename} {args_help}"
         )
-    except (QlErrorBase, NotImplementedError, AttributeError) as error:
+    except (QlErrorBase, NotImplementedError, AttributeError, ValueError) as error:
         logger.error(
             f"qilingexec ran into a(n) {error} exception when trying to run {filename} {args_help}"
         )
