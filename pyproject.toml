@@ -49,14 +49,14 @@ dependencies = [
     "defusedxml==0.7.*",
     "spdx-tools==0.8.*",
     # Pinned to specific version for potential breaking changes
-    "cyclonedx-python-lib==11.11.0",
+    "cyclonedx-python-lib==11.12.0",
     "pluggy==1.*",
     "click==8.*",
     "loguru==0.7.*",
     "tomlkit>=0.13,<0.16",
     "textual>=8,<9",
     "requests>=2.32.3",
-    "rarfile>=4.2,<4.5",
+    "rarfile>=4.2,<4.6",
     "networkx>=2.6",
     "regex; platform_python_implementation == 'CPython'",
     # Pinned to specific version for potential breaking changes
