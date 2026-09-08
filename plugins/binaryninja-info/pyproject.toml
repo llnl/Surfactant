@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=77.0.3"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "surfactantplugin-binaryninja-info"
+version = "0.1.0"
+authors = [
+    {name = "Benton Wilson", email = "bwilson@nlr.gov"},
+]
+description = "Surfactant plugin providing Binary Ninja structural code analysis metadata"
+readme = "README.md"
+requires-python = ">=3.10"
+keywords = ["surfactant", "binaryninja", "sbom", "binary-analysis"]
+license = "MIT"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Environment :: Console",
+    "Operating System :: MacOS",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: POSIX :: Linux",
+]
+# Binary Ninja is a licensed, out-of-tree Python API and is intentionally not a
+# hard dependency: the plugin imports it lazily and skips analysis if absent.
+dependencies = [
+    "surfactant",
+]
+
+[project.entry-points."surfactant"]
+"surfactantplugin_binaryninja_info" = "surfactantplugin_binaryninja_info"
+
+[tool.setuptools]
+py-modules = ["surfactantplugin_binaryninja_info"]
