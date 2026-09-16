@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=77.0.3"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "surfactantplugin-binwalk-carver"
+version = "0.1.0"
+authors = [
+    {name = "Benton Wilson", email = "bwilson@nlr.gov"},
+]
+description = "Surfactant plugin that carves embedded regions out of files with binwalk and feeds them back into the pipeline"
+readme = "README.md"
+requires-python = ">=3.10"
+keywords = ["surfactant", "binwalk", "sbom", "firmware", "carving", "unpacking"]
+license = "MIT"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Environment :: Console",
+    "Operating System :: POSIX :: Linux",
+]
+dependencies = [
+    "surfactant",
+]
+
+[project.entry-points."surfactant"]
+"surfactantplugin_binwalk_carver" = "surfactantplugin_binwalk_carver"
+
+[tool.setuptools]
+py-modules = ["surfactantplugin_binwalk_carver"]
