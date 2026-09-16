@@ -2,14 +2,14 @@
 # See the top-level LICENSE file for details.
 #
 # SPDX-License-Identifier: MIT
-"""Surfactant plugin that uses Binary Ninja for CFG and POI extraction.
+"""Surfactant plugin that uses Binary Ninja for POI extraction and optional CFG export.
 
-This plugin supports two output profiles:
+This plugin supports two output profiles, with ``poi_fast`` as the default:
 
-* ``full_cfg``: high-fidelity function recovery and per-function control-flow
-    graph (basic blocks + edges).
 * ``poi_fast``: compact, score-ranked points-of-interest (POI) for fast triage
     and downstream deep analysis.
+* ``full_cfg``: high-fidelity function recovery and per-function control-flow
+    graph (basic blocks + edges).
 
 Both profiles load the binary in Binary Ninja's ``controlFlow`` analysis mode,
 which recovers functions and CFGs without running the far more expensive
@@ -558,7 +558,7 @@ def _iter_poi_candidates(
 
 @surfactant.plugin.hookimpl(specname="extract_file_info")
 def binaryninja_info(sbom: SBOM, software: Software, filename: str, filetype: list[str]) -> object:
-    """Extract Binary Ninja control-flow-graph metadata for the SBOM.
+    """Extract Binary Ninja POI metadata or optional CFG metadata for the SBOM.
 
     Args:
         sbom (SBOM): The SBOM the software entry belongs to.

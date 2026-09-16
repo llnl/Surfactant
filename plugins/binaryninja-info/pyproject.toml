@@ -8,7 +8,7 @@ version = "0.1.0"
 authors = [
     {name = "Benton Wilson", email = "bwilson@nlr.gov"},
 ]
-description = "Surfactant plugin providing Binary Ninja structural code analysis metadata"
+description = "Surfactant plugin providing Binary Ninja POI ranking and optional CFG metadata"
 readme = "README.md"
 requires-python = ">=3.10"
 keywords = ["surfactant", "binaryninja", "sbom", "binary-analysis"]
