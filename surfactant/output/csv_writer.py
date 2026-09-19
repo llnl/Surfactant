@@ -56,7 +56,7 @@ def write_software_entry(writer: csv.DictWriter, software: Software, fields: lis
         row["Path"] = p
         # if containerPath is being used, remove the UUID portion at the start
         if pathkey == "containerPath":
-            row["Path"] = "".join(row["Path"].split("/")[1:])
+            row["Path"] = "/".join(row["Path"].split("/")[1:])
         for f in fields:
             # Path already added to row info
             if f == "Path":
