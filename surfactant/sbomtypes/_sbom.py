@@ -1372,7 +1372,7 @@ class SBOM:
                     uuid_updates[u2] = u1
 
                     # Redirect any existing edges from u2 -> u1 in self.graph
-                    if hasattr(self, "graph") and self.graph.has_node(u2):
+                    if u1 != u2 and hasattr(self, "graph") and self.graph.has_node(u2):
                         # Redirect incoming edges to the merged node u1
                         for pred, _, key, attrs in self.graph.in_edges(u2, keys=True, data=True):
                             self.graph.add_edge(pred, u1, key=key, **attrs)
