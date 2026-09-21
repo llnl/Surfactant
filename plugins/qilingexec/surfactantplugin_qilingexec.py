@@ -172,7 +172,7 @@ def get_os_arch(context: ContextEntry, filetype: str, def_os) -> tuple[QL_OS, QL
     return (os_conversion[operating_system], arch_conversion[arch])
 
 
-class QilingConfig: # pylint: disable=too-many-instance-attributes,too-few-public-methods
+class QilingConfig:  # pylint: disable=too-many-instance-attributes,too-few-public-methods
     mount_prefix: str
     varg_list: list[str]
     harg: str
@@ -318,7 +318,7 @@ def extract_file_info(  # pylint: disable=too-many-positional-arguments
         wrapped_name = None
         if AICONN_AVAILABLE:
             ai_result = ai_parsing(True, out_version_fd, err_version_fd)
-            if ai_result is not (None, None, None):
+            if ai_result != (None, None, None):
                 file_details["qilingexec"][arg] = ai_result[0]
                 wrapped_name = NameEntry(ai_result[1], "product name")
                 if ai_result[2] != "Unknown":
