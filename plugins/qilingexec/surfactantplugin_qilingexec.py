@@ -15,10 +15,11 @@ from loguru import logger
 import surfactant.plugin
 from surfactant.context import ContextEntry
 from surfactant.sbomtypes import SBOM, NameEntry, Software
-
 from surfactant.utils.ai_conn import AICONN_AVAILABLE
+
 if AICONN_AVAILABLE:
     from surfactant.utils.ai_conn import AiConn
+
     ai = AiConn()
 
 try:
@@ -34,7 +35,9 @@ except ImportError:
     logger.warning("qiling not installed. QilingExec plugin will be disabled.")
 
 
-def ai_parsing(is_version: bool, out_fd: io.BytesIO, err_fd: io.BytesIO) -> tuple[tuple[str, str | None, str | None] | tuple[None, None, None]]:
+def ai_parsing(
+    is_version: bool, out_fd: io.BytesIO, err_fd: io.BytesIO
+) -> tuple[tuple[str, str | None, str | None] | tuple[None, None, None]]:
     prompt = "Parse the name of the software and its version from the following stdout output into JSON doing your best to find a match from the output string. Output the most general name of the software as a user would refer to it. If any field is missing return Unknown for that field. \n"
     # if is_version:
     #     prompt = prompt + "Version message to parse:\n"
@@ -49,15 +52,18 @@ def ai_parsing(is_version: bool, out_fd: io.BytesIO, err_fd: io.BytesIO) -> tupl
             "schema": {
                 "type": "object",
                 "properties": {
-                    "software_name": {"type": "string", "description": "Name of a piece of software"},
-                    "software_version": {"type": "string"}
+                    "software_name": {
+                        "type": "string",
+                        "description": "Name of a piece of software",
+                    },
+                    "software_version": {"type": "string"},
                 },
                 "required": ["software_name", "software_version"],
                 "additionalProperties": False,
             },
-            "strict": True
+            "strict": True,
         }
-        if AICONN_AVAILABLE: # Make sure there were no configuration issues on the user's end.
+        if AICONN_AVAILABLE:  # Make sure there were no configuration issues on the user's end.
             try:
                 prompt = prompt + output
                 response: dict = ai.parse_text(prompt, schema)
@@ -68,13 +74,13 @@ def ai_parsing(is_version: bool, out_fd: io.BytesIO, err_fd: io.BytesIO) -> tupl
                     version = response.get("software_version")
                     # if
                     return (output.splitlines(), name, version)
-                else:
-                    return (output.splitlines(), None, None)
+                return (output.splitlines(), None, None)
             except (ConnectionResetError, ConnectionError, TimeoutError) as e:
                 logger.error(f"surfactantplugin_qilingexec.py: Error when using AI parsing: {e}")
-                return (None, None, None) # Integrate into main function and 
+                return (None, None, None)  # Integrate into main function and
     else:
         return (None, None, None)
+
 
 def parse_stdout(fd: io.BytesIO, regex: re.Pattern[str]) -> tuple[str, str] | None:
     """Returns a tuple of the words in fd that match the given regex pattern with either the line the match was found or the first line if no match was found.
@@ -113,9 +119,12 @@ def handle_help(fd: io.BytesIO) -> list[str] | None:
 
 
 def env_mismatch(filetype: str, os: QL_OS) -> bool:
-    if "PE" in filetype and os != QL_OS.WINDOWS:
-        return True
-    elif filetype in ("MACHOFAT", "MACHOFAT64", "MACHO32", "MACHO64") and os != QL_OS.MACOS:
+    if (
+        "PE" in filetype
+        and os != QL_OS.WINDOWS
+        or filetype in ("MACHOFAT", "MACHOFAT64", "MACHO32", "MACHO64")
+        and os != QL_OS.MACOS
+    ):
         return True
     return "ELF" in filetype and os in (QL_OS.WINDOWS, QL_OS.DOS, QL_OS.MACOS)
 
@@ -163,6 +172,7 @@ def get_os_arch(context: ContextEntry, filetype: str, def_os) -> tuple[QL_OS, QL
         return None
     return (os_conversion[operating_system], arch_conversion[arch])
 
+
 class QilingConfig:
     mount_prefix: str
     varg_list: list[str]
@@ -174,12 +184,15 @@ class QilingConfig:
     regex: Any
     verbose_level: QL_VERBOSE
 
+
 def ql_conf_factory(current_context: ContextEntry | None, filetype: list[str]):
     if current_context is None:
         return None
     qc = QilingConfig()
     (def_mount, def_os) = (
-        (r"/", r"linux") if platform.system() == "Linux" else ((r"/", r"macos") if platform.system() == "Darwin" else (r"C:\\", r"windows"))
+        (r"/", r"linux")
+        if platform.system() == "Linux"
+        else ((r"/", r"macos") if platform.system() == "Darwin" else (r"C:\\", r"windows"))
     )
     qc.mount_prefix = current_context.get_pconf(__name__, "mount_prefix", def_mount)
     qc.varg_list = current_context.get_pconf(
@@ -209,7 +222,7 @@ def ql_conf_factory(current_context: ContextEntry | None, filetype: list[str]):
         "disasm": QL_VERBOSE.DISASM,
         "debug": QL_VERBOSE.DEBUG,
         "default": QL_VERBOSE.DEFAULT,
-        "dump": QL_VERBOSE.DUMP
+        "dump": QL_VERBOSE.DUMP,
     }
     verbose_level = current_context.get_pconf(__name__, "verbose_level", "off")
     qc.verbose_level = verbose_convert[verbose_level]
@@ -257,10 +270,17 @@ def extract_file_info(  # pylint: disable=too-many-positional-arguments
     """
     # Stop if Qiling is unavailable or the file type isn't some type of executable
     logger.warning(f"Qiling gets loaded with {filetype}")
-    if not QILING_AVAILABLE or not ("ELF" in filetype or "PE" in filetype or "MACHO32" in filetype or "MACHO64" in filetype or "MACHOFAT" in filetype or "MACHOFAT64" in filetype):
+    if not QILING_AVAILABLE or not (
+        "ELF" in filetype
+        or "PE" in filetype
+        or "MACHO32" in filetype
+        or "MACHO64" in filetype
+        or "MACHOFAT" in filetype
+        or "MACHOFAT64" in filetype
+    ):
         return None
     # Set up configuration
-    ql_conf = ql_conf_factory(current_context,filetype)
+    ql_conf = ql_conf_factory(current_context, filetype)
     if ql_conf is None:
         return None
 
@@ -276,15 +296,17 @@ def extract_file_info(  # pylint: disable=too-many-positional-arguments
         logger.warning("Qiling gets to A")
         try:
             ql_version = Qiling(
-            argv=args_version,
-            rootfs=ql_conf.mount_prefix,
-            archtype=ql_conf.arch_type,
-            ostype=ql_conf.os_type,
-            verbose=QL_VERBOSE.DEFAULT,
-            multithread=True,
-        )
+                argv=args_version,
+                rootfs=ql_conf.mount_prefix,
+                archtype=ql_conf.arch_type,
+                ostype=ql_conf.os_type,
+                verbose=QL_VERBOSE.DEFAULT,
+                multithread=True,
+            )
         except QlErrorBase as e:
-            logger.warning(f"qilingexec ran into an error with '{e}' while trying to run '{filename} {arg}'")
+            logger.warning(
+                f"qilingexec ran into an error with '{e}' while trying to run '{filename} {arg}'"
+            )
             return None
         logger.warning("Qiling gets to B")
         ql_version.os.stdout = out_version_fd
@@ -312,12 +334,14 @@ def extract_file_info(  # pylint: disable=too-many-positional-arguments
                 if ai_result[1] != "Unknown":
                     software_field_hints.append(("name", wrapped_name, 20))
                 file_details["qilingexec"][arg] = ai_result[0]
-                if (ai_result[2] != "Unknown" and ai_result[1] != "Unknown"):
+                if ai_result[2] != "Unknown" and ai_result[1] != "Unknown":
                     break
         try:
             wrapped_name
         except:
-            regex_result = parse_stdout(out_version_fd, ql_conf.regex) or parse_stdout(err_version_fd, ql_conf.regex)
+            regex_result = parse_stdout(out_version_fd, ql_conf.regex) or parse_stdout(
+                err_version_fd, ql_conf.regex
+            )
             (match, file_details["qilingexec"][arg]) = regex_result or (None, None)
             if match:  # pylint: disable=no-else-break
                 match_arr = match.split(" ")
