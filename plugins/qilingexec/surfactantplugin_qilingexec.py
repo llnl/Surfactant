@@ -78,8 +78,7 @@ def ai_parsing(
             except (ConnectionResetError, ConnectionError, TimeoutError) as e:
                 logger.error(f"surfactantplugin_qilingexec.py: Error when using AI parsing: {e}")
                 return (None, None, None)  # Integrate into main function and
-    else:
-        return (None, None, None)
+    return (None, None, None)
 
 
 def parse_stdout(fd: io.BytesIO, regex: re.Pattern[str]) -> tuple[str, str] | None:
@@ -269,7 +268,6 @@ def extract_file_info(  # pylint: disable=too-many-positional-arguments
         object: An object to be added to the metadata field for the software entry. May be `None` to add no metadata.
     """
     # Stop if Qiling is unavailable or the file type isn't some type of executable
-    logger.warning(f"Qiling gets loaded with {filetype}")
     if not QILING_AVAILABLE or not (
         "ELF" in filetype
         or "PE" in filetype
@@ -293,7 +291,6 @@ def extract_file_info(  # pylint: disable=too-many-positional-arguments
         args_version = [filename, arg]
         out_version_fd = pipe.SimpleStringBuffer()
         err_version_fd = pipe.SimpleStringBuffer()
-        logger.warning("Qiling gets to A")
         try:
             ql_version = Qiling(
                 argv=args_version,
@@ -303,16 +300,9 @@ def extract_file_info(  # pylint: disable=too-many-positional-arguments
                 verbose=QL_VERBOSE.DEFAULT,
                 multithread=True,
             )
-        except QlErrorBase as e:
-            logger.warning(
-                f"qilingexec ran into an error with '{e}' while trying to run '{filename} {arg}'"
-            )
-            return None
-        logger.warning("Qiling gets to B")
-        ql_version.os.stdout = out_version_fd
-        ql_version.os.stderr = err_version_fd
-        # Emulate executable
-        try:
+            ql_version.os.stdout = out_version_fd
+            ql_version.os.stderr = err_version_fd
+            # Emulate executable
             ql_version.run(timeout=ql_conf.timeout)
         except (QlErrorBase, NotImplementedError, AttributeError, ValueError) as error:
             logger.error(
@@ -338,7 +328,7 @@ def extract_file_info(  # pylint: disable=too-many-positional-arguments
                     break
         try:
             wrapped_name
-        except:
+        except NameError:
             regex_result = parse_stdout(out_version_fd, ql_conf.regex) or parse_stdout(
                 err_version_fd, ql_conf.regex
             )
