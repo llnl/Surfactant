@@ -68,7 +68,7 @@ def ai_parsing(
                 prompt = prompt + output
                 response: dict = ai.parse_text(prompt, schema)
                 if response is None:
-                    (output.splitlines(), None, None)
+                    return (output.splitlines(), None, None)
                 if isinstance(response, dict):
                     name = response.get("software_name")
                     version = response.get("software_version")
@@ -172,7 +172,7 @@ def get_os_arch(context: ContextEntry, filetype: str, def_os) -> tuple[QL_OS, QL
     return (os_conversion[operating_system], arch_conversion[arch])
 
 
-class QilingConfig:
+class QilingConfig: # pylint: disable=too-many-instance-attributes,too-few-public-methods
     mount_prefix: str
     varg_list: list[str]
     harg: str
@@ -315,20 +315,17 @@ def extract_file_info(  # pylint: disable=too-many-positional-arguments
                 f"qilingexec ran into a(n) {error} exception when trying to run {filename} {arg}"
             )
         # If text was sent to stderr instead of stdout, use stderr for parsing
+        wrapped_name = None
         if AICONN_AVAILABLE:
             ai_result = ai_parsing(True, out_version_fd, err_version_fd)
-            if ai_result[1] and ai_result[2]:
+            if ai_result is not (None, None, None):
+                file_details["qilingexec"][arg] = ai_result[0]
                 wrapped_name = NameEntry(ai_result[1], "product name")
                 if ai_result[2] != "Unknown":
                     software_field_hints.append(("version", ai_result[2], 50))
                 if ai_result[1] != "Unknown":
                     software_field_hints.append(("name", wrapped_name, 20))
-                file_details["qilingexec"][arg] = ai_result[0]
-                if ai_result[2] != "Unknown" and ai_result[1] != "Unknown":
-                    break
-        try:
-            wrapped_name
-        except NameError:
+        if wrapped_name is None:
             regex_result = parse_stdout(out_version_fd, ql_conf.regex) or parse_stdout(
                 err_version_fd, ql_conf.regex
             )
