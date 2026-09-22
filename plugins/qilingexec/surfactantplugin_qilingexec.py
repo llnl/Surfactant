@@ -37,14 +37,14 @@ except ImportError:
 
 def ai_parsing(
     is_version: bool, out_fd: io.BytesIO, err_fd: io.BytesIO
-) -> tuple[tuple[str, str | None, str | None] | tuple[None, None, None]]:
+) -> tuple[str, str | None, str | None] | tuple[None, None, None]:
     prompt = "Parse the name of the software and its version from the following stdout output into JSON doing your best to find a match from the output string. Output the most general name of the software as a user would refer to it. If any field is missing return Unknown for that field. \n"
     # if is_version:
     #     prompt = prompt + "Version message to parse:\n"
     # else:
     #     prompt = prompt + "Help message to parse:\n"
     stdout = out_fd.getvalue().decode()
-    stderr = out_fd.getvalue().decode()
+    stderr = err_fd.getvalue().decode()
     if stdout or stderr:
         output = stdout or stderr
         schema = {
@@ -131,8 +131,18 @@ def env_mismatch(filetype: str, os: QL_OS) -> bool:
 def get_os_arch(context: ContextEntry, filetype: str, def_os) -> tuple[QL_OS, QL_ARCH] | None:
     """Returns a tuple of the OS and architecture to use for the binary associated with the current ContextEntry and checks that the current filetype matches the OS being used."""
     operating_system = context.get_pconf(__name__, "os_type", def_os)
-    mac_types = {"MACHOFAT", "MACHOFAT64", "MACHO32", "MACHO64"}
-    def_arch = "x64" if not (set(filetype) & mac_types) else "aarch64"
+    def_arch = ""
+    match platform.machine():
+        case "AMD64" | "amd64" | "x86_64" | "x64":
+            def_arch = "x64"
+        case "arm64" | "aarch64":
+            def_arch = "aarch64"
+        case "arm32" | "ARM32":
+            def_arch = "arm32"
+        case "x86" | "i386" | "i686":
+            def_arch = "x86"
+        case _:
+            def_arch = "x64"
     arch = context.get_pconf(__name__, "arch_type", def_arch)
 
     os_conversion = {
@@ -166,9 +176,10 @@ def get_os_arch(context: ContextEntry, filetype: str, def_os) -> tuple[QL_OS, QL
         logger.error("QilingExec: OS or Arch not in expected values")
         return None
     # Prevent running binaries when environment doesn't match
-    if env_mismatch(filetype, os_conversion[operating_system]):
-        logger.warning(f"Trying to run qilingexec on {filetype} when OS is: {operating_system}")
-        return None
+    for i in filetype:
+        if env_mismatch(i, os_conversion[operating_system]):
+            logger.warning(f"Trying to run qilingexec on {i} when OS is: {operating_system}")
+            return None
     return (os_conversion[operating_system], arch_conversion[arch])
 
 
@@ -285,6 +296,9 @@ def extract_file_info(  # pylint: disable=too-many-positional-arguments
     # Set up static variables for emulation
     file_details: dict[str, Any] = {"qilingexec": {}}
 
+    # Flag for whether there was anything found by AI
+    ai_helped = False
+
     # Loop through all the potential version args
     for arg in ql_conf.varg_list:
         # print(arg) # For debugging
@@ -297,7 +311,7 @@ def extract_file_info(  # pylint: disable=too-many-positional-arguments
                 rootfs=ql_conf.mount_prefix,
                 archtype=ql_conf.arch_type,
                 ostype=ql_conf.os_type,
-                verbose=QL_VERBOSE.DEFAULT,
+                verbose=ql_conf.verbose_level,
                 multithread=True,
             )
             ql_version.os.stdout = out_version_fd
@@ -320,11 +334,14 @@ def extract_file_info(  # pylint: disable=too-many-positional-arguments
             ai_result = ai_parsing(True, out_version_fd, err_version_fd)
             if ai_result != (None, None, None):
                 file_details["qilingexec"][arg] = ai_result[0]
-                wrapped_name = NameEntry(ai_result[1], "product name")
-                if ai_result[2] != "Unknown":
+                if ai_result[2] is not None and ai_result[2] != "Unknown":
                     software_field_hints.append(("version", ai_result[2], 50))
-                if ai_result[1] != "Unknown":
+                    ai_helped = True
+                if ai_result[1] is not None and ai_result[1] != "Unknown":
+                    wrapped_name = NameEntry(ai_result[1], "product name")
                     software_field_hints.append(("name", wrapped_name, 20))
+                    ai_helped = True
+        # Don't care if Regex gets skipped when a name gets found
         if wrapped_name is None:
             regex_result = parse_stdout(out_version_fd, ql_conf.regex) or parse_stdout(
                 err_version_fd, ql_conf.regex
@@ -339,8 +356,11 @@ def extract_file_info(  # pylint: disable=too-many-positional-arguments
                 software_field_hints.append(("name", wrapped_name, 30))
                 break
             logger.info(f'No version information returned by {filename} with "{arg}"')
-            if not file_details["qilingexec"][arg] and arg == ql_conf.varg_list[-1]:
-                return None
+        if not file_details["qilingexec"][arg] and arg == ql_conf.varg_list[-1]:
+            # If there's a field hint for name or version, keep it
+            if ai_helped:
+                break
+            return None
 
     out_help_fd = pipe.SimpleStringBuffer()
     err_help_fd = pipe.SimpleStringBuffer()
@@ -349,7 +369,7 @@ def extract_file_info(  # pylint: disable=too-many-positional-arguments
         rootfs=ql_conf.mount_prefix,
         archtype=ql_conf.arch_type,
         ostype=ql_conf.os_type,
-        verbose=QL_VERBOSE.OFF,
+        verbose=ql_conf.verbose_level,
         multithread=True,
     )
     ql_help.os.stdout = out_help_fd
@@ -368,5 +388,5 @@ def extract_file_info(  # pylint: disable=too-many-positional-arguments
         )
         return None
     help_result = handle_help(out_help_fd) or handle_help(err_help_fd)
-    file_details["qilingexec"][ql_conf.harg[1]] = help_result
+    file_details["qilingexec"][ql_conf.harg] = help_result
     return file_details
