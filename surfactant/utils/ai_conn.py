@@ -85,7 +85,9 @@ class AiConn:
                     )
                 else:
                     self.connection = Client(
-                        provider_configs={self.provider: {"base_url": self.url, "api_key": self.key}}
+                        provider_configs={
+                            self.provider: {"base_url": self.url, "api_key": self.key}
+                        }
                     )
             except (ValueError, LLMError, ASRError, RuntimeError) as e:
                 AICONN_AVAILABLE = False
@@ -97,10 +99,10 @@ class AiConn:
                 logger.error(f"ai_conn.py Could not find a module: {e}")
                 AICONN_AVAILABLE = False
                 return
-            except Exception as e: # pylint: disable=broad-exception-caught
+            except Exception as e:  # pylint: disable=broad-exception-caught
                 logger.error(f"ai_conn.py: No case-specific handler for exception: {e}")
                 AICONN_AVAILABLE = False
-                return None
+                return
             self.conn_name = self.provider + ":" + self.model
         else:
             logger.warning(
@@ -130,7 +132,7 @@ class AiConn:
                     "strict": True
                 }
         """
-        global AICONN_AVAILABLE # noqa: PLW0603
+        global AICONN_AVAILABLE  # noqa: PLW0603
         if (
             json_schema
             and json_schema["schema"]["type"] != "object"
@@ -158,7 +160,7 @@ class AiConn:
                 logger.error(f"ai_conn.py: Could not find a module: {e}")
                 AICONN_AVAILABLE = False
                 return None
-            except Exception as e: # pylint: disable=broad-exception-caught
+            except Exception as e:  # pylint: disable=broad-exception-caught
                 logger.error(f"ai_conn.py: No case-specific handler for exception: {e}")
                 AICONN_AVAILABLE = False
                 return None
