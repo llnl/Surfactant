@@ -89,26 +89,27 @@ class AiConn:
                             self.provider: {"base_url": self.url, "api_key": self.key}
                         }
                     )
-            except (ValueError, LLMError, ASRError, RuntimeError) as e:
-                AICONN_AVAILABLE = False
-                logger.error(
-                    "ai_conn.py: There was an issue when initializing the LLM connection. Disabling the ai_conn plugin. Error: {e}"
-                )
-                return
-            except (ImportError, ModuleNotFoundError) as e:
-                logger.error(f"ai_conn.py Could not find a module: {e}")
-                AICONN_AVAILABLE = False
-                return
             except Exception as e:  # pylint: disable=broad-exception-caught
-                logger.error(f"ai_conn.py: No case-specific handler for exception: {e}")
+                if isinstance(e, (
+                    ValueError, 
+                    LLMError, 
+                    ASRError, 
+                    RuntimeError
+                    )):
+                    logger.error(f"ai_conn.py: There was an issue when parsing.")
+                elif isinstance(e, (ImportError, ModuleNotFoundError)):
+                    logger.error(f"ai_conn.py: Could not find a module: {e}")
+                else:
+                    logger.error(f"ai_conn.py: No case-specific handler for exception: {e}")
                 AICONN_AVAILABLE = False
-                return
+                return None
             self.conn_name = self.provider + ":" + self.model
         else:
             logger.warning(
                 "ai_conn.py: You are attempting to initialize an AiConn instance when aisuite is not available."
             )
 
+    # pylint: disable-next=too-many-return-statements
     def parse_text(self, prompt: str, json_schema: dict | None) -> str | dict | list | None:
         """
         Prompt a LLM and require its response to follow a JSON schema.
@@ -132,6 +133,7 @@ class AiConn:
                     "strict": True
                 }
         """
+        # pylint: disable-next=global-statement
         global AICONN_AVAILABLE  # noqa: PLW0603
         if (
             json_schema
@@ -153,15 +155,18 @@ class AiConn:
                     model=self.conn_name,
                     messages=[{"role": "user", "content": prompt}],
                 )
-            except (ValueError, LLMError, ASRError, RuntimeError) as e:
-                logger.error(f"ai_conn.py: There was an issue when parsing. Error: {e}")
-                return None
-            except (ImportError, ModuleNotFoundError) as e:
-                logger.error(f"ai_conn.py: Could not find a module: {e}")
-                AICONN_AVAILABLE = False
-                return None
             except Exception as e:  # pylint: disable=broad-exception-caught
-                logger.error(f"ai_conn.py: No case-specific handler for exception: {e}")
+                if isinstance(e, (
+                    ValueError, 
+                    LLMError, 
+                    ASRError, 
+                    RuntimeError
+                    )):
+                    logger.error(f"ai_conn.py: There was an issue when parsing.")
+                elif isinstance(e, (ImportError, ModuleNotFoundError)):
+                    logger.error(f"ai_conn.py: Could not find a module: {e}")
+                else:
+                    logger.error(f"ai_conn.py: No case-specific handler for exception: {e}")
                 AICONN_AVAILABLE = False
                 return None
             try:
@@ -185,18 +190,25 @@ class AiConn:
             # Return the output text if no json schema was given
             return output
         try:
-            if self.provider == "ollama":
+            if json_schema is None:
                 response = self.connection.chat.completions.create(
                     model=self.conn_name,
                     messages=[{"role": "user", "content": prompt}],
-                    format=json_schema["schema"],
                 )
+                return response.choices[0].message.content
             else:
-                response = self.connection.chat.completions.create(
-                    model=self.conn_name,
-                    messages=[{"role": "user", "content": prompt}],
-                    response_format={"type": "json_schema", "json_schema": json_schema},
-                )
+                if self.provider == "ollama":
+                    response = self.connection.chat.completions.create(
+                        model=self.conn_name,
+                        messages=[{"role": "user", "content": prompt}],
+                        format=json_schema["schema"],
+                    )
+                else:
+                    response = self.connection.chat.completions.create(
+                        model=self.conn_name,
+                        messages=[{"role": "user", "content": prompt}],
+                        response_format={"type": "json_schema", "json_schema": json_schema},
+                    )
             return json.loads(response.choices[0].message.content)
         except json.JSONDecodeError as e:
             logger.error(f"ai_conn.py: {e} when trying to parse LLM's response to {prompt}")
