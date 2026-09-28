@@ -90,19 +90,14 @@ class AiConn:
                         }
                     )
             except Exception as e:  # pylint: disable=broad-exception-caught
-                if isinstance(e, (
-                    ValueError, 
-                    LLMError, 
-                    ASRError, 
-                    RuntimeError
-                    )):
-                    logger.error(f"ai_conn.py: There was an issue when parsing.")
+                if isinstance(e, (ValueError, LLMError, ASRError, RuntimeError)):
+                    logger.error("ai_conn.py: There was an issue when parsing.")
                 elif isinstance(e, (ImportError, ModuleNotFoundError)):
                     logger.error(f"ai_conn.py: Could not find a module: {e}")
                 else:
                     logger.error(f"ai_conn.py: No case-specific handler for exception: {e}")
                 AICONN_AVAILABLE = False
-                return None
+                return
             self.conn_name = self.provider + ":" + self.model
         else:
             logger.warning(
@@ -156,13 +151,8 @@ class AiConn:
                     messages=[{"role": "user", "content": prompt}],
                 )
             except Exception as e:  # pylint: disable=broad-exception-caught
-                if isinstance(e, (
-                    ValueError, 
-                    LLMError, 
-                    ASRError, 
-                    RuntimeError
-                    )):
-                    logger.error(f"ai_conn.py: There was an issue when parsing.")
+                if isinstance(e, (ValueError, LLMError, ASRError, RuntimeError)):
+                    logger.error("ai_conn.py: There was an issue when parsing.")
                 elif isinstance(e, (ImportError, ModuleNotFoundError)):
                     logger.error(f"ai_conn.py: Could not find a module: {e}")
                 else:
@@ -196,19 +186,18 @@ class AiConn:
                     messages=[{"role": "user", "content": prompt}],
                 )
                 return response.choices[0].message.content
+            if self.provider == "ollama":
+                response = self.connection.chat.completions.create(
+                    model=self.conn_name,
+                    messages=[{"role": "user", "content": prompt}],
+                    format=json_schema["schema"],
+                )
             else:
-                if self.provider == "ollama":
-                    response = self.connection.chat.completions.create(
-                        model=self.conn_name,
-                        messages=[{"role": "user", "content": prompt}],
-                        format=json_schema["schema"],
-                    )
-                else:
-                    response = self.connection.chat.completions.create(
-                        model=self.conn_name,
-                        messages=[{"role": "user", "content": prompt}],
-                        response_format={"type": "json_schema", "json_schema": json_schema},
-                    )
+                response = self.connection.chat.completions.create(
+                    model=self.conn_name,
+                    messages=[{"role": "user", "content": prompt}],
+                    response_format={"type": "json_schema", "json_schema": json_schema},
+                )
             return json.loads(response.choices[0].message.content)
         except json.JSONDecodeError as e:
             logger.error(f"ai_conn.py: {e} when trying to parse LLM's response to {prompt}")
