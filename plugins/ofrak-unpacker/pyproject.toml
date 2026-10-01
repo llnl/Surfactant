@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=77.0.3"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "surfactantplugin-ofrak-unpacker"
+version = "0.1.0"
+authors = [
+    {name = "Benton Wilson", email = "bwilson@nlr.gov"},
+]
+description = "Surfactant plugin that unpacks non-native firmware/container formats with OFRAK"
+readme = "README.md"
+requires-python = ">=3.10"
+keywords = ["surfactant", "ofrak", "sbom", "firmware", "unpacking"]
+license = "MIT"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Environment :: Console",
+    "Operating System :: POSIX :: Linux",
+]
+dependencies = [
+    "surfactant",
+]
+
+[project.optional-dependencies]
+# OFRAK is heavy and pulls external unpacker tooling; keep it optional.
+ofrak = ["ofrak"]
+
+[project.entry-points."surfactant"]
+"surfactantplugin_ofrak_unpacker" = "surfactantplugin_ofrak_unpacker"
+
+[tool.setuptools]
+py-modules = ["surfactantplugin_ofrak_unpacker"]
