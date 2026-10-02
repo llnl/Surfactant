@@ -23,8 +23,16 @@ def _csv_paths(software):
         ["/usr/bin/app"],
         ["ab/c.txt", "a/bc.txt"],
         ["Program Files/Example, Inc./app.exe"],
+        ["C:/Program Files/Example/app.exe"],
     ],
-    ids=["flat", "nested", "absolute", "distinct-paths", "csv-quoting"],
+    ids=[
+        "flat",
+        "nested",
+        "absolute",
+        "distinct-paths",
+        "csv-quoting",
+        "windows-drive",
+    ],
 )
 def test_csv_preserves_container_path_separators(paths):
     software = Software(
