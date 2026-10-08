@@ -67,7 +67,7 @@ def identify_file_type(filepath: str, context: ContextEntry | None = None) -> li
                 )
                 # Check to see if the coff_addr is still within the initial read; if not, we read up
                 # to where it is.
-                if coff_addr > len(magic_bytes):
+                if coff_addr + 4 > len(magic_bytes):
                     magic_bytes += f.read(coff_addr + 4 - len(magic_bytes))
                 # If coff_addr is still longer than what has been read so far, it points off the end
                 # of the file, so the file is either malformed or something else is up.
