@@ -1,7 +1,7 @@
 # Imported and Exported function name extractor Plugin for SBOM Surfactant
 
 A plugin for Surfactant that uses the [angr](https://github.com/angr/angr)
-Python library to extract the imported function names from ELF and PE files.
+Python library to extract the imported and exported function names from ELF and PE files.
 
 ## Quickstart
 
