@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=77.0.3"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "surfactantplugin-angr-expanded"
+version = "0.1.0"
+authors = [
+    {name = "Benton Wilson", email = "bwilson@nlr.gov"},
+]
+description = "Surfactant plugin providing expanded angr binary analysis metadata"
+readme = "README.md"
+requires-python = ">=3.10"
+keywords = ["surfactant", "angr", "sbom", "binary-analysis"]
+license = "MIT"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Environment :: Console",
+    "Operating System :: MacOS",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: POSIX :: Linux",
+]
+dependencies = [
+    "angr",
+    "surfactant",
+]
+
+[project.entry-points."surfactant"]
+"surfactantplugin_angr_expanded" = "surfactantplugin_angr_expanded"
+
+[tool.setuptools]
+py-modules = ["surfactantplugin_angr_expanded"]
