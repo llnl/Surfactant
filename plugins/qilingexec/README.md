@@ -77,7 +77,7 @@ Here is a basic example context file:
 
 - **mount_prefix** (string): Base folder to look for libraries from. If using Surfactant on an extracted filesystem please specify the equivalent of the `/` or `C:\` folders.
 - **ver_arg_list** (string): List of strings to try as arguments to pass into the executable, looking for a regex match for the software version. Set to [`--version`, `-v`, `-V`, `version`] by default. (i.e. `executable_name --version`)
-- **arch_type** (string): ISA of the executable. You will need a rootfs for `mount_prefix` that uses the same ISA as your executable. By default, this is set to x64.
+- **arch_type** (string): ISA of the executable. You will need a rootfs for `mount_prefix` that uses the same ISA as your executable. For x86 and ARM hosts this defaults to match the host, otherwise the ISA is x64.
 - **os_type** (string): What type of Operating System does the executable run under? By default, this is set to Linux.
 - **timeout** (integer): How long (in microseconds) executables are given to run before timing out. By default, this is set to 150000 or 15/100th of a second. Sometimes executables need longer to load their libraries into memory and begin execution. **If you see a Surfactant warning for an Invalid memory fetch, this is a good field to play with.**
 - **regex** (string): Regular expression to match against when searching through the output of `--version` and other options. **Make sure any `\`s have an additional `\` to ensure you have valid JSON in your config file.**
