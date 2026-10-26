@@ -87,9 +87,10 @@ More information on entry points can be found [here](https://setuptools.pypa.io/
 import surfactant.plugin
 from surfactant.sbomtypes import SBOM
 
+
 @surfactant.plugin.hookimpl
 def write_sbom(sbom: SBOM, outfile) -> None:
-  outfile.write(sbom.to_json(indent=10))
+    outfile.write(sbom.to_json(indent=10))
 ```
 #### pyproject.toml
 ```toml
