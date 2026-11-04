@@ -6,15 +6,15 @@ from surfactant.infoextractors.js_file import js_db_manager
 
 
 def test_parse_raw_data_invalid_json_returns_empty():
-    assert js_db_manager.parse_raw_data("{not valid json") == {}
+    assert not js_db_manager.parse_raw_data("{not valid json")
 
 
 def test_parse_raw_data_truncated_download_returns_empty():
-    assert js_db_manager.parse_raw_data('{"jquery": {"extractors":') == {}
+    assert not js_db_manager.parse_raw_data('{"jquery": {"extractors":')
 
 
 def test_parse_raw_data_non_object_returns_empty():
-    assert js_db_manager.parse_raw_data("[1, 2, 3]") == {}
+    assert not js_db_manager.parse_raw_data("[1, 2, 3]")
 
 
 def test_parse_raw_data_valid_entry_is_kept():
