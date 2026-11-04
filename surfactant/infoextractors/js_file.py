@@ -63,6 +63,7 @@ class RetireJSDatabaseManager(BaseDatabaseManager):
             db = json.loads(raw_data)
         except json.JSONDecodeError as err:
             logger.error(f"Failed to parse downloaded database JSON: {err}")
+            return {}
 
         if not isinstance(db, dict):
             logger.error("Expected top-level JSON object for RetireJS data")
