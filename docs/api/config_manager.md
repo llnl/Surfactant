@@ -41,7 +41,7 @@ This automatically handles loading a copy of the config file the first time an i
 To retrieve a stored value, use the `get` method:
 
 ```python
-value = config_manager.get('section', 'option', fallback='default_value')
+value = config_manager.get("section", "option", fallback="default_value")
 ```
 
 - `section`: The section within the configuration file. For plugins this should be the plugin name.
@@ -51,14 +51,14 @@ value = config_manager.get('section', 'option', fallback='default_value')
 Alternatively, dictionary-like access for reading is also supported:
 
 ```python
-value = config_manager['section']['option']
+value = config_manager["section"]["option"]
 ```
 
 However, this makes no guarantees that keys will exist and extra error handling **will be required**. If the `section` is not found then `None` is returned -- trying to access nested keys from this will fail. Furthermore, if the `section` does exist, you will need checks to see if a nested key exists before trying to access its value. A more realistic example would be:
 
 ```python
-section_config = config_manager['section'] # May return `None`
-value = section_config['option'] if section_config and 'option' in section_config else None
+section_config = config_manager["section"]  # May return `None`
+value = section_config["option"] if section_config and "option" in section_config else None
 ```
 
 ### Setting a Value
@@ -66,7 +66,7 @@ value = section_config['option'] if section_config and 'option' in section_confi
 To set a value, use the `set` method:
 
 ```python
-config_manager.set('section', 'option', 'new_value')
+config_manager.set("section", "option", "new_value")
 ```
 
 - `section`: The section within the configuration file. For plugins this should be the plugin name.
