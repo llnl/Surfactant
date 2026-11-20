@@ -91,7 +91,7 @@ class SpecimenContextParamType(click.Path):
                 installprefix = installprefix.as_posix()
             # emulate a context configuration file with the given path
             context = [{"extractPaths": [filepath.as_posix()], "installPrefix": installprefix}]
-        elif param_type in ("CONTEXT"):
+        elif param_type == "CONTEXT":
             with click.open_file(filepath) as f:
                 try:
                     context = json.load(f)
