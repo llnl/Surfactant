@@ -137,13 +137,12 @@ ignore = [
   "D100",   # missing-module-docstring
   "D101",   # missing-class-docstring
   "D102",   # missing-function-docstring
+  "PLR0911", # too-many-return-statements
   "PLR0912", # too-many-branches
-  "PLR0915", # too-many-statements
-  "PLR0912", # too-many-nested-blocks
-  "PLR0914", # too-many-locals
   "PLR0913", # too-many-arguments
-  "PLR2004",  # Magic Number
-  "PLR0911", # To many Return Statements
+  "PLR0914", # too-many-locals
+  "PLR0915", # too-many-statements
+  "PLR2004", # magic-value-comparison
 ]
 
 # don't fix flake8-bugbear (`B`) violations
