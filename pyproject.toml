@@ -142,6 +142,7 @@ ignore = [
   "PLR0912", # too-many-nested-blocks
   "PLR0914", # too-many-locals
   "PLR0913", # too-many-arguments
+  "PLR0917", # too-many-positional-arguments
   "PLR2004",  # Magic Number
   "PLR0911", # To many Return Statements
 ]
