@@ -15,6 +15,12 @@ from loguru import logger
 import surfactant.plugin
 from surfactant.context import ContextEntry
 from surfactant.sbomtypes import SBOM, NameEntry, Software
+from surfactant.utils.ai_conn import AICONN_AVAILABLE
+
+if AICONN_AVAILABLE:
+    from surfactant.utils.ai_conn import AiConn
+
+    ai = AiConn()
 
 try:
     from qiling import Qiling
@@ -27,6 +33,52 @@ try:
 except ImportError:
     QILING_AVAILABLE = False
     logger.warning("qiling not installed. QilingExec plugin will be disabled.")
+
+
+def ai_parsing(
+    is_version: bool, out_fd: io.BytesIO, err_fd: io.BytesIO
+) -> tuple[str, str | None, str | None] | tuple[None, None, None]:
+    prompt = "Parse the name of the software and its version from the following stdout output into JSON doing your best to find a match from the output string. Output the most general name of the software as a user would refer to it. If any field is missing return Unknown for that field. \n"
+    # if is_version:
+    #     prompt = prompt + "Version message to parse:\n"
+    # else:
+    #     prompt = prompt + "Help message to parse:\n"
+    stdout = out_fd.getvalue().decode()
+    stderr = err_fd.getvalue().decode()
+    if stdout or stderr:
+        output = stdout or stderr
+        schema = {
+            "name": "stdout_extraction",
+            "schema": {
+                "type": "object",
+                "properties": {
+                    "software_name": {
+                        "type": "string",
+                        "description": "Name of a piece of software",
+                    },
+                    "software_version": {"type": "string"},
+                },
+                "required": ["software_name", "software_version"],
+                "additionalProperties": False,
+            },
+            "strict": True,
+        }
+        if AICONN_AVAILABLE:  # Make sure there were no configuration issues on the user's end.
+            try:
+                prompt = prompt + output
+                response: dict = ai.parse_text(prompt, schema)
+                if response is None:
+                    return (output.splitlines(), None, None)
+                if isinstance(response, dict):
+                    name = response.get("software_name")
+                    version = response.get("software_version")
+                    # if
+                    return (output.splitlines(), name, version)
+                return (output.splitlines(), None, None)
+            except (ConnectionResetError, ConnectionError, TimeoutError) as e:
+                logger.error(f"surfactantplugin_qilingexec.py: Error when using AI parsing: {e}")
+                return (None, None, None)  # Integrate into main function and
+    return (None, None, None)
 
 
 def parse_stdout(fd: io.BytesIO, regex: re.Pattern[str]) -> tuple[str, str] | None:
@@ -66,15 +118,32 @@ def handle_help(fd: io.BytesIO) -> list[str] | None:
 
 
 def env_mismatch(filetype: str, os: QL_OS) -> bool:
-    if "PE" in filetype and os != QL_OS.WINDOWS:
+    if (
+        "PE" in filetype
+        and os != QL_OS.WINDOWS
+        or filetype in ("MACHOFAT", "MACHOFAT64", "MACHO32", "MACHO64")
+        and os != QL_OS.MACOS
+    ):
         return True
-    return "ELF" in filetype and os in (QL_OS.WINDOWS, QL_OS.DOS)
+    return "ELF" in filetype and os in (QL_OS.WINDOWS, QL_OS.DOS, QL_OS.MACOS)
 
 
 def get_os_arch(context: ContextEntry, filetype: str, def_os) -> tuple[QL_OS, QL_ARCH] | None:
     """Returns a tuple of the OS and architecture to use for the binary associated with the current ContextEntry and checks that the current filetype matches the OS being used."""
     operating_system = context.get_pconf(__name__, "os_type", def_os)
-    arch = context.get_pconf(__name__, "arch_type", "x64")
+    def_arch = ""
+    match platform.machine():
+        case "AMD64" | "amd64" | "x86_64" | "x64":
+            def_arch = "x64"
+        case "arm64" | "aarch64":
+            def_arch = "aarch64"
+        case "arm32" | "ARM32":
+            def_arch = "arm32"
+        case "x86" | "i386" | "i686":
+            def_arch = "x86"
+        case _:
+            def_arch = "x64"
+    arch = context.get_pconf(__name__, "arch_type", def_arch)
 
     os_conversion = {
         "linux": QL_OS.LINUX,
@@ -107,10 +176,67 @@ def get_os_arch(context: ContextEntry, filetype: str, def_os) -> tuple[QL_OS, QL
         logger.error("QilingExec: OS or Arch not in expected values")
         return None
     # Prevent running binaries when environment doesn't match
-    if env_mismatch(filetype, os_conversion[operating_system]):
-        logger.warning(f"Trying to run qilingexec on {filetype} when OS is: {operating_system}")
-        return None
+    for i in filetype:
+        if env_mismatch(i, os_conversion[operating_system]):
+            logger.warning(f"Trying to run qilingexec on {i} when OS is: {operating_system}")
+            return None
     return (os_conversion[operating_system], arch_conversion[arch])
+
+
+class QilingConfig:  # pylint: disable=too-many-instance-attributes,too-few-public-methods
+    mount_prefix: str
+    varg_list: list[str]
+    harg: str
+    arch_type: QL_ARCH
+    os_type: QL_OS
+    timeout: int
+    reg_str: str
+    regex: Any
+    verbose_level: QL_VERBOSE
+
+
+def ql_conf_factory(current_context: ContextEntry | None, filetype: list[str]):
+    if current_context is None:
+        return None
+    qc = QilingConfig()
+    (def_mount, def_os) = (
+        (r"/", r"linux")
+        if platform.system() == "Linux"
+        else ((r"/", r"macos") if platform.system() == "Darwin" else (r"C:\\", r"windows"))
+    )
+    qc.mount_prefix = current_context.get_pconf(__name__, "mount_prefix", def_mount)
+    qc.varg_list = current_context.get_pconf(
+        __name__, "ver_arg_list", ["--version", "-v", "-V", "version"]
+    )
+    os_arch_ret = get_os_arch(current_context, filetype, def_os)
+    if os_arch_ret is not None:
+        (qc.os_type, qc.arch_type) = os_arch_ret
+    else:
+        return None
+    qc.timeout = current_context.get_pconf(__name__, "timeout", 150000)
+    qc.harg = "--help"
+    # Alphanumeric text (plus parenthesis), followed by some text
+    # enclosed by parenthesis, followed by an optional v,
+    # followed by a version number containing some numbers, a period,
+    # at least 1  more number, followed optionally by any
+    # non-whitespace character
+    qc.reg_str = current_context.get_pconf(
+        __name__,
+        "regex",
+        r"[0-9a-zA-Z\(\)]+( \([0-9a-zA-Z ]*\))? (v|V)?[0-9]+\.[0-9]+\S*",
+    )
+    qc.regex = re.compile(qc.reg_str)
+    verbose_convert = {
+        "off": QL_VERBOSE.OFF,
+        "disabled": QL_VERBOSE.DISABLED,
+        "disasm": QL_VERBOSE.DISASM,
+        "debug": QL_VERBOSE.DEBUG,
+        "default": QL_VERBOSE.DEFAULT,
+        "dump": QL_VERBOSE.DUMP,
+    }
+    verbose_level = current_context.get_pconf(__name__, "verbose_level", "off")
+    qc.verbose_level = verbose_convert[verbose_level]
+    return qc
 
 
 @surfactant.plugin.hookimpl
@@ -153,58 +279,46 @@ def extract_file_info(  # pylint: disable=too-many-positional-arguments
         object: An object to be added to the metadata field for the software entry. May be `None` to add no metadata.
     """
     # Stop if Qiling is unavailable or the file type isn't some type of executable
-    if not QILING_AVAILABLE or not ("ELF" in filetype or "PE" in filetype):
+    if not QILING_AVAILABLE or not (
+        "ELF" in filetype
+        or "PE" in filetype
+        or "MACHO32" in filetype
+        or "MACHO64" in filetype
+        or "MACHOFAT" in filetype
+        or "MACHOFAT64" in filetype
+    ):
         return None
     # Set up configuration
-    (def_mount, def_os) = (
-        (r"/", r"linux") if platform.system() == "Linux" else (r"C:\\", r"windows")
-    )
-    mountPoint = current_context.get_pconf(__name__, "mount_prefix", def_mount)
-    ver_arg_list = current_context.get_pconf(
-        __name__, "ver_arg_list", ["--version", "-v", "-V", "version"]
-    )
-    os_arch_ret = get_os_arch(current_context, filetype, def_os)
-    if os_arch_ret:
-        (os, arch) = os_arch_ret
-    else:
+    ql_conf = ql_conf_factory(current_context, filetype)
+    if ql_conf is None:
         return None
-    timeout = current_context.get_pconf(__name__, "timeout", 150000)
-    args_help = [filename, "--help"]
-    # Alphanumeric text (plus parenthesis), followed by some text
-    # enclosed by parenthesis, followed by an optional v,
-    # followed by a version number containing some numbers, a period,
-    # at least 1  more number, followed optionally by any
-    # non-whitespace character
-    reg_string = current_context.get_pconf(
-        __name__,
-        "regex",
-        r"[0-9a-zA-Z\(\)]+( \([0-9a-zA-Z ]*\))? (v|V)?[0-9]+\.[0-9]+\S*",
-    )
 
     # Set up static variables for emulation
-    regex = re.compile(reg_string)
     file_details: dict[str, Any] = {"qilingexec": {}}
 
+    # Flag for whether there was anything found by AI
+    ai_helped = False
+
     # Loop through all the potential version args
-    for arg in ver_arg_list:
+    for arg in ql_conf.varg_list:
         # print(arg) # For debugging
         args_version = [filename, arg]
         out_version_fd = pipe.SimpleStringBuffer()
         err_version_fd = pipe.SimpleStringBuffer()
-        ql_version = Qiling(
-            argv=args_version,
-            rootfs=mountPoint,
-            archtype=arch,
-            ostype=os,
-            verbose=QL_VERBOSE.OFF,
-            multithread=True,
-        )
-        ql_version.os.stdout = out_version_fd
-        ql_version.os.stderr = err_version_fd
-        # Emulate executable
         try:
-            ql_version.run(timeout=timeout)
-        except (QlErrorBase, NotImplementedError, AttributeError) as error:
+            ql_version = Qiling(
+                argv=args_version,
+                rootfs=ql_conf.mount_prefix,
+                archtype=ql_conf.arch_type,
+                ostype=ql_conf.os_type,
+                verbose=ql_conf.verbose_level,
+                multithread=True,
+            )
+            ql_version.os.stdout = out_version_fd
+            ql_version.os.stderr = err_version_fd
+            # Emulate executable
+            ql_version.run(timeout=ql_conf.timeout)
+        except (QlErrorBase, NotImplementedError, AttributeError, ValueError) as error:
             logger.error(
                 f"qilingexec ran into a(n) {error} exception when trying to run {filename} {arg}"
             )
@@ -215,45 +329,64 @@ def extract_file_info(  # pylint: disable=too-many-positional-arguments
                 f"qilingexec ran into a(n) {error} exception when trying to run {filename} {arg}"
             )
         # If text was sent to stderr instead of stdout, use stderr for parsing
-        result = parse_stdout(out_version_fd, regex) or parse_stdout(err_version_fd, regex)
-        (match, file_details["qilingexec"][arg]) = result or (None, None)
-        if match:  # pylint: disable=no-else-break
-            match_arr = match.split(" ")
-            name = match_arr[0]
-            wrapped_name = NameEntry(name, "product name")
-            version = match_arr[-1]
-            software_field_hints.append(("version", version, 80))
-            software_field_hints.append(("name", wrapped_name, 30))
-            break
-        logger.info(f'No version information returned by {args_version} with "{arg}"')
-        if not file_details["qilingexec"]["stdout"] and arg == ver_arg_list[-1]:
+        wrapped_name = None
+        if AICONN_AVAILABLE:
+            ai_result = ai_parsing(True, out_version_fd, err_version_fd)
+            if ai_result != (None, None, None):
+                file_details["qilingexec"][arg] = ai_result[0]
+                if ai_result[2] is not None and ai_result[2] != "Unknown":
+                    software_field_hints.append(("version", ai_result[2], 50))
+                    ai_helped = True
+                if ai_result[1] is not None and ai_result[1] != "Unknown":
+                    wrapped_name = NameEntry(ai_result[1], "product name")
+                    software_field_hints.append(("name", wrapped_name, 20))
+                    ai_helped = True
+        # Don't care if Regex gets skipped when a name gets found
+        if wrapped_name is None:
+            regex_result = parse_stdout(out_version_fd, ql_conf.regex) or parse_stdout(
+                err_version_fd, ql_conf.regex
+            )
+            (match, file_details["qilingexec"][arg]) = regex_result or (None, None)
+            if match:  # pylint: disable=no-else-break
+                match_arr = match.split(" ")
+                name = match_arr[0]
+                wrapped_name = NameEntry(name, "product name")
+                version = match_arr[-1]
+                software_field_hints.append(("version", version, 80))
+                software_field_hints.append(("name", wrapped_name, 30))
+                break
+            logger.info(f'No version information returned by {filename} with "{arg}"')
+        if not file_details["qilingexec"][arg] and arg == ql_conf.varg_list[-1]:
+            # If there's a field hint for name or version, keep it
+            if ai_helped:
+                break
             return None
 
     out_help_fd = pipe.SimpleStringBuffer()
     err_help_fd = pipe.SimpleStringBuffer()
     ql_help = Qiling(
-        argv=args_help,
-        rootfs=mountPoint,
-        archtype=arch,
-        ostype=os,
-        verbose=QL_VERBOSE.OFF,
+        argv=[filename, ql_conf.harg],
+        rootfs=ql_conf.mount_prefix,
+        archtype=ql_conf.arch_type,
+        ostype=ql_conf.os_type,
+        verbose=ql_conf.verbose_level,
         multithread=True,
     )
     ql_help.os.stdout = out_help_fd
     ql_help.os.stderr = err_help_fd
     # Emulate executable
     try:
-        ql_help.run(timeout=timeout)
+        ql_help.run(timeout=ql_conf.timeout)
     except UcError as error:
         # This error occurs even during normal emulation
         logger.error(
-            f"qilingexec ran into a(n) {error} exception when trying to run {filename} {args_help}"
+            f"qilingexec ran into a(n) {error} exception when trying to run {filename} {ql_conf.harg}"
         )
-    except (QlErrorBase, NotImplementedError, AttributeError) as error:
+    except (QlErrorBase, NotImplementedError, AttributeError, ValueError) as error:
         logger.error(
-            f"qilingexec ran into a(n) {error} exception when trying to run {filename} {args_help}"
+            f"qilingexec ran into a(n) {error} exception when trying to run {filename} {ql_conf.harg}"
         )
         return None
     help_result = handle_help(out_help_fd) or handle_help(err_help_fd)
-    file_details["qilingexec"][args_help[1]] = help_result
+    file_details["qilingexec"][ql_conf.harg] = help_result
     return file_details
